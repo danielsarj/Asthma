@@ -6,8 +6,8 @@ batches <- c('B1','B2','B3','B4')
 conditions <- c('NI', 'RV', 'IVA')
 
 # sbtach file topper
-sbatch_topper <- '#!/bin/sh\n' %&% '#SBATCH --time=34:00:00\n' %&% 
-  '#SBATCH --mem=64G\n' %&% '#SBATCH --partition=caslake\n' %&% 
+sbatch_topper <- '#!/bin/sh\n' %&% '#SBATCH --time=36:00:00\n' %&% 
+  '#SBATCH --mem=180G\n#SBATCH --nodes=1\n#SBATCH --ntasks-per-node=20\n' %&% '#SBATCH --partition=caslake\n' %&% 
   '#SBATCH --account=pi-lbarreiro\n'
 
 for (b in 1:length(batches)){
