@@ -43,7 +43,7 @@ sed -i ’s/NC_000022.11/chr22/g’ GCF_000001405.40_GRCh38.p14_genomic.gtf
 sed -i ’s/NC_000023.11/chrX/g’ GCF_000001405.40_GRCh38.p14_genomic.gtf
 sed -i ’s/NC_000024.10/chrY/g’ GCF_000001405.40_GRCh38.p14_genomic.gtf
 sed -i ’s/NC_012920.1/chrMT/g’ GCF_000001405.40_GRCh38.p14_genomic.gtf
-grep -v -E "^chr[0-9]+_" GCF_000001405.40_GRCh38.p14_genomic.gtf > GRCh38.cannonical_chrs.gtf
+grep '^chr' GCF_000001405.40_GRCh38.p14_genomic.gtf | grep -v '^chrY' | grep -v '^chrMT' > GRCh38.cannonical_chrs.gtf
 mv GCF_000001405.40_GRCh38.p14_genomic.gtf GCF_000001405.40_GRCh38.p14_genomic.gtfn 
 
 # concatenate all FASTAs and GTFs
