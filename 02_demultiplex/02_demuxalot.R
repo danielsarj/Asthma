@@ -21,8 +21,8 @@ system('mkdir ' %&% outdir)
 # retrieve paths to input files
 bam_file <- '/project/lbarreiro/USERS/daniel/asthma_project/alignment/'%&% batches[b] %&%'-' %&% conditions[c] %&%'_GRCh38/outs/possorted_genome_bam.bam'
 barcode_file <- '/project/lbarreiro/USERS/daniel/asthma_project/alignment/'%&% batches[b] %&%'-' %&% conditions[c] %&%'_GRCh38/outs/filtered_feature_bc_matrix/barcodes.tsv.gz'
-vcf_file <- '/project/lbarreiro/USERS/daniel/asthma_project/genotypes/'%&% batches[b] %&%'_genotypes.vcf'
-inds <- '/project/lbarreiro/USERS/daniel/asthma_project/genotypes/'%&% batches[b] %&%'_indvs.txt'
+vcf_file <- '/project/lbarreiro/USERS/daniel/asthma_project/genotypes/'%&% batches[b] %&%'_genotypes_filtmetadata.vcf'
+inds <- '/project/lbarreiro/USERS/daniel/asthma_project/genotypes/'%&% batches[b] %&%'_indvs_filtmetadata.txt'
 
 # command line
 command_line <- 'singularity exec --bind ' %&% project_folder %&%
