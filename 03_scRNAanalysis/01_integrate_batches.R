@@ -29,7 +29,6 @@ for (c in 1:length(conditions)){
         NormalizeData() %>% FindVariableFeatures()
       seurat_objs[[b]] <- counts
       
-      
       } else if (b==4){
       # get barcodes with donors assigned
       cells_to_keep <- fread(batches[b]%&%'-'%&%conditions[c]%&%'_GRCh38/demuxalot/assignments_refined.tsv.gz', header=T) %>%
@@ -50,6 +49,15 @@ for (c in 1:length(conditions)){
       
       # save list of QC'd batches
       saveRDS(seurat_objs, file='../scRNAanalysis/'%&%conditions[c]%&%'_QCd.batches.rds')
+      
+      # find integration anchors
+      anchors <- FindIntegrationAnchors(object.list=seurat_objs, dims=1:30)
+      
+      # integrate the datasets & save
+      combined <- IntegrateData(anchorset=anchors, dims=1:30)
+      
+      # save list of QC'd batches
+      saveRDS(combined, file='../scRNAanalysis/'%&%conditions[c]%&%'_integrated.rds')
       
     } else {
       # get barcodes with donors assigned
