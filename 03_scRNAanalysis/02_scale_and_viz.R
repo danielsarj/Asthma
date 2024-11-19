@@ -18,6 +18,7 @@ for (i in 1:length(files)){
   a <- RunUMAP(a, dims = 1:30)
   objs[[i]] <- a
 }
+saveRDS(objs, file='list_scaled.clustered.batches.rds')
 
 DimPlot(objs[[1]], reduction='umap', group.by='orig.ident') | 
   DimPlot(objs[[2]], reduction='umap', group.by='orig.ident') | 
