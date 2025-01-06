@@ -25,7 +25,7 @@ for (c in 1:length(conditions)){
       
       # perform QC and save object in a list
       counts[['percent.mt']] <- PercentageFeatureSet(counts, pattern='^MT-')
-      counts <- counts %>% subset(subset=nFeature_RNA>200 & nFeature_RNA<2500 & percent.mt<5) %>%
+      counts <- counts %>% subset(subset=nFeature_RNA>200 & nFeature_RNA<2500 & percent.mt<10) %>%
         NormalizeData() %>% FindVariableFeatures()
       seurat_objs[[b]] <- counts
       
@@ -43,7 +43,7 @@ for (c in 1:length(conditions)){
       
       # perform QC and save object in a list
       counts[['percent.mt']] <- PercentageFeatureSet(counts, pattern='^MT-')
-      counts <- counts %>% subset(subset=nFeature_RNA>200 & nFeature_RNA<2500 & percent.mt<5) %>%
+      counts <- counts %>% subset(subset=nFeature_RNA>200 & nFeature_RNA<2500 & percent.mt<10) %>%
         NormalizeData() %>% FindVariableFeatures()
       seurat_objs[[b]] <- counts
       
@@ -73,7 +73,7 @@ for (c in 1:length(conditions)){
       
       # perform QC and save object in a list
       counts[['percent.mt']] <- PercentageFeatureSet(counts, pattern='^MT-')
-      counts <- counts %>% subset(subset=nFeature_RNA>200 & nFeature_RNA<2500 & percent.mt<5) %>%
+      counts <- counts %>% subset(subset=nFeature_RNA>200 & nFeature_RNA<2500 & percent.mt<10) %>%
         NormalizeData() %>% FindVariableFeatures()
       seurat_objs[[b]] <- counts
     }
