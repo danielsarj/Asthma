@@ -17,6 +17,7 @@ for (i in 1:length(files)){
   a <- FindNeighbors(a, dims = 1:30) %>%
     FindClusters()
   a <- RunUMAP(a, dims = 1:30)
+  saveRDS(a, file=conditions[i] %&%'_allbatches.scaled.clustered.rds')
   objs[[i]] <- a
 }
 saveRDS(objs, file='list_scaled.clustered.batches.rds')
