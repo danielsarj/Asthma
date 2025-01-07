@@ -9,6 +9,7 @@ files <- list.files(pattern='\\_integrated.rds$')
 objs <- list()
 
 for (i in 1:length(files)){
+  print(c(conditions[i]))
   a <- readRDS('../scRNAanalysis/'%&% conditions[i] %&%'_integrated.rds')
   a[['RNA']] <- JoinLayers(a[['RNA']])
   a <- ScaleData(a)
