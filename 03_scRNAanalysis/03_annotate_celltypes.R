@@ -9,7 +9,7 @@ setwd('/project/lbarreiro/USERS/daniel/asthma_project/scRNAanalysis')
 conditions <- c('NI','RV','IVA')
 umaps <- list()
 
-for (i in 1:length(files)){
+for (i in 1:length(conditions)){
   print(c(conditions[i]))
   
   objs <- readRDS(conditions[i] %&%'_allbatches.scaled.clustered.rds')
