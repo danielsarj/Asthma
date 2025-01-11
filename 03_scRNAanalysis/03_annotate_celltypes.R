@@ -7,7 +7,6 @@ library(tidyverse)
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/scRNAanalysis')
 
 conditions <- c('NI','RV','IVA')
-files <- list.files(pattern='\\_allbatches.scaled.clustered.rds$')
 umaps <- list()
 
 for (i in 1:length(files)){
