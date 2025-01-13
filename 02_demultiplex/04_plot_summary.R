@@ -17,20 +17,22 @@ for (b in 1:length(batches)){
     } else {summary_df <- f}
   }
 }
-summary_df$classification <- gsub('\\+', '', summary_df$classification)
+summary_df$classification <- gsub('\\+', '', summary_df$classification) 
+summary_df$classification <- gsub('\\_.*', '', summary_df$classification)
 
 summary_df <- summary_df %>% group_by(classification, batch, condition) %>% 
   summarise('n_assigs'=sum(assignment_n))
 
+fwrite(summary_df, 'demuxalot_assignments_summary.txt', sep=' ', col.names=T)
+
 summary_df %>% filter(classification %in% c('doublet')==F) %>%
   ggplot(.) + geom_col(aes(x=fct_reorder(classification, batch), y=n_assigs, fill=batch)) + coord_flip() +
-  facet_wrap(~condition)
+  facet_wrap(~condition) + theme_bw()
 
 ggsave('demultiplexing_summary.pdf', height=6, width=8)
 
 summary_df %>% 
   ggplot(.) + geom_col(aes(x=fct_reorder(classification, batch), y=n_assigs, fill=batch)) + coord_flip() +
-  facet_wrap(~condition) + 
-  scale_y_continuous(breaks = seq(0,16000, by=2000))
+  facet_wrap(~condition) + scale_y_continuous(breaks = seq(0,16000, by=2000)) + theme_bw()
 
 ggsave('demultiplexing_summary_wdoublet.pdf', height=6, width=10)
