@@ -23,6 +23,15 @@ for (i in 1:length(conditions)){
                    refdata=list(celltype.l1='celltype.l1', celltype.l2='celltype.l2'),
                      reference.reduction='spca', reduction.model='wnn.umap')
   
+  # clean and organize metadata
+  meta.data <- objs@meta.data
+  second_level <- sub('.*_', '', conditions[i])
+  meta.data$condition <- factor(meta.data$condition, levels=c('NI', second_level))
+  meta.data$predicted.celltype.l1 <- gsub(' ', '_', meta.data$predicted.celltype.l1)
+  meta.data$predicted.celltype.l2 <- gsub(' ', '_', meta.data$predicted.celltype.l2)
+  objs@meta.data <- meta.data
+  
+  # save object
   saveRDS(objs, file=conditions[i] %&%'.integrated.w_celltype.rds')
   
   # save UMAP viz
@@ -30,21 +39,19 @@ for (i in 1:length(conditions)){
           label=TRUE, label.size=5, repel=TRUE)
   ggsave(filename='UMAP_'%&%conditions[i]%&%'_celltypes.pdf', height=6, width=12)
   
-  # analyze metadata
-  metadata <- objs@metadata %>% 
-    filter(predicted.celltype.l1 %in% c('other', 'other T')==FALSE)
-  second_level <- sub('.*_', '', conditions[i])
-  metadata$condition <- factor(metadata$condition, levels=c('NI', second_level))
+  # analyze meta.data
+  meta.data <- objs@meta.data %>% 
+    filter(predicted.celltype.l1 %in% c('other', 'other_T')==FALSE)
   
   ## proportion of celltype per condition
-  summ_condition <- metadata %>% select(condition, predicted.celltype.l1) %>%
+  summ_condition <- meta.data %>% select(condition, predicted.celltype.l1) %>%
     group_by(condition, predicted.celltype.l1) %>% summarise(n=n())
   ggplot(summ_condition) + geom_col(aes(x=condition, y=n, fill=predicted.celltype.l1), position='fill') +
     theme_bw()
   ggsave(filename='BarPlot_'%&% conditions[i]%&%'_proportion.celltypes.perCond.pdf', height=6, width=8)
   
   ## proportion of celltype per indv. and condition
-  summ_indv_condition <- metadata %>% select(condition, IDs, predicted.celltype.l1) %>%
+  summ_indv_condition <- meta.data %>% select(condition, IDs, predicted.celltype.l1) %>%
     group_by(condition, IDs, predicted.celltype.l1) %>% summarise(n=n())
   ggplot(summ_indv_condition) + geom_col(aes(x=IDs, y=n, fill=predicted.celltype.l1), position='fill') +
     facet_wrap(~condition) + theme_bw() + coord_flip()
