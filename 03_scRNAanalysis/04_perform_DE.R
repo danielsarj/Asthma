@@ -55,7 +55,7 @@ for (i in 1:length(conditions)){
     # define design matrix
     design <- model.matrix(~0+IDs+condition, data=mdata)
     
-    # predicted voom
+    # voom
     voom <- voom(count, design, plot=T)
     
     # fit linear model 
@@ -68,7 +68,7 @@ for (i in 1:length(conditions)){
     
     # volcano plot
     ggplot(results) + geom_point(aes(logFC, -log10(adj.P.Val)), size=0.5, alpha=0.5) +
-      theme_bw() + ylab('-log10(adjusted p-value)') + ggtitle(ctype) + 
+      theme_bw() + ylab('-log10(adjusted p-value)') + ggtitle(conditions[i]%&%' - '%&%ctype) + 
       geom_text_repel(aes(logFC, -log10(adj.P.Val), label=ifelse(adj.P.Val<0.00001, 
                                                                  rownames(results), '')), colour='red', size=3)
     ggsave('NI_'%&%conditions[i]%&%'_limma_'%&%ctype%&%'_volcanoplot.pdf', height=6, width=8)
