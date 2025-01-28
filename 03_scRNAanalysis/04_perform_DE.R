@@ -3,7 +3,6 @@ library(SeuratData)
 library(patchwork)
 library(limma)
 library(edgeR)
-library(biomaRt)
 library(ggplot2)
 library(ggrepel)
 library(data.table)
@@ -11,11 +10,8 @@ library(data.table)
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/scRNAanalysis')
 conditions <- c('RV', 'IVA')
 
-# load gene annotation from biomaRt
-ensembl <- useMart('ensembl', dataset='hsapiens_gene_ensembl')
-
-# get gene annotation
-annotations <- getBM(attributes=c('hgnc_symbol','gene_biotype'), mart=ensembl)
+# load gene annotation from ensembl
+annotations <- fread('ensembl_genes.txt')
 
 # keep only protein coding and non-MT genes
 annotations <- annotations$hgnc_symbol[
@@ -33,8 +29,8 @@ for (i in 1:length(conditions)){
   meta.data$condition <- factor(meta.data$condition, levels=c('NI', conditions[i]))
   meta.data$batch <- as.factor(meta.data$batch)
   meta.data$IDs <- as.factor(meta.data$IDs)
-  meta.data$predicted.celltype.l1 <- gsub(' ', '_', meta.data$predicted.celltype.l1)
-  meta.data$predicted.celltype.l2 <- gsub(' ', '_', meta.data$predicted.celltype.l2)
+  meta.data$predicted.celltype.l1 <- gsub(' ', '-', meta.data$predicted.celltype.l1)
+  meta.data$predicted.celltype.l2 <- gsub(' ', '-', meta.data$predicted.celltype.l2)
   objs@meta.data <- meta.data
   
   # aggregate cell types per individual per condition (pseudobulk)
@@ -42,7 +38,8 @@ for (i in 1:length(conditions)){
                                    slot='counts', assays='RNA', return.seurat=T)
 
   # celltype specific DESeq2
-  for (ctype in c('B','CD4_T','CD8_T','DC','Mono','NK')){
+  for (ctype in c('B','CD4-T','CD8-T','DC','Mono','NK')){
+    print(ctype)
     # subset pseudobulk object
     tmp <- subset(bulk_objs, predicted.celltype.l1==ctype)
     
