@@ -4,6 +4,10 @@ library(tidyverse)
 library(data.table)
 library(gridExtra)
 library(ggrepel)
+library(viridis)
+library(ggpointdensity)
+library(UpSetR)
+library(grid)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/DEanalysis')
 conditions <- c('RV', 'IVA')
@@ -37,9 +41,22 @@ for (i in 1:length(conditions)){
 ggplot(full_results) + geom_point(aes(logFC, -log10(adj.P.Val)), size=0.5, alpha=0.5) +
   theme_bw() + ylab('-log10(adjusted p-value)') + facet_grid(cols=vars(celltype), rows=vars(condition))
 ggsave('NI_IVAxRV_limma_facetgrid_volcanoplot.pdf', height=6, width=10)
-colnames(full_results)[1] <- c('Gene')
-rm(results)
 
+# prepare dataframe to compare logFC between conditions
+rv_results <- full_results %>% filter(condition=='RV') %>% select(V1, celltype, logFC)
+colnames(rv_results)[3] <- c('logFC.RV')
+iva_results <- full_results %>% filter(condition=='IVA') %>% select(V1, celltype, logFC)
+colnames(iva_results)[3] <- c('logFC.IVA')
+long_results <- full_join(rv_results, iva_results, by=c('V1', 'celltype'))
+
+# scatter plot with point density 
+ggplot(long_results) + geom_pointdensity(aes(logFC.RV, logFC.IVA)) +
+  stat_smooth(aes(logFC.RV, logFC.IVA), method='lm', geom='smooth', formula=y~x) +
+  geom_abline(slope=1, color='red') + theme_bw() + facet_wrap(~celltype) + scale_color_viridis()
+ggsave('IVAxRV_limma_logFCcorrelation_scatterplot.pdf', height=6, width=9)
+rm(results, long_results, iva_results, rv_results)
+
+colnames(full_results)[1] <- c('Gene')
 ### COMPUTE AVG LOGCPM FOR EACH PSEUDOBULK, AND PLOT THEIR BINS/LOGFCS
 for (i in 1:length(conditions)){
   bulk_objs <- readRDS('NI_'%&%conditions[i]%&%'_pseudobulks.rds')
@@ -134,3 +151,20 @@ ggplot(summary_results) + geom_col(aes(x=celltype, y=n_genes, fill=direction), p
   geom_text(aes(x=celltype, y=n_genes, label=n_genes, group=direction), position=position_dodge(width=0.9),
             vjust=-0.5, size=4) + theme_bw() + facet_wrap(~condition)
 ggsave('NI_IVAxRV_NumOfDEgenes_barplot.pdf', height=4, width=6)
+
+# upset plot
+for (ctype in c('B','CD4-T','CD8-T','DC','Mono','NK')){
+  IVA <- filtered_results %>% filter(celltype==ctype, condition=='IVA') %>% pull(Gene)
+  RV <- filtered_results %>% filter(celltype==ctype, condition=='RV') %>% pull(Gene)
+  
+  if (length(IVA)==0 || length(RV)==0){
+    next
+  }
+  
+  l <- list(IVA=IVA, RV=RV)
+  pdf('NI_IVAxRV_SharedDEgenes_'%&%ctype%&%'_upsetplot.pdf', height=3, width=4, onefile=F)
+  plot.new() 
+  upset(fromList(l), point.size=3.5, line.size=2, text.scale=c(1.3, 1.3, 1, 1, 2, 1.5))
+  grid.text(ctype,x=0.2, y=0.95, gp=gpar(fontsize=20))
+  dev.off()
+}
