@@ -50,10 +50,10 @@ colnames(iva_results)[3] <- c('logFC.IVA')
 long_results <- full_join(rv_results, iva_results, by=c('V1', 'celltype'))
 
 # scatter plot with point density 
-ggplot(long_results) + geom_pointdensity(aes(logFC.RV, logFC.IVA)) +
+ggplot(long_results) + geom_pointdensity(aes(logFC.RV, logFC.IVA), show.legend=F) +
   stat_smooth(aes(logFC.RV, logFC.IVA), method='lm', geom='smooth', formula=y~x) +
   geom_abline(slope=1, color='red') + theme_bw() + facet_wrap(~celltype) + scale_color_viridis()
-ggsave('IVAxRV_limma_logFCcorrelation_scatterplot.pdf', height=6, width=9)
+ggsave('IVAxRV_limma_logFCcorrelation_scatterplot.pdf', height=6, width=7)
 rm(results, long_results, iva_results, rv_results)
 
 colnames(full_results)[1] <- c('Gene')
@@ -123,7 +123,7 @@ for (i in 1:length(conditions)){
     ggplot(tmp) + geom_point(aes(logFC, -log10(adj.P.Val)), size=0.5, alpha=0.5) +
       theme_bw() + ylab('-log10(FDR)') + ggtitle(conditions[i]%&%' - '%&%ctype) +
       geom_text_repel(aes(logFC, -log10(adj.P.Val), label=ifelse(adj.P.Val<0.00001,
-                                                                 Gene, '')), colour='red', size=3)
+                                                                Gene, '')), colour='red', size=3)
     ggsave('NI_'%&%conditions[i]%&%'_limma_'%&%ctype%&%'_avglogCPM.filtered_volcanoplot.pdf', height=6, width=8)
 
     # combine dataframes
@@ -137,6 +137,7 @@ rm(full_results_w.avglogCPM, tmp)
 ggplot(full_results_avglogCPM.filtered) + geom_point(aes(logFC, -log10(adj.P.Val)), size=0.5, alpha=0.5) +
   theme_bw() + ylab('-log10(FDR)') + facet_grid(cols=vars(celltype), rows=vars(condition))
 ggsave('NI_IVAxRV_limma_facetgrid_avglogCPM.filtered_volcanoplot.pdf', height=6, width=10)
+fwrite(full_results_avglogCPM.filtered, 'NI_IVAxRV_limma_results_avglogCPM.filtered.txt', sep=' ')
 
 ### BARPLOT OF DE GENES BASED ON FDR AND LOGFC CUTOFFS
 # filter results 
