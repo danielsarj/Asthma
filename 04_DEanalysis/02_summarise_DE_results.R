@@ -104,8 +104,8 @@ rm(bulk_objs, tmp_bulk, tmp_count, library_sizes, cpm, log_cpm, average_log_cpm,
 # define minimum logCPM thresholds
 logCPMfilter_table <- data.frame(celltype=c('B','CD4-T','CD8-T','DC','Mono','NK',
                                             'B','CD4-T','CD8-T','DC','Mono','NK'),
-                                 threshold=c(1.5,0.2,3.2,2.7,0.2,1.5,
-                                             1.6,0.6,1.9,0.3,0.2,3.2),
+                                 threshold=c(1.4,0.1,2.7,2.4,0.4,1.7,
+                                             2.9,1.2,1.4,0.4,0.1,3.2),
                                  condition=c(rep('IVA',6),rep('RV',6)))
 for (i in 1:length(conditions)){
   for (ctype in c('B','CD4-T','CD8-T','DC','Mono','NK')){
@@ -141,7 +141,7 @@ fwrite(full_results_avglogCPM.filtered, 'NI_IVAxRV_limma_results_avglogCPM.filte
 
 ### BARPLOT OF DE GENES BASED ON FDR AND LOGFC CUTOFFS
 # filter results 
-filtered_results <- full_results_avglogCPM.filtered %>% filter(abs(logFC)>1, adj.P.Val<0.05)
+filtered_results <- full_results_avglogCPM.filtered %>% filter(abs(logFC)>=1, adj.P.Val<0.05)
 
 # get summary
 summary_results <- filtered_results %>% group_by(celltype, condition, direction) %>%
