@@ -39,7 +39,8 @@ for (i in 1:length(conditions)){
 }
 # volcano plot of all them together
 ggplot(full_results) + geom_point(aes(logFC, -log10(adj.P.Val)), size=0.5, alpha=0.5) +
-  theme_bw() + ylab('-log10(adjusted p-value)') + facet_grid(cols=vars(celltype), rows=vars(condition))
+  theme_bw() + ylab('-log10(adjusted p-value)') + facet_grid(cols=vars(celltype), rows=vars(condition)) +
+  geom_hline(yintercept=1.30103, color='red')
 ggsave('NI_IVAxRV_limma_facetgrid_volcanoplot.pdf', height=6, width=10)
 
 # prepare dataframe to compare logFC between conditions
@@ -139,7 +140,8 @@ for (i in 1:length(conditions)){
 rm(full_results_w.avglogCPM, tmp)
 # volcano plot of all them together
 ggplot(full_results_avglogCPM.filtered) + geom_point(aes(logFC, -log10(adj.P.Val)), size=0.5, alpha=0.5) +
-  theme_bw() + ylab('-log10(FDR)') + facet_grid(cols=vars(celltype), rows=vars(condition))
+  theme_bw() + ylab('-log10(FDR)') + facet_grid(cols=vars(celltype), rows=vars(condition)) +
+  geom_hline(yintercept=1.30103, color='red')
 ggsave('NI_IVAxRV_limma_facetgrid_avglogCPM.filtered_volcanoplot.pdf', height=6, width=10)
 fwrite(full_results_avglogCPM.filtered, 'NI_IVAxRV_limma_results_avglogCPM.filtered.txt', sep=' ')
 
