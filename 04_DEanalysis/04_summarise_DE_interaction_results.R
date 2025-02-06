@@ -51,7 +51,7 @@ for (int in interactions){
         # volcano plot
         ggplot(results) + geom_point(aes(logFC, -log10(adj.P.Val)), size=0.5, alpha=0.5) +
           theme_bw() + ylab('-log10(FDR)') + ggtitle(conditions[i]%&%' - '%&%ctype) +
-          geom_text_repel(aes(logFC, -log10(adj.P.Val), label=ifelse(adj.P.Val<0.01,V1, '')), 
+          geom_text_repel(aes(logFC, -log10(adj.P.Val), label=ifelse(adj.P.Val<0.05,gene, '')), 
                       colour='red', size=3)
         ggsave('NI_'%&%conditions[i]%&%'_'%&%int%&%'_limma_'%&%ctype%&%'_volcanoplot.pdf', height=6, width=8)
     
@@ -68,6 +68,3 @@ for (int in interactions){
   ggsave('NI_IVAxRV_'%&%int%&%'_limma_facetgrid_volcanoplot.pdf', height=6, width=10)
   rm(full_results)
 }
-  
-  
-  
