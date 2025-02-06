@@ -51,7 +51,10 @@ for (i in 1:length(conditions)){
     count <- tmp@assays$RNA$counts
     
     # filter count matrix (only keep protein coding genes)
+    count <- tmp@assays$RNA$counts
     count <- count[rownames(count) %in% annotations,]
+    zero_var_genes <- apply(count, 1, var) == 0
+    count <- count[!zero_var_genes, ]
     
     # transform count into dge object
     count <- DGEList(counts=count)
