@@ -98,8 +98,12 @@ for (i in 1:length(conditions)){
   do.call(grid.arrange, c(boxplots[1:length(cells_seurat)], ncol=3))
   dev.off()
 }
+
+avglogCPMdf <- full_results_w.avglogCPM %>% select(Gene, celltype, condition, AVG_logCPM)
+fwrite(avglogCPMdf, 'genes_avglogCPM.txt', sep=' ')
+
 rm(bulk_objs, tmp_bulk, tmp_count, library_sizes, cpm, log_cpm, average_log_cpm, 
-   tmp_full_results, boxplots, full_results)
+   tmp_full_results, boxplots, full_results, avglogCPMdf)
 
 # define minimum logCPM thresholds
 logCPMfilter_table <- data.frame(celltype=c('B','CD4-T','CD8-T','DC','Mono','NK',
