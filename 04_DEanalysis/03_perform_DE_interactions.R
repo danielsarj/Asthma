@@ -28,7 +28,27 @@ for (i in 1:length(conditions)){
   mdata <- objs@meta.data
   mdata <- inner_join(mdata, sample_m, by=c('IDs'='ID')) %>% column_to_rownames('orig.ident')
   objs@meta.data <- mdata
-
+  
+  # plots about the metadata
+  summ <- mdata %>% group_by(condition, predicted.celltype.l1, asthma) %>% summarise(n=n())
+  summ %>% filter(predicted.celltype.l1 %in% c('other', 'other-T')==FALSE) %>% 
+    ggplot(.) + geom_col(aes(x=predicted.celltype.l1, y=n, fill=asthma), position='dodge') + 
+    scale_y_continuous(breaks=seq(0, max(summ$n), by=1)) + theme_bw() + facet_wrap(~condition)
+  ggsave('NI_'%&%conditions[i]%&%'_SampleSizeByAsthmaStatus.pdf', height=3, width=7)
+  
+  summ <- mdata %>% group_by(condition, predicted.celltype.l1, income) %>% summarise(n=n())
+  summ %>% filter(predicted.celltype.l1 %in% c('other', 'other-T')==FALSE) %>% 
+    ggplot(.) + geom_col(aes(x=predicted.celltype.l1, y=n, fill=income), position='dodge') + 
+    scale_y_continuous(breaks=seq(0, max(summ$n), by=1)) + theme_bw() + facet_wrap(~condition)
+  ggsave('NI_'%&%conditions[i]%&%'_SampleSizeByIncomeStatus.pdf', height=3, width=7)
+  
+  summ <- mdata %>% group_by(condition, predicted.celltype.l1, asthma, income) %>% summarise(n=n())
+  summ %>% filter(predicted.celltype.l1 %in% c('other', 'other-T')==FALSE) %>% 
+    ggplot(.) + geom_col(aes(x=predicted.celltype.l1, y=n, fill=condition), position='dodge') + 
+    scale_y_continuous(breaks=seq(0, max(summ$n), by=1)) + theme_bw() + 
+    facet_grid(cols=vars(income), rows=vars(asthma))
+  ggsave('NI_'%&%conditions[i]%&%'_SampleSizeByIncomeStatusANDAsthmaStatus.pdf', height=6, width=15)
+  
   # celltype specific DE
   for (ctype in c('B','CD4-T','CD8-T','DC','Mono','NK')){
     print(ctype)
