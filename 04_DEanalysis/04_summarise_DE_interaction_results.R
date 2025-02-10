@@ -1,12 +1,7 @@
-library(Hmisc)
 library(tidyverse)
 library(data.table)
 library(gridExtra)
 library(ggrepel)
-library(viridis)
-library(ggpointdensity)
-library(UpSetR)
-library(grid)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/DEanalysis')
 conditions <- c('RV', 'IVA')
@@ -33,8 +28,8 @@ for (int in interactions){
         pull(threshold)
     
       # read results per celltype/condition
-      results <- fread('NI_'%&%conditions[i]%&%'_'%&%int%&%'_limma_'%&%ctype%&%'_results.txt', fill=T) %>% 
-        filter(condition!='NI') %>% drop_na()
+      results <- fread('NI_'%&%conditions[i]%&%'_'%&%int%&%'_limma_'%&%ctype%&%'_results.txt') %>% 
+        filter(condition!='NI') %>% drop_na() %>% group_by(gene) %>% slice_min(adj.P.Val) %>% slice_max(abs(t))
       
       if (nrow(results)>0){
         # merge with avg logCPM values
@@ -61,7 +56,9 @@ for (int in interactions){
         } else {full_results <- results}
       }
       }
-    }
+  }
+  fwrite(full_results, 'NI_IVAxRV_'%&%int%&%'_limma_results_avglogCPM.filtered.txt', sep=' ')
+  
   ggplot(full_results) + geom_point(aes(logFC, -log10(adj.P.Val)), size=0.5, alpha=0.5) +
     theme_bw() + ylab('-log10(adjusted p-value)') + facet_grid(cols=vars(celltype), rows=vars(condition)) +
     geom_hline(yintercept=1.30103, color='red')
