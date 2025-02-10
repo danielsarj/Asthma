@@ -92,7 +92,7 @@ for (i in 1:length(conditions)){
         results <- rbind(ni_results, results)
         
         fwrite(results, '../DEanalysis/NI_'%&%conditions[i]%&%'_asthma_limma_'%&%ctype%&%'_results.txt',
-               sep=' ', col.names=T)
+               sep=' ', col.names=T, na='NA')
       } else {
         # filter count matrix (only keep protein coding genes)
         count <- tmp@assays$RNA$counts
@@ -135,7 +135,7 @@ for (i in 1:length(conditions)){
                          tmp5_results, tmp6_results, tmp7_results, tmp8_results)
         
         fwrite(results, '../DEanalysis/NI_'%&%conditions[i]%&%'_income_limma_'%&%ctype%&%'_results.txt',
-               sep=' ', col.names=T)
+               sep=' ', col.names=T, na='NA')
       }
     }
   }
