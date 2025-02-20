@@ -1,0 +1,70 @@
+library(MatrixEQTL)
+library(tidyverse)
+library(data.table)
+library(qqman)
+library(argparse)
+"%&%" <- function(a,b) paste(a,b, sep = "")
+setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping')
+
+parser <- ArgumentParser()
+parser$add_argument('--cond')
+parser$add_argument('--ctype')
+parser$add_argument('--chrom')
+args <- parser$parse_args()
+
+# load expression matrix and dosage file
+# make sure the columns are in the same order
+exp_matrix <- fread(args$cond%&%'_'%&%args$ctype%&%'_rinResiduals.txt')
+dos_matrix <- fread('../genotypes/snp_dosage.txt')
+common_cols <- intersect(names(exp_matrix), names(dos_matrix))  
+dos_matrix <- cbind(dos_matrix[,1], dos_matrix[, ..common_cols])
+setcolorder(dos_matrix, c(names(dos_matrix)[1], setdiff(common_cols, names(dos_matrix)[1])))
+
+# turn into matrices
+dos_matrix_mat <- as.matrix(dos_matrix[,-1])
+rownames(dos_matrix_mat) <- dos_matrix[[1]]
+exp_matrix_mat <- as.matrix(exp_matrix[,-1])
+rownames(exp_matrix_mat) <- exp_matrix[[1]]
+
+# load snp and gene location files
+snp_local <- fread('../genotypes/snp_location.txt')
+gene_local <- fread('gene_location.txt')
+
+# create SlicedData objects
+## genotype data
+snp_d <- SlicedData$new()    
+snp_d$CreateFromMatrix(dos_matrix_mat)
+rm(dos_matrix, dos_matrix_mat)
+## expression data
+exp_d <- SlicedData$new()
+exp_d$CreateFromMatrix(exp_matrix_mat)
+rm(exp_matrix, exp_matrix_mat)
+
+# run main MatrixeQTL function
+me <- Matrix_eQTL_main(
+  snps = snp_d,
+  gene = exp_d,
+  pvOutputThreshold = 0,
+  useModel = modelLINEAR,
+  errorCovariance = numeric(),
+  verbose = TRUE,
+  pvOutputThreshold.cis = 1,
+  snpspos = snp_local,
+  genepos = gene_local,
+  cisDist = 1e6,
+  pvalue.hist = TRUE,
+  min.pv.by.genesnp = FALSE,
+  noFDRsaveMemory = FALSE)
+
+# retrieve and save results
+cis_qtls <- me$cis$eqtls %>% mutate(condition=args$cond, celltype=args$ctype)
+cis_qtls <- inner_join(cis_qtls, snp_local, by=c('snps'='snpid')) %>% 
+  select(snps, chr, pos, gene, statistic, pvalue, FDR, beta, condition, celltype) %>% 
+  arrange(pvalue) %>% distinct(snps, .keep_all = TRUE) %>% arrange(chr, pos)
+fwrite(cis_qtls, 'matrixEQTL_results/'%&%args$cond%&%'_'%&%args$ctype%&%'_cisQTL_sumstats.txt', col.names=T, sep='\t')
+
+# manhattan plot
+pdf('matrixEQTL_results/plots/'%&%args$cond%&%'_'%&%args$ctype%&%'_cisQTL_manhattanplot.pdf', height=5, width=7, onefile=F)
+plot.new() 
+manhattan(cis_qtls, chr='chr', bp='pos', p='pvalue', snp='snps')
+dev.off()
