@@ -1,7 +1,6 @@
 library(MatrixEQTL)
 library(tidyverse)
 library(data.table)
-library(qqman)
 library(argparse)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping')
@@ -57,14 +56,7 @@ me <- Matrix_eQTL_main(
   noFDRsaveMemory = FALSE)
 
 # retrieve and save results
-cis_qtls <- me$cis$eqtls %>% mutate(condition=args$cond, celltype=args$ctype, SE=abs(beta/qnorm(pvalue/2))) %>% 
+cis_qtls <- me$cis$eqtls %>% mutate(condition=args$cond, celltype=args$ctype, SE=abs(beta/qnorm(pvalue/2)))
 cis_qtls <- inner_join(cis_qtls, snp_local, by=c('snps'='snpid')) %>% 
-  select(snps, chr, pos, gene, statistic, pvalue, FDR, beta, SE, condition, celltype) %>% 
-  arrange(pvalue) %>% distinct(snps, .keep_all = TRUE) %>% arrange(chr, pos)
+  select(snps, chr, pos, gene, statistic, pvalue, FDR, beta, SE, condition, celltype) %>% arrange(chr, pos)
 fwrite(cis_qtls, 'matrixEQTL_results/'%&%args$cond%&%'_'%&%args$ctype%&%'_cisQTL_sumstats.txt', col.names=T, sep='\t')
-
-# manhattan plot
-pdf('matrixEQTL_results/plots/'%&%args$cond%&%'_'%&%args$ctype%&%'_cisQTL_manhattanplot.pdf', height=5, width=7, onefile=F)
-plot.new() 
-manhattan(cis_qtls, chr='chr', bp='pos', p='pvalue', snp='snps')
-dev.off()
