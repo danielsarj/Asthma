@@ -4,7 +4,7 @@ library(limma)
 library(tidyverse)
 library(data.table)
 "%&%" <- function(a,b) paste(a,b, sep = "")
-setwd('/Volumes/daniel/asthma_project/QTLmapping')
+setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping')
 conditions <- c('NI', 'RV', 'IVA')
 celltypes <- c('B', 'CD4-T', 'CD8-T', 'Mono', 'NK')
 
