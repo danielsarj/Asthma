@@ -14,7 +14,7 @@ args <- parser$parse_args()
 # load expression matrix and dosage file
 # make sure the columns are in the same order
 exp_matrix <- fread(args$cond%&%'_'%&%args$ctype%&%'_rinResiduals.txt')
-dos_matrix <- fread('../genotypes/snp_dosage.txt')
+dos_matrix <- fread('../genotypes/imputed_vcfs/imputed_chr'%&%args$chrom%&%'_dosage.txt')
 common_cols <- intersect(names(exp_matrix), names(dos_matrix))  
 dos_matrix <- cbind(dos_matrix[,1], dos_matrix[, ..common_cols])
 setcolorder(dos_matrix, c(names(dos_matrix)[1], setdiff(common_cols, names(dos_matrix)[1])))
@@ -26,7 +26,7 @@ exp_matrix_mat <- as.matrix(exp_matrix[,-1])
 rownames(exp_matrix_mat) <- exp_matrix[[1]]
 
 # load snp and gene location files
-snp_local <- fread('../genotypes/snp_location.txt')
+snp_local <- fread('../genotypes/imputed_vcfs/snp_location.txt')
 gene_local <- fread('gene_location.txt')
 
 # create SlicedData objects
@@ -56,7 +56,7 @@ me <- Matrix_eQTL_main(
   noFDRsaveMemory = FALSE)
 
 # retrieve and save results
-cis_qtls <- me$cis$eqtls %>% mutate(condition=args$cond, celltype=args$ctype, SE=abs(beta/qnorm(pvalue/2)))
+cis_qtls <- me$cis$eqtls %>% mutate(condition=cond, celltype=ctype, SE=abs(beta/qnorm(pvalue/2)))
 cis_qtls <- inner_join(cis_qtls, snp_local, by=c('snps'='snpid')) %>% 
   select(snps, chr, pos, gene, statistic, pvalue, FDR, beta, SE, condition, celltype) %>% arrange(chr, pos)
-fwrite(cis_qtls, 'matrixEQTL_results/'%&%args$cond%&%'_'%&%args$ctype%&%'_cisQTL_sumstats.txt', col.names=T, sep='\t')
+fwrite(cis_qtls, 'matrixEQTL_results/'%&%args$cond%&%'_'%&%args$ctype%&%'_'%&%args$chrom%&%'_cisQTL_sumstats.txt', col.names=T, sep='\t')
