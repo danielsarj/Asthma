@@ -5,9 +5,9 @@ library(janitor)
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping')
 
 # create SNP location file
-snp_local <- fread('../genotypes/all_genotypes.bim') %>% select(V2, V1, V4)
+snp_local <- fread('../genotypes/imputed_vcfs/filtered_merged.bim') %>% select(V2, V1, V4)
 colnames(snp_local) <- c('snpid', 'chr', 'pos')
-fwrite(snp_local, '../genotypes/snp_location.txt', col.names=T, sep='\t')
+fwrite(snp_local, '../genotypes/imputed_vcfs/snp_location.txt', col.names=T, sep='\t')
 
 # create gene location file
 gene_local <- fread('../DEanalysis/ensembl_genes.txt') %>% 
