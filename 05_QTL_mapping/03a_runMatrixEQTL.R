@@ -56,7 +56,7 @@ me <- Matrix_eQTL_main(
   noFDRsaveMemory = FALSE)
 
 # retrieve and save results
-cis_qtls <- me$cis$eqtls %>% mutate(condition=cond, celltype=ctype, SE=abs(beta/qnorm(pvalue/2)))
+cis_qtls <- me$cis$eqtls %>% mutate(condition=args$cond, celltype=args$ctype, SE=abs(beta/qnorm(pvalue/2)))
 cis_qtls <- inner_join(cis_qtls, snp_local, by=c('snps'='snpid')) %>% 
   select(snps, chr, pos, gene, statistic, pvalue, FDR, beta, SE, condition, celltype) %>% arrange(chr, pos)
 fwrite(cis_qtls, 'matrixEQTL_results/'%&%args$cond%&%'_'%&%args$ctype%&%'_'%&%args$chrom%&%'_cisQTL_sumstats.txt', col.names=T, sep='\t')
