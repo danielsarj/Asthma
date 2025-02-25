@@ -1,4 +1,5 @@
 "%&%" <- function(a,b) paste(a,b, sep = "")
+setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/jobs')
 
 # arguments
 conditions <- c('NI', 'RV', 'IVA')
