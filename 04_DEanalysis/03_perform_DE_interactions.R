@@ -52,8 +52,15 @@ for (i in 1:length(conditions)){
   # celltype specific DE
   for (ctype in c('B','CD4-T','CD8-T','DC','Mono','NK')){
     print(ctype)
-    # subset pseudobulk object
-    tmp <- subset(objs, predicted.celltype.l1==ctype)
+    
+    # extract metadata for subsetting
+    meta_df <- objs@meta.data
+    filtered_meta <- meta_df %>% filter(predicted.celltype.l1 == ctype)
+    
+    # subset bulk object
+    matching_cells <- rownames(filtered_meta)
+    tmp <- subset(objs, cells=matching_cells)
+    rm(meta_df, filtered_meta, matching_cells)
     
     # extract metadata and count matrices
     mdata <- tmp@meta.data
@@ -61,7 +68,7 @@ for (i in 1:length(conditions)){
     mdata$IDs <- as.factor(mdata$IDs)
     mdata$asthma <- factor(mdata$asthma, levels=c('No', 'Yes'))
     mdata$income <- factor(mdata$income, levels=c('< $10,000', '$10,000-$29,999', '$30,000-$49,999', 
-                                                  '$50,000-$69,999', '$70,000-$89,999'))
+                                                  '$50,000-$69,999', '$70,000-$89,999')) %>% as.numeric()
     
     for (interaction_term in c('asthma', 'income')){
       if (interaction_term=='asthma'){
@@ -114,25 +121,12 @@ for (i in 1:length(conditions)){
         fit <- eBayes(lmFit(voom, design))
         
         # get results
-        tmp1_results <- topTable(fit, coef='conditionNI:income$10,000-$29,999', number=Inf, adjust='BH') %>% 
+        ni_results <- topTable(fit, coef='conditionNI:income', number=Inf, adjust='BH') %>% 
           rownames_to_column('gene') %>% mutate(condition='NI', income='10,000-$29,999')
-        tmp2_results <- topTable(fit, coef='conditionNI:income$30,000-$49,999', number=Inf, adjust='BH') %>% 
-          rownames_to_column('gene') %>% mutate(condition='NI', income='30,000-$49,999')
-        tmp3_results <- topTable(fit, coef='conditionNI:income$50,000-$69,999', number=Inf, adjust='BH') %>% 
-          rownames_to_column('gene') %>% mutate(condition='NI', income='50,000-$69,999')
-        tmp4_results <- topTable(fit, coef='conditionNI:income$70,000-$89,999', number=Inf, adjust='BH') %>% 
-          rownames_to_column('gene') %>% mutate(condition='NI', income='70,000-$89,999')
-        tmp5_results <- topTable(fit, coef='condition'%&%conditions[i]%&%':income$10,000-$29,999', number=Inf, adjust='BH') %>% 
+        results <- topTable(fit, coef='condition'%&%conditions[i]%&%':income', number=Inf, adjust='BH') %>% 
           rownames_to_column('gene') %>% mutate(condition=conditions[i], income='10,000-$29,999')
-        tmp6_results <- topTable(fit, coef='condition'%&%conditions[i]%&%':income$30,000-$49,999', number=Inf, adjust='BH') %>% 
-          rownames_to_column('gene') %>% mutate(condition=conditions[i], income='30,000-$49,999')
-        tmp7_results <- topTable(fit, coef='condition'%&%conditions[i]%&%':income$50,000-$69,999', number=Inf, adjust='BH') %>% 
-          rownames_to_column('gene') %>% mutate(condition=conditions[i], income='50,000-$69,999')
-        tmp8_results <- topTable(fit, coef='condition'%&%conditions[i]%&%':income$70,000-$89,999', number=Inf, adjust='BH') %>% 
-          rownames_to_column('gene') %>% mutate(condition=conditions[i], income='70,000-$89,999')
         
-        results <- rbind(tmp1_results, tmp2_results, tmp3_results, tmp4_results,
-                         tmp5_results, tmp6_results, tmp7_results, tmp8_results)
+        results <- rbind(ni_results, results)
         
         fwrite(results, '../DEanalysis/NI_'%&%conditions[i]%&%'_income_limma_'%&%ctype%&%'_results.txt',
                sep=' ', col.names=T, na='NA')
