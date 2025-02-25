@@ -20,15 +20,17 @@ colnames(gene_local) <- c('geneid', 'chr', 'left', 'right')
 fwrite(gene_local, 'gene_location.txt', col.names=T, sep='\t')
 
 # create dosage file
-dosage <- fread('../genotypes/filtered_genotypes_dosage.raw') %>% 
-  select(-c(FID, PAT, MAT, SEX, PHENOTYPE)) %>% t() %>% as.data.frame() %>% 
-  rownames_to_column() %>% row_to_names(row_number=1)
-tmp_colnames <- colnames(dosage)
-tmp_colnames <- gsub('SEA3', 'SEA-3', tmp_colnames)
-colnames(dosage) <- tmp_colnames
-dosage$IID <- gsub('_A', '', dosage$IID)
-dosage$IID <- gsub('_T', '', dosage$IID)
-dosage$IID <- gsub('_C', '', dosage$IID)
-dosage$IID <- gsub('_G', '', dosage$IID)
-colnames(dosage)[1] <- c('snpid')
-fwrite(dosage, '../genotypes/snp_dosage.txt', col.names=T, sep='\t')
+for (chr in seq(1:22)){
+  dosage <- fread('../genotypes/imputed_vcfs/imputed_chr'%&%chr%&%'_dosage.raw') %>% 
+    select(-c(FID, PAT, MAT, SEX, PHENOTYPE)) %>% t() %>% as.data.frame() %>% 
+    rownames_to_column() %>% row_to_names(row_number=1)
+  tmp_colnames <- colnames(dosage)
+  tmp_colnames <- gsub('SEA3', 'SEA-3', tmp_colnames)
+  colnames(dosage) <- tmp_colnames
+  dosage$IID <- gsub('_A', '', dosage$IID)
+  dosage$IID <- gsub('_T', '', dosage$IID)
+  dosage$IID <- gsub('_C', '', dosage$IID)
+  dosage$IID <- gsub('_G', '', dosage$IID)
+  colnames(dosage)[1] <- c('snpid')
+  fwrite(dosage, '../genotypes/imputed_vcfs/imputed_chr'%&%chr%&%'_dosage.txt', col.names=T, sep='\t')
+}
