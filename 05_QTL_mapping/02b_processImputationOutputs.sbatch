@@ -10,7 +10,7 @@ cd  /project/lbarreiro/USERS/daniel/asthma_project/genotypes/imputed_vcfs
 # bgzip and tabix imputated vcfs 
 for chr in {1..22}; do
        gunzip chr${chr}.dose.vcf.gz
-       /project/lbarreiro/USERS/daniel/SOFTWARE/htslib-1.19/bgzip chr${chr}.dose.vcf
+      /project/lbarreiro/USERS/daniel/SOFTWARE/htslib-1.19/bgzip chr${chr}.dose.vcf
        /project/lbarreiro/USERS/daniel/SOFTWARE/htslib-1.19/tabix -p vcf chr${chr}.dose.vcf.gz
 done
 
@@ -26,6 +26,10 @@ plink --chr 1-22 --keep-allele-order --vcf-idspace-to - --make-bed --out merged 
 
 # perform genotype QC 
 plink --bfile merged --maf 0.05 --hwe 1e-6 --make-bed --out filtered_merged
+
+# change snp IDs
+awk '{print $1, $1":"$4, $3, $4, $5, $6}' filtered_merged.bim > updated.bim
+mv updated.bim filtered_merged.bim
 
 # create dosage files per chr
 for chr in {1..22}; do
