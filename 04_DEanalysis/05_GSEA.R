@@ -13,7 +13,6 @@ human.path.list <- msigdbr(species='Homo sapiens', category='H') %>%
   split(x=.$gene_symbol, f=.$gs_name)
 
 for (int in interactions){
-  
   # load DE limma results
   if (int=='none'){
     DE_results <- fread('NI_IVAxRV_limma_results_avglogCPM.filtered.txt') %>% rename(gene=Gene)
@@ -27,15 +26,9 @@ for (int in interactions){
       # subset based on celltype and condition
       subset_DE_results <- DE_results %>% filter(celltype==ctype, condition==conditions[i]) 
       
-      # format values for fGSEA 
-      if (int=='income'){
-        subset_DE_results <- subset_DE_results %>% group_by(gene) %>% slice_min(adj.P.Val) %>% slice_max(abs(t))
+      # format values for fGSEA
         subset_DE_results <- subset_DE_results %>% arrange(t) %>% select(gene, t)
         subset_DE_results <- setNames(subset_DE_results$t, subset_DE_results$gene)
-      } else {
-        subset_DE_results <- subset_DE_results %>% arrange(t) %>% select(gene, t)
-        subset_DE_results <- setNames(subset_DE_results$t, subset_DE_results$gene)
-      }
       
       # run fGSEA
       fgseaRes <- fgsea(pathways=human.path.list,

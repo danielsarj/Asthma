@@ -1,6 +1,5 @@
 library(tidyverse)
 library(data.table)
-library(gridExtra)
 library(ggrepel)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/DEanalysis')
@@ -29,7 +28,7 @@ for (int in interactions){
     
       # read results per celltype/condition
       results <- fread('NI_'%&%conditions[i]%&%'_'%&%int%&%'_limma_'%&%ctype%&%'_results.txt') %>% 
-        filter(condition!='NI') %>% drop_na() %>% group_by(gene) %>% slice_min(adj.P.Val) %>% slice_max(abs(t))
+        filter(condition!='NI')
       
       if (nrow(results)>0){
         # merge with avg logCPM values
@@ -42,12 +41,12 @@ for (int in interactions){
         
         # compute new adjusted FDR
         results$adj.P.Val <- p.adjust(results$P.Value, method='BH', n=nrow(results))
-    
+
         # volcano plot
         ggplot(results) + geom_point(aes(logFC, -log10(adj.P.Val)), size=0.5, alpha=0.5) +
           theme_bw() + ylab('-log10(FDR)') + ggtitle(conditions[i]%&%' - '%&%ctype) +
           geom_text_repel(aes(logFC, -log10(adj.P.Val), label=ifelse(adj.P.Val<0.05,gene, '')), 
-                      colour='red', size=3)
+                      colour='red', size=3) 
         ggsave('NI_'%&%conditions[i]%&%'_'%&%int%&%'_limma_'%&%ctype%&%'_volcanoplot.pdf', height=6, width=8)
     
         # combine dataframes
