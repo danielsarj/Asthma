@@ -24,7 +24,7 @@ for (cond in conditions){
       } else {full_results <- tmp}
     }
     # save compiled results
-    fwrite(full_results, cond%&%'_'%&%ctype%&%'_cisQTL_sumstats.txt', sep=' ')
+    fwrite(full_results, cond%&%'_'%&%ctype%&%'_cisQTL_sumstats.txt', quote=F, sep='\t', na='NA')
     rm(full_results)
   }
 }
