@@ -65,7 +65,7 @@ for (cond in conditions){
     } else {random_df <- tmp}
   }
 }
-fwrite(random_df, '../mashr_in_random_df.txt', sep=' ', quote=F)
+fwrite(random_df, '../mashr_in_random_df.txt', quote=F, sep=' ', na='NA')
 rm(random_df, tmp, combined_snps)
     
 # finally, get betas/SEs for each top cis-snps pair for every conditions/celltypes
@@ -82,5 +82,5 @@ for (cond in conditions){
     } else {strong_df <- tmp}
   }
 }
-fwrite(strong_df, '../mashr_in_strong_df.txt', sep=' ', quote=F)
+fwrite(strong_df, '../mashr_in_strong_df.txt', quote=F, sep=' ', na='NA')
 rm(strong_df, tmp)
