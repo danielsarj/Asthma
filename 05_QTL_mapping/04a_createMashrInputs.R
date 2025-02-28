@@ -50,14 +50,14 @@ rm(tmp)
 top_pairs <- top_pairs %>% select(-FDR)
 
 # get betas/SEs for random cis-snps pairs for every conditions/celltypes
-combined_snps <- combined_snps %>% slice_sample(n=20000)
+combined_snps <- combined_snps %>% slice_sample(n=200000)
 for (cond in conditions){
   print(cond)
   for (ctype in celltypes){
     print(ctype)
     tmp <- fread(cond%&%'_'%&%ctype%&%'_cisQTL_sumstats.txt.gz') %>% 
       select(gene, snps, beta, SE) %>% right_join(combined_snps, by=c('gene', 'snps')) %>%
-      group_by(gene, snps) %>% slice_sample(n=1)
+      group_by(gene, snps) %>% slice_head(n=1)
     colnames(tmp)[3:4] <- c(cond%&%'_'%&%ctype%&%'_beta', cond%&%'_'%&%ctype%&%'_SE')
     
     if (exists('random_df')){
