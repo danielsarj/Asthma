@@ -1,4 +1,5 @@
 library(tidyverse)
+library(reshape2) 
 library(data.table)
 library(mashr)
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping')
@@ -27,13 +28,41 @@ strong_pairs <- strong_df %>% select(gene, snps)
 rm(strong_df, strong_beta_df, strong_se_df)
 
 # obtain data driven covariances
-U.pca <- cov_pca(mash_strong, ncol(mash_strong[['Bhat']]))
+U.pca <- cov_pca(mash_strong, 15)
 U.ed <- cov_ed(mash_strong, U.pca)
 U.c <- cov_canonical(mash_random)
 
+# create infection covariance matrices
+U.NI <- matrix(nrow=15, ncol=15)
+U.NI[,1:5] <- c(rep(1,5),rep(0,10))
+U.NI[,6:15] <- c(rep(0,15))
+
+U.RV <- matrix(nrow=15, ncol=15)
+U.RV[,1:5] <- c(rep(0,15))
+U.RV[,11:15] <- c(rep(0,15))
+U.RV[,6:10] <- c(rep(0,5),rep(1,5),rep(0,5))
+
+U.IVA <- matrix(nrow=15, ncol=15)
+U.IVA[,1:10] <- c(rep(0,15))
+U.IVA[,11:15] <- c(rep(0,10),rep(1,5))
+
+U.infection <- list(U.NI, U.RV, U.IVA)
+names(U.infection) <- c('NI','RV','IVA')
+
 # fit mash models 
-m <- mash(mash_random, Ulist=c(U.ed,U.c), outputlevel=1)
+m <- mash(mash_random, Ulist=c(U.ed,U.c,U.infection), outputlevel=1)
 m2 <- mash(mash_strong, g=get_fitted_g(m), fixg=TRUE)
+
+# assess sharing of significant signals among each pair of conditions by posterior means
+m.pairwise_PM <- get_pairwise_sharing(m2, lfsr_thresh=0.1, factor=0.5)
+colnames(m.pairwise_PM) <- gsub('_beta', '', colnames(m.pairwise_PM))
+rownames(m.pairwise_PM) <- gsub('_beta', '', rownames(m.pairwise_PM))
+fwrite(m.pairwise_PM, 'mashr_correlation_sigresults.txt', quote=F, sep=' ', 
+       row.names=T, col.names=T)
+ggplot(melt(m.pairwise_PM), aes(x=Var1, y=Var2, fill=value)) +
+  geom_tile() + scale_fill_gradient2(low='blue', mid='white', high='red', midpoint=0.7) +
+  theme_bw() + theme(axis.text.x=element_text(angle=45, hjust=1))
+ggsave('mashr_correlation_sigresults.pdf', height=5, width=6)
 
 # get posterior summaries
 p_lfsr <- get_lfsr(m2) # local false sign rate
