@@ -54,15 +54,27 @@ m <- mash(mash_random, Ulist=c(U.ed,U.c,U.infection), outputlevel=1)
 m2 <- mash(mash_strong, g=get_fitted_g(m), fixg=TRUE)
 
 # assess sharing of significant signals among each pair of conditions by posterior means
+## lfsr = 0.1
 m.pairwise_PM <- get_pairwise_sharing(m2, lfsr_thresh=0.1, factor=0.5)
 colnames(m.pairwise_PM) <- gsub('_beta', '', colnames(m.pairwise_PM))
 rownames(m.pairwise_PM) <- gsub('_beta', '', rownames(m.pairwise_PM))
-fwrite(m.pairwise_PM, 'mashr_correlation_sigresults.txt', quote=F, sep=' ', 
+fwrite(m.pairwise_PM, 'mashr_correlation_sigresults_lfsr0.1.txt', quote=F, sep=' ', 
        row.names=T, col.names=T)
 ggplot(melt(m.pairwise_PM), aes(x=Var1, y=Var2, fill=value)) +
   geom_tile() + scale_fill_gradient2(low='blue', mid='white', high='red', midpoint=0.7) +
   theme_bw() + theme(axis.text.x=element_text(angle=45, hjust=1))
-ggsave('mashr_correlation_sigresults.pdf', height=5, width=6)
+ggsave('mashr_correlation_sigresults_lfsr0.1.pdf', height=5, width=6)
+
+## lfsr = 0.05
+m.pairwise_PM <- get_pairwise_sharing(m2, lfsr_thresh=0.05, factor=0.5)
+colnames(m.pairwise_PM) <- gsub('_beta', '', colnames(m.pairwise_PM))
+rownames(m.pairwise_PM) <- gsub('_beta', '', rownames(m.pairwise_PM))
+fwrite(m.pairwise_PM, 'mashr_correlation_sigresults_lfsr0.05.txt', quote=F, sep=' ', 
+       row.names=T, col.names=T)
+ggplot(melt(m.pairwise_PM), aes(x=Var1, y=Var2, fill=value)) +
+  geom_tile() + scale_fill_gradient2(low='blue', mid='white', high='red', midpoint=0.7) +
+  theme_bw() + theme(axis.text.x=element_text(angle=45, hjust=1))
+ggsave('mashr_correlation_sigresults_lfsr0.05.pdf', height=5, width=6)
 
 # get posterior summaries
 p_lfsr <- get_lfsr(m2) # local false sign rate
