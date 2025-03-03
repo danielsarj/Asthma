@@ -122,9 +122,9 @@ for (i in 1:length(conditions)){
         
         # get results
         ni_results <- topTable(fit, coef='conditionNI:income', number=Inf, adjust='BH') %>% 
-          rownames_to_column('gene') %>% mutate(condition='NI', income='10,000-$29,999')
+          rownames_to_column('gene') %>% mutate(condition='NI')
         results <- topTable(fit, coef='condition'%&%conditions[i]%&%':income', number=Inf, adjust='BH') %>% 
-          rownames_to_column('gene') %>% mutate(condition=conditions[i], income='10,000-$29,999')
+          rownames_to_column('gene') %>% mutate(condition=conditions[i])
         
         results <- rbind(ni_results, results)
         

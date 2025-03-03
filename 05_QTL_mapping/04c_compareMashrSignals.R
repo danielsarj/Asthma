@@ -24,8 +24,8 @@ for (i in 1:length(celltypes)){
     select(gene, snps, contains(celltypes[i]), -contains('lfsr'))
   
   tmp <- tmp %>% pivot_longer(cols=ends_with(c('_beta', '_SD')), 
-                            names_to=c('condition', '.value'), 
-                            names_pattern='(.*)_(beta|SD)') %>% 
+                              names_to=c('condition', '.value'), 
+                              names_pattern='(.*)_(beta|SD)') %>% 
     mutate(lower=beta-1.96*SD, upper=beta+1.96*SD, celltype=celltypes[i])
   tmp$condition <- gsub('_'%&%celltypes[i], '', tmp$condition)
   
