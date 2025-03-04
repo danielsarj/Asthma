@@ -2,6 +2,7 @@ library(tidyverse)
 library(reshape2) 
 library(data.table)
 library(mashr)
+library(pheatmap)
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping')
 
 # read in random input dataframe and split into betas/SEs
@@ -60,10 +61,11 @@ colnames(m.pairwise_PM) <- gsub('_beta', '', colnames(m.pairwise_PM))
 rownames(m.pairwise_PM) <- gsub('_beta', '', rownames(m.pairwise_PM))
 fwrite(m.pairwise_PM, 'mashr_correlation_sigresults_lfsr0.1.txt', quote=F, sep=' ', 
        row.names=T, col.names=T)
-ggplot(melt(m.pairwise_PM), aes(x=Var1, y=Var2, fill=value)) +
-  geom_tile() + scale_fill_gradient2(low='blue', mid='white', high='red', midpoint=0.7) +
-  theme_bw() + theme(axis.text.x=element_text(angle=45, hjust=1))
-ggsave('mashr_correlation_sigresults_lfsr0.1.pdf', height=5, width=6)
+pdf('mashr_correlation_sigresults_lfsr0.1.pdf', height=5, width=6)
+pheatmap(m.pairwise_PM, scale='none', clustering_distance_rows='euclidean',
+         clustering_distance_cols='euclidean', clustering_method='complete', 
+         angle_col=45)
+dev.off()
 
 ## lfsr = 0.05
 m.pairwise_PM <- get_pairwise_sharing(m2, lfsr_thresh=0.05, factor=0.5)
@@ -71,10 +73,11 @@ colnames(m.pairwise_PM) <- gsub('_beta', '', colnames(m.pairwise_PM))
 rownames(m.pairwise_PM) <- gsub('_beta', '', rownames(m.pairwise_PM))
 fwrite(m.pairwise_PM, 'mashr_correlation_sigresults_lfsr0.05.txt', quote=F, sep=' ', 
        row.names=T, col.names=T)
-ggplot(melt(m.pairwise_PM), aes(x=Var1, y=Var2, fill=value)) +
-  geom_tile() + scale_fill_gradient2(low='blue', mid='white', high='red', midpoint=0.7) +
-  theme_bw() + theme(axis.text.x=element_text(angle=45, hjust=1))
-ggsave('mashr_correlation_sigresults_lfsr0.05.pdf', height=5, width=6)
+pdf('mashr_correlation_sigresults_lfsr0.05.pdf', height=5, width=6)
+pheatmap(m.pairwise_PM, scale='none', clustering_distance_rows='euclidean',
+         clustering_distance_cols='euclidean', clustering_method='complete', 
+         angle_col=45)
+dev.off()
 
 # get posterior summaries
 p_lfsr <- get_lfsr(m2) # local false sign rate
