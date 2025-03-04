@@ -46,4 +46,4 @@ ggsave('../QTLmapping/PCAIR_elbowplot.pdf', height=4, width=7)
 ggplot(eigenvec) + geom_point(aes(x=V1, y=V2)) + theme_bw() +
   xlab('PC1 ('%&%round(eigenval$perc[1], digits=2)%&%'%)') + 
   ylab('PC2 ('%&%round(eigenval$perc[2], digits=2)%&%'%)')
-ggsave('../QTLmapping/PCAIR_elbowplot.pdf', height=4, width=4)
+ggsave('../QTLmapping/PCAIR_PC1vsPC2.pdf', height=4, width=4)
