@@ -38,7 +38,7 @@ fwrite(eigenvec, '../QTLmapping/PCAIR.eigenvec', col.names=T, row.names=F, sep='
 fwrite(eigenval, '../QTLmapping/PCAIR.eigenval')
 
 # plot PCs and elbow plot
-eigenval <- eigenval %>% mutate(perc=./sum(eigenval[1])*100)
+eigenval <- eigenval %>% mutate(perc=./sum(eigenval[,1])*100)
 ggplot(eigenval) + geom_line(aes(x=c(seq(1:nrow(eigenval))), y=perc)) + 
   scale_x_continuous(breaks=seq(1, nrow(eigenval), 1)) + theme_bw()
 ggsave('../QTLmapping/PCAIR_elbowplot.pdf', height=4, width=7)
