@@ -35,7 +35,5 @@ plink --bfile merged_pruned --maf 0.05 --hwe 1e-6 --make-bed --out filtered_merg
 awk '{print $1, $1":"$4, $3, $4, $5, $6}' filtered_merged.bim > updated.bim
 mv updated.bim filtered_merged.bim
 
-# create dosage files per chr
-for chr in {1..22}; do
-	plink --bfile filtered_merged --chr ${chr} --out imputed_chr${chr}_dosage --recode A
-done
+# create dosage file
+plink --bfile filtered_merged --out imputed_dosage --recode A
