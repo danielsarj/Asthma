@@ -62,31 +62,41 @@ for (i in 1:length(conditions)){
     zero_var_genes <- apply(count_df, 1, var) == 0
     low_exp_genes <- rowMeans(count_df) > 0.4
     count_df <- count_df[!zero_var_genes & low_exp_genes, ]
-    exp_pcs <- prcomp(count_df, scale.=TRUE)$rotation %>% as.data.frame() %>% rownames_to_column('IDs') %>%
-      select(IDs, PC1, PC2, PC3, PC4, PC5, PC6, PC7, PC8, PC9, PC10)
-    exp_pcs$IDs <- gsub('SEA3', 'SEA-3', exp_pcs$IDs)
-    exp_pcs$IDs <- gsub('_'%&%celltypes[j]%&%'_'%&%conditions[i], '', exp_pcs$IDs)
+    exp_pcs <- prcomp(count_df, scale.=TRUE)$rotation %>% as.data.frame() %>% rownames_to_column('IDs') 
     
-    # finalize metadata dataframe
-    filtered_meta <- left_join(filtered_meta, exp_pcs, by=c('IDs'))
-    
-    # get linear regression residuals after adjusting for age, sex, 
-    # first 10 genotype PCs, first 10 expression PCs, and obtain rin residuals
-    log_counts <- log2(count_df+1)
-    design <- model.matrix(~age+gender+V1+V2+V3+V4+V5+V6+V7+V8+V9+V10+
-                             PC1+PC2+PC3+PC4+PC5+PC6+PC7+PC8+PC9+PC10, data=filtered_meta)
-    fit <- lmFit(log_counts, design)
-    residual_matrix <- residuals.MArrayLM(fit, log_counts)
-    rin_residuals <- apply(residual_matrix, 1, rin_transform)
-    
-    # edit matrix and save results
-    rin_residuals <- rin_residuals %>% t() %>% 
-      as.data.frame() %>% rownames_to_column(var='GENES')
-    tmp_colnames <- colnames(rin_residuals)
-    tmp_colnames <- gsub('SEA3', 'SEA-3', tmp_colnames)
-    tmp_colnames <- gsub('_'%&%celltypes[j]%&%'_'%&%conditions[i], '', tmp_colnames)
-    colnames(rin_residuals) <- tmp_colnames
-    fwrite(rin_residuals, conditions[i]%&%'_'%&%celltypes[j]%&%'_rinResiduals.txt', col.names=T, sep='\t')
-    
+    # select different number of exp PCs
+    max_pcs <- min(nrow(exp_pcs), nrow(exp_pcs)-13)
+    for (k in 1:max_pcs){
+      print(k)
+      tmp_exp_pcs <- exp_pcs %>% select(1:(1 + k))
+      tmp_exp_pcs$IDs <- gsub('SEA3', 'SEA-3', tmp_exp_pcs$IDs)
+      tmp_exp_pcs$IDs <- gsub('_'%&%celltypes[j]%&%'_'%&%conditions[i], '', tmp_exp_pcs$IDs)
+      
+      # finalize metadata dataframe
+      tmp_filtered_meta <- left_join(filtered_meta, tmp_exp_pcs, by=c('IDs'))
+      
+      # dynamically generate the PC terms
+      pc_terms <- paste0('PC', 1:k, collapse='+')
+      
+      # construct the model formula
+      formula_str <- paste('~age+gender+V1+V2+V3+V4+V5+V6+V7+V8+V9+V10+', pc_terms)
+      
+      # get linear regression residuals after adjusting for age, sex, 
+      # first 10 genotype PCs, first k expression PCs, and obtain rin residuals
+      log_counts <- log2(count_df+1)
+      design <- model.matrix(as.formula(formula_str), data=tmp_filtered_meta)
+      fit <- lmFit(log_counts, design)
+      residual_matrix <- residuals.MArrayLM(fit, log_counts)
+      rin_residuals <- apply(residual_matrix, 1, rin_transform)
+      
+      # edit matrix and save results
+      rin_residuals <- rin_residuals %>% t() %>% 
+        as.data.frame() %>% rownames_to_column(var='GENES')
+      tmp_colnames <- colnames(rin_residuals)
+      tmp_colnames <- gsub('SEA3', 'SEA-3', tmp_colnames)
+      tmp_colnames <- gsub('_'%&%celltypes[j]%&%'_'%&%conditions[i], '', tmp_colnames)
+      colnames(rin_residuals) <- tmp_colnames
+      fwrite(rin_residuals, conditions[i]%&%'_'%&%celltypes[j]%&%'_'%&%k%&%'PCs_rinResiduals.txt', col.names=T, sep='\t')
+    }
   }
 }
