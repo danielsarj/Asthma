@@ -4,7 +4,6 @@ setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/jobs')
 # arguments
 conditions <- c('NI', 'RV', 'IVA')
 celltypes <- c('B', 'CD4-T', 'CD8-T', 'Mono', 'NK')
-number_of_pcs <- seq(1:28)
 
 # sbtach file topper
 sbatch_topper <- '#!/bin/sh\n' %&% '#SBATCH --time=36:00:00\n' %&%
@@ -17,17 +16,15 @@ sbatch_topper <- '#!/bin/sh\n' %&% '#SBATCH --time=36:00:00\n' %&%
 
 for (cond in conditions){
   for (ctype in celltypes){
-    for (pcs in number_of_pcs){
-      # command line
-      command_line <- 'Rscript /project/lbarreiro/USERS/daniel/Asthma/05_QTL_mapping/03a_runMatrixEQTL.R ' %&%
-        '--cond ' %&% cond %&% ' --ctype ' %&% ctype %&% ' --pcs ' %&% pcs
+    # command line
+    command_line <- 'Rscript /project/lbarreiro/USERS/daniel/Asthma/05_QTL_mapping/03a_runMatrixEQTL.R ' %&%
+      '--cond ' %&% cond %&% ' --ctype ' %&% ctype
     
-      # create sbatch file
-      cat(sbatch_topper%&%'\n\n'%&%command_line,
-          file=cond%&%'_'%&%ctype%&%'_'%&%pcs%&%'_MatrixEQTL.sbatch', append=F)
+    # create sbatch file
+    cat(sbatch_topper%&%'\n\n'%&%command_line,
+        file=cond%&%'_'%&%ctype%&%'_MatrixEQTL.sbatch', append=F)
     
-      #submit job
-      system('sbatch '%&%cond%&%'_'%&%ctype%&%'_'%&%pcs%&%'_MatrixEQTL.sbatch')
-    }
+    #submit job
+    system('sbatch '%&%cond%&%'_'%&%ctype%&%'_MatrixEQTL.sbatch')
   }
 }

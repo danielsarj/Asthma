@@ -8,12 +8,11 @@ setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping')
 parser <- ArgumentParser()
 parser$add_argument('--cond')
 parser$add_argument('--ctype')
-parser$add_argument('--pcs')
 args <- parser$parse_args()
 
 # load expression matrix and dosage file
 # make sure the columns are in the same order
-exp_matrix <- fread(args$cond%&%'_'%&%args$ctype%&%'_'%&%args$pcs%&%'PCs_rinResiduals.txt')
+exp_matrix <- fread(args$cond%&%'_'%&%args$ctype%&%'_elbowPCs_rinResiduals.txt')
 dos_matrix <- fread('../genotypes/imputed_vcfs/imputed_dosage.txt')
 common_cols <- intersect(names(exp_matrix), names(dos_matrix))  
 dos_matrix <- cbind(dos_matrix[,1], dos_matrix[, ..common_cols])
@@ -59,4 +58,4 @@ me <- Matrix_eQTL_main(
 cis_qtls <- me$cis$eqtls %>% mutate(condition=args$cond, celltype=args$ctype, SE=abs(beta/qnorm(pvalue/2)))
 cis_qtls <- inner_join(cis_qtls, snp_local, by=c('snps'='snpid')) %>% 
   select(snps, chr, pos, gene, statistic, pvalue, FDR, beta, SE, condition, celltype) %>% arrange(chr, pos)
-fwrite(cis_qtls, 'matrixEQTL_results/'%&%args$cond%&%'_'%&%args$ctype%&%'_'%&%args$pcs%&%'PCs_cisQTL_sumstats.txt', quote=F, sep='\t', na='NA')
+fwrite(cis_qtls, 'matrixEQTL_results/'%&%args$cond%&%'_'%&%args$ctype%&%'_elbowPCs_cisQTL_sumstats.txt', quote=F, sep='\t', na='NA')
