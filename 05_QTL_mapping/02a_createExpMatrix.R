@@ -3,6 +3,7 @@ library(SeuratData)
 library(limma)
 library(tidyverse)
 library(data.table)
+library(PCAForQTL)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping')
 conditions <- c('NI', 'RV', 'IVA')
@@ -13,6 +14,17 @@ rin_transform <- function(x) {
   r <- rank(x, ties.method='average')
   n <- length(x)
   qnorm((r-0.5)/n) 
+}
+
+# function to regress out k number of pcs from expression data frame
+pca_rm <- function(input_data, pc_set) {
+  pca <- prcomp(t(input_data))
+  new <- input_data
+  new <- apply(new, 1, FUN = function(x){return(lm(as.numeric(x) ~ -1 + pca$x[, as.numeric(pc_set)])$resid)})
+  new <- t(new)
+  colnames(new) <- colnames(input_data)
+  rownames(new) <- rownames(input_data)
+  return(new)
 }
 
 # load sample metadata
@@ -62,41 +74,30 @@ for (i in 1:length(conditions)){
     zero_var_genes <- apply(count_df, 1, var) == 0
     low_exp_genes <- rowMeans(count_df) > 0.4
     count_df <- count_df[!zero_var_genes & low_exp_genes, ]
-    exp_pcs <- prcomp(count_df, scale.=TRUE)$rotation %>% as.data.frame() %>% rownames_to_column('IDs') 
+    exp_pcs <- prcomp(count_df, scale.=TRUE, center=TRUE)
     
-    # select different number of exp PCs
-    max_pcs <- min(nrow(exp_pcs), nrow(exp_pcs)-13)
-    for (k in 1:max_pcs){
-      print(k)
-      tmp_exp_pcs <- exp_pcs %>% select(1:(1 + k))
-      tmp_exp_pcs$IDs <- gsub('SEA3', 'SEA-3', tmp_exp_pcs$IDs)
-      tmp_exp_pcs$IDs <- gsub('_'%&%celltypes[j]%&%'_'%&%conditions[i], '', tmp_exp_pcs$IDs)
+    # find best K
+    K_elbow <- runElbow(prcompResult=exp_pcs)
+    pc_set <- c(1:K_elbow)
+    
+    # regress out expression PCs
+    log_counts <- log2(count_df+1)
+    expression <- pca_rm(log_counts, pc_set)
+    
+    # get linear regression residuals after adjusting for age, sex, 
+    # first 10 genotype PCs, first k expression PCs, and obtain rin residuals
+    design <- model.matrix(~age+gender+V1+V2+V3+V4+V5+V6+V7+V8+V9+V10, data=filtered_meta)
+    fit <- lmFit(expression, design)
+    residual_matrix <- residuals.MArrayLM(fit, expression)
+    rin_residuals <- apply(residual_matrix, 1, rin_transform)
       
-      # finalize metadata dataframe
-      tmp_filtered_meta <- left_join(filtered_meta, tmp_exp_pcs, by=c('IDs'))
-      
-      # dynamically generate the PC terms
-      pc_terms <- paste0('PC', 1:k, collapse='+')
-      
-      # construct the model formula
-      formula_str <- paste('~age+gender+V1+V2+V3+V4+V5+V6+V7+V8+V9+V10+', pc_terms)
-      
-      # get linear regression residuals after adjusting for age, sex, 
-      # first 10 genotype PCs, first k expression PCs, and obtain rin residuals
-      log_counts <- log2(count_df+1)
-      design <- model.matrix(as.formula(formula_str), data=tmp_filtered_meta)
-      fit <- lmFit(log_counts, design)
-      residual_matrix <- residuals.MArrayLM(fit, log_counts)
-      rin_residuals <- apply(residual_matrix, 1, rin_transform)
-      
-      # edit matrix and save results
-      rin_residuals <- rin_residuals %>% t() %>% 
-        as.data.frame() %>% rownames_to_column(var='GENES')
-      tmp_colnames <- colnames(rin_residuals)
-      tmp_colnames <- gsub('SEA3', 'SEA-3', tmp_colnames)
-      tmp_colnames <- gsub('_'%&%celltypes[j]%&%'_'%&%conditions[i], '', tmp_colnames)
-      colnames(rin_residuals) <- tmp_colnames
-      fwrite(rin_residuals, conditions[i]%&%'_'%&%celltypes[j]%&%'_'%&%k%&%'PCs_rinResiduals.txt', col.names=T, sep='\t')
-    }
+    # edit matrix and save results
+    rin_residuals <- rin_residuals %>% t() %>% 
+      as.data.frame() %>% rownames_to_column(var='GENES')
+    tmp_colnames <- colnames(rin_residuals)
+    tmp_colnames <- gsub('SEA3', 'SEA-3', tmp_colnames)
+    tmp_colnames <- gsub('_'%&%celltypes[j]%&%'_'%&%conditions[i], '', tmp_colnames)
+    colnames(rin_residuals) <- tmp_colnames
+    fwrite(rin_residuals, conditions[i]%&%'_'%&%celltypes[j]%&%'_elbowPCs_rinResiduals.txt', col.names=T, sep='\t')
   }
 }
