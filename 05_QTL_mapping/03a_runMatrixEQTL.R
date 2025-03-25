@@ -40,7 +40,7 @@ rm(exp_matrix, exp_matrix_mat)
 
 # run main MatrixeQTL function
 n_permutations <- 10
-for (i in 1:n_permutations+1){
+for (i in 1:(n_permutations+1)){
   print(i)
   if (i==1){
     # QTL mapping without permutation of gene expression labels
@@ -91,6 +91,6 @@ for (i in 1:n_permutations+1){
     cis_qtls <- me$cis$eqtls %>% mutate(condition=args$cond, celltype=args$ctype, SE=abs(beta/qnorm(pvalue/2)))
     cis_qtls <- inner_join(cis_qtls, snp_local, by=c('snps'='snpid')) %>% 
       select(snps, chr, pos, gene, statistic, pvalue, FDR, beta, SE, condition, celltype) %>% arrange(chr, pos)
-    fwrite(cis_qtls, 'matrixEQTL_results/'%&%args$cond%&%'_'%&%args$ctype%&%'_Perm'%&%i-1%&%'_elbowPCs_cisQTL_sumstats.txt', quote=F, sep='\t', na='NA')
+    fwrite(cis_qtls, 'matrixEQTL_results/'%&%args$cond%&%'_'%&%args$ctype%&%'_Perm'%&%as.character(as.numeric(i)-1)%&%'_elbowPCs_cisQTL_sumstats.txt', quote=F, sep='\t', na='NA')
   }
 }
