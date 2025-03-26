@@ -1,6 +1,7 @@
 library(Seurat)
 library(SeuratData)
 library(limma)
+library(edgeR)
 library(tidyverse)
 library(data.table)
 library(PCAForQTL)
@@ -81,7 +82,9 @@ for (i in 1:length(conditions)){
     pc_set <- c(1:K_elbow)
     
     # regress out expression PCs
-    log_counts <- log2(count_df+1)
+    dge <- DGEList(counts=count_df)
+    logCPM <- cpm(dge, log=TRUE)
+    log_counts <- logCPM %>% as.data.frame()
     expression <- pca_rm(log_counts, pc_set)
     
     # get linear regression residuals after adjusting for age, sex, 
