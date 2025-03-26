@@ -77,30 +77,31 @@ for (i in 1:length(conditions)){
     count_df <- count_df[!zero_var_genes & low_exp_genes, ]
     exp_pcs <- prcomp(count_df, scale.=TRUE, center=TRUE)
     
-    # find best K
+    # find best K 
     K_elbow <- runElbow(prcompResult=exp_pcs)
     pc_set <- c(1:K_elbow)
-    
-    # regress out expression PCs
+
+    # normalize and remove expression PCs
     dge <- DGEList(counts=count_df)
+    dge <- calcNormFactors(dge)
     logCPM <- cpm(dge, log=TRUE)
     log_counts <- logCPM %>% as.data.frame()
     expression <- pca_rm(log_counts, pc_set)
     
-    # get linear regression residuals after adjusting for age, sex, 
-    # first 10 genotype PCs, first k expression PCs, and obtain rin residuals
+    # perform rank-inverse transformation
+    rin_expression <- apply(expression, 1, rin_transform) %>% t()
+
+    # get linear regression residuals after adjusting for age, sex, and 10 genotype PCs
     design <- model.matrix(~age+gender+V1+V2+V3+V4+V5+V6+V7+V8+V9+V10, data=filtered_meta)
-    fit <- lmFit(expression, design)
-    residual_matrix <- residuals.MArrayLM(fit, expression)
-    rin_residuals <- apply(residual_matrix, 1, rin_transform)
-      
+    fit <- lmFit(rin_expression, design)
+    residual_matrix <- residuals.MArrayLM(fit, rin_expression)
+
     # edit matrix and save results
-    rin_residuals <- rin_residuals %>% t() %>% 
-      as.data.frame() %>% rownames_to_column(var='GENES')
-    tmp_colnames <- colnames(rin_residuals)
+    residual_matrix <- residual_matrix %>% as.data.frame() %>% rownames_to_column(var='GENES')
+    tmp_colnames <- colnames(residual_matrix)
     tmp_colnames <- gsub('SEA3', 'SEA-3', tmp_colnames)
     tmp_colnames <- gsub('_'%&%celltypes[j]%&%'_'%&%conditions[i], '', tmp_colnames)
-    colnames(rin_residuals) <- tmp_colnames
-    fwrite(rin_residuals, conditions[i]%&%'_'%&%celltypes[j]%&%'_elbowPCs_rinResiduals.txt', col.names=T, sep='\t')
+    colnames(residual_matrix) <- tmp_colnames
+    fwrite(residual_matrix, conditions[i]%&%'_'%&%celltypes[j]%&%'_elbowPCs_rinResiduals.txt', col.names=T, sep='\t')
   }
 }
