@@ -10,13 +10,6 @@ setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping')
 conditions <- c('NI', 'RV', 'IVA')
 celltypes <- c('B', 'CD4-T', 'CD8-T', 'Mono', 'NK')
 
-# define rank-inverse normalization function
-rin_transform <- function(x) {
-  r <- rank(x, ties.method='average')
-  n <- length(x)
-  qnorm((r-0.5)/n) 
-}
-
 # function to regress out k number of pcs from expression data frame
 pca_rm <- function(input_data, pc_set) {
   pca <- prcomp(t(input_data))
@@ -39,7 +32,7 @@ annotations <- annotations$hgnc_symbol[
     !grepl('^MT-', annotations$hgnc_symbol)]
 
 # load genotype PCs
-geno_pcs <- fread('PCAIR.eigenvec') %>% select(sample_id, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10)
+geno_pcs <- fread('PCAIR.eigenvec') %>% select(sample_id, V1, V2, V3, V4)
 geno_pcs$sample_id <- gsub('SEA3', 'SEA-3', geno_pcs$sample_id)
 
 for (i in 1:length(conditions)){
@@ -81,27 +74,19 @@ for (i in 1:length(conditions)){
     K_elbow <- runElbow(prcompResult=exp_pcs)
     pc_set <- c(1:K_elbow)
 
-    # normalize and remove expression PCs
+    # normalize and adjust for age, gender, genetic PCs, expression PCs
     dge <- DGEList(counts=count_df)
     dge <- calcNormFactors(dge)
-    logCPM <- cpm(dge, log=TRUE)
-    log_counts <- logCPM %>% as.data.frame()
-    expression <- pca_rm(log_counts, pc_set)
-    
-    # perform rank-inverse transformation
-    rin_expression <- apply(expression, 1, rin_transform) %>% t()
-
-    # get linear regression residuals after adjusting for age, sex, and 10 genotype PCs
-    design <- model.matrix(~age+gender+V1+V2+V3+V4+V5+V6+V7+V8+V9+V10, data=filtered_meta)
-    fit <- lmFit(rin_expression, design)
-    residual_matrix <- residuals.MArrayLM(fit, rin_expression)
+    design <- model.matrix(~age+gender+V1+V2+V3+V4, data=filtered_meta)
+    expression <- voom(dge, design, plot=FALSE)$E
+    expression <- pca_rm(expression, pc_set)
 
     # edit matrix and save results
-    residual_matrix <- residual_matrix %>% as.data.frame() %>% rownames_to_column(var='GENES')
-    tmp_colnames <- colnames(residual_matrix)
+    expression <- expression %>% as.data.frame() %>% rownames_to_column(var='GENES')
+    tmp_colnames <- colnames(expression)
     tmp_colnames <- gsub('SEA3', 'SEA-3', tmp_colnames)
     tmp_colnames <- gsub('_'%&%celltypes[j]%&%'_'%&%conditions[i], '', tmp_colnames)
-    colnames(residual_matrix) <- tmp_colnames
-    fwrite(residual_matrix, conditions[i]%&%'_'%&%celltypes[j]%&%'_elbowPCs_rinResiduals.txt', col.names=T, sep='\t')
+    colnames(expression) <- tmp_colnames
+    fwrite(expression, conditions[i]%&%'_'%&%celltypes[j]%&%'_elbowPCs_rinResiduals.txt', col.names=T, sep='\t')
   }
 }
