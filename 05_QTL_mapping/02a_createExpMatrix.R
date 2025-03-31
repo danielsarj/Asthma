@@ -31,10 +31,6 @@ annotations <- annotations$hgnc_symbol[
     annotations$hgnc_symbol!='' &
     !grepl('^MT-', annotations$hgnc_symbol)]
 
-# load genotype PCs
-geno_pcs <- fread('PCAIR.eigenvec') %>% select(sample_id, V1, V2, V3, V4)
-geno_pcs$sample_id <- gsub('SEA3', 'SEA-3', geno_pcs$sample_id)
-
 for (i in 1:length(conditions)){
   # load pseudobulk object
   print(conditions[i])
@@ -58,8 +54,7 @@ for (i in 1:length(conditions)){
     
     # edit metadata
     filtered_meta$IDs <- gsub('SEA3', 'SEA-3', filtered_meta$IDs)
-    filtered_meta <- left_join(filtered_meta, sample_m, by=c('IDs'='ID')) %>% 
-      left_join(geno_pcs, by=c('IDs'='sample_id'))
+    filtered_meta <- left_join(filtered_meta, sample_m, by=c('IDs'='ID'))
     filtered_meta$gender <- as.factor(filtered_meta$gender)
     
     # extract count 
@@ -74,10 +69,10 @@ for (i in 1:length(conditions)){
     K_elbow <- runElbow(prcompResult=exp_pcs)
     pc_set <- c(1:K_elbow)
 
-    # normalize and adjust for age, gender, genetic PCs, expression PCs
+    # normalize and adjust for age, gender, and expression PCs
     dge <- DGEList(counts=count_df)
     dge <- calcNormFactors(dge)
-    design <- model.matrix(~age+gender+V1+V2+V3+V4, data=filtered_meta)
+    design <- model.matrix(~age+gender, data=filtered_meta)
     expression <- voom(dge, design, plot=FALSE)$E
     expression <- pca_rm(expression, pc_set)
 
@@ -87,6 +82,6 @@ for (i in 1:length(conditions)){
     tmp_colnames <- gsub('SEA3', 'SEA-3', tmp_colnames)
     tmp_colnames <- gsub('_'%&%celltypes[j]%&%'_'%&%conditions[i], '', tmp_colnames)
     colnames(expression) <- tmp_colnames
-    fwrite(expression, conditions[i]%&%'_'%&%celltypes[j]%&%'_elbowPCs_rinResiduals.txt', col.names=T, sep='\t')
+    fwrite(expression, conditions[i]%&%'_'%&%celltypes[j]%&%'_elbowPCs.txt', col.names=T, sep='\t')
   }
 }

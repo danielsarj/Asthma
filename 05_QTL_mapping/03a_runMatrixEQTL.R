@@ -2,6 +2,7 @@ library(MatrixEQTL)
 library(tidyverse)
 library(data.table)
 library(argparse)
+library(janitor)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping')
 
@@ -18,11 +19,23 @@ common_cols <- intersect(names(exp_matrix), names(dos_matrix))
 dos_matrix <- cbind(dos_matrix[,1], dos_matrix[, ..common_cols])
 setcolorder(dos_matrix, c(names(dos_matrix)[1], setdiff(common_cols, names(dos_matrix)[1])))
 
+# load genotype PCs and make sure columns are in the correct order
+geno_pcs <- fread('PCAIR.eigenvec') %>% select(sample_id, V1, V2)
+geno_pcs$sample_id <- gsub('SEA3', 'SEA-3', geno_pcs$sample_id)
+geno_pcs <- geno_pcs %>% t() %>% as.data.frame() %>% row_to_names(row_number=1) %>%
+  rownames_to_column() %>% setDT()
+common_cols <- intersect(names(exp_matrix), names(geno_pcs))  
+geno_pcs <- cbind(geno_pcs[,1], geno_pcs[, ..common_cols])
+setcolorder(geno_pcs, c(names(geno_pcs)[1], setdiff(common_cols, names(geno_pcs)[1])))
+geno_pcs[, (2:ncol(geno_pcs)) := lapply(.SD, as.numeric), .SDcols = 2:ncol(geno_pcs)]
+
 # turn into matrices
 dos_matrix_mat <- as.matrix(dos_matrix[,-1])
 rownames(dos_matrix_mat) <- dos_matrix[[1]]
 exp_matrix_mat <- as.matrix(exp_matrix[,-1])
 rownames(exp_matrix_mat) <- exp_matrix[[1]]
+geno_pcs_mat <- as.matrix(geno_pcs[,-1])
+rownames(geno_pcs_mat) <- geno_pcs[[1]]
 
 # load snp and gene location files
 snp_local <- fread('../genotypes/imputed_vcfs/snp_location.txt')
@@ -37,6 +50,10 @@ rm(dos_matrix, dos_matrix_mat)
 exp_d <- SlicedData$new()
 exp_d$CreateFromMatrix(exp_matrix_mat)
 rm(exp_matrix, exp_matrix_mat)
+## covariates data
+cov_d <- SlicedData$new()
+cov_d$CreateFromMatrix(geno_pcs_mat)
+rm(geno_pcs, geno_pcs_mat)
 
 # run main MatrixeQTL function
 n_permutations <- 10
@@ -47,6 +64,7 @@ for (i in 1:(n_permutations+1)){
     me <- Matrix_eQTL_main(
       snps = snp_d,
       gene = exp_d,
+      cvrt = cov_d,
       pvOutputThreshold = 0,
       useModel = modelLINEAR,
       errorCovariance = numeric(),
@@ -75,6 +93,7 @@ for (i in 1:(n_permutations+1)){
     me <- Matrix_eQTL_main(
       snps = snp_d,
       gene = permuted_gene,
+      cvrt = cov_d,
       pvOutputThreshold = 0,
       useModel = modelLINEAR,
       errorCovariance = numeric(),
