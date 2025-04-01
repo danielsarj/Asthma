@@ -33,9 +33,19 @@ for (i in 1:length(conditions)){
   meta.data$predicted.celltype.l2 <- gsub(' ', '-', meta.data$predicted.celltype.l2)
   objs@meta.data <- meta.data
   
+  # compute number of cells per condition/IDs
+  cells_summary <- meta.data %>% group_by(IDs,predicted.celltype.l1,condition) %>% summarise(n_cells=n())
+  cells_summary$predicted.celltype.l1 <- gsub('_', '-', cells_summary$predicted.celltype.l1)
+  
   # aggregate cell types per individual per condition (pseudobulk)
   bulk_objs <- AggregateExpression(objs, group.by=c('IDs','predicted.celltype.l1','condition'), 
                                    slot='counts', assays='RNA', return.seurat=T)
+  
+  # update pseudobulk metadata with number of cells
+  meta.data <- bulk_objs@meta.data %>% inner_join(cells_summary)
+  rownames(meta.data) <- meta.data$orig.ident
+  bulk_objs@meta.data <- meta.data
+  
   saveRDS(bulk_objs, file='../DEanalysis/NI_'%&%conditions[i]%&%'_pseudobulks.rds')
 
   # celltype specific DE
