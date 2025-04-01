@@ -13,7 +13,7 @@ args <- parser$parse_args()
 
 # load expression matrix and dosage file
 # make sure the columns are in the same order
-exp_matrix <- fread(args$cond%&%'_'%&%args$ctype%&%'_elbowPCs_rinResiduals.txt')
+exp_matrix <- fread(args$cond%&%'_'%&%args$ctype%&%'_elbowPCs.txt')
 dos_matrix <- fread('../genotypes/imputed_vcfs/imputed_dosage.txt')
 common_cols <- intersect(names(exp_matrix), names(dos_matrix))  
 dos_matrix <- cbind(dos_matrix[,1], dos_matrix[, ..common_cols])
