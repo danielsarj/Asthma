@@ -25,7 +25,7 @@ done
 plink --chr 1-22 --keep-allele-order --vcf-idspace-to - --make-bed --out merged --vcf reduced_merged.vcf.gz
 
 # LD prune
-plink --bfile merged --indep-pairwise 500 50 0.5 --out merged
+plink --bfile merged --indep-pairwise 50 5 0.5 --out merged
 plink --bfile merged --extract merged.prune.in --make-bed --out merged_pruned
 
 # perform genotype QC 
