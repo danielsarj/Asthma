@@ -50,7 +50,7 @@ for (i in 1:length(conditions)){
   ggsave('NI_'%&%conditions[i]%&%'_SampleSizeByIncomeStatusANDAsthmaStatus.pdf', height=6, width=15)
   
   # celltype specific DE
-  for (ctype in c('B','CD4-T','CD8-T','DC','Mono','NK')){
+  for (ctype in c('B','CD4-T','CD8-T','Mono','NK')){
     print(ctype)
     
     # extract metadata for subsetting
@@ -78,14 +78,9 @@ for (i in 1:length(conditions)){
         zero_var_genes <- apply(count, 1, var) == 0
         count <- count[!zero_var_genes, ]
         
-        # normalize and remove genes with low expression (min. of 2 CPM across 3 samples)
+        # transform count into dge object
         count <- DGEList(counts=count)
         count <- calcNormFactors(count)
-        cpm_values <- cpm(count)
-        threshold <- 2
-        min_samples <- 3
-        keep <- rowSums(cpm_values > threshold) >= min_samples
-        count <- count[keep, ]
         
         # define design matrix
         design <- model.matrix(~0+age+condition+condition:asthma, data=mdata)
@@ -112,14 +107,9 @@ for (i in 1:length(conditions)){
         zero_var_genes <- apply(count, 1, var) == 0
         count <- count[!zero_var_genes, ]
         
-        # normalize and remove genes with low expression (min. of 2 CPM across 3 samples)
+        # transform count into dge object
         count <- DGEList(counts=count)
         count <- calcNormFactors(count)
-        cpm_values <- cpm(count)
-        threshold <- 2
-        min_samples <- 3
-        keep <- rowSums(cpm_values > threshold) >= min_samples
-        count <- count[keep, ]
         
         # define design matrix
         design <- model.matrix(~0+age+condition+condition:income, data=mdata)
