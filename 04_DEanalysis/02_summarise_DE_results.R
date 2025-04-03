@@ -8,17 +8,18 @@ library(viridis)
 library(ggpointdensity)
 library(UpSetR)
 library(grid)
+library(edgeR)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/DEanalysis')
 conditions <- c('RV', 'IVA')
-cells_seurat <- c('B','CD4-T','CD8-T','DC','Mono','NK')
+cells_seurat <- c('B','CD4-T','CD8-T','Mono','NK')
 
 # load gene annotation from ensembl
 annotations <- fread('ensembl_genes.txt') %>% pull('hgnc_symbol')
 
 ### INTEGRATE LIMMA RESULTS AND MAKE VOLCANO PLOT
 for (i in 1:length(conditions)){
-  for (ctype in c('B','CD4-T','CD8-T','DC','Mono','NK')){
+  for (ctype in cells_seurat){
     
     # read results per celltype/condition, add metadata 
     results <- fread('NI_'%&%conditions[i]%&%'_limma_'%&%ctype%&%'_results.txt') %>% 
@@ -29,7 +30,7 @@ for (i in 1:length(conditions)){
       theme_bw() + ylab('-log10(FDR)') + ggtitle(conditions[i]%&%' - '%&%ctype) +
       geom_text_repel(aes(logFC, -log10(adj.P.Val), label=ifelse(adj.P.Val<0.00001,V1, '')), 
                     colour='red', size=3)
-    ggsave('NI_'%&%conditions[i]%&%'_limma_'%&%ctype%&%'_volcanoplot.pdf', height=6, width=8)
+    ggsave('NI_'%&%conditions[i]%&%'_limma_'%&%ctype%&%'_volcanoplot.pdf', height=3, width=4)
   
     # combine dataframes
     if (exists('full_results')){
@@ -41,7 +42,7 @@ for (i in 1:length(conditions)){
 ggplot(full_results) + geom_point(aes(logFC, -log10(adj.P.Val)), size=0.5, alpha=0.5) +
   theme_bw() + ylab('-log10(adjusted p-value)') + facet_grid(cols=vars(celltype), rows=vars(condition)) +
   geom_hline(yintercept=1.30103, color='red')
-ggsave('NI_IVAxRV_limma_facetgrid_volcanoplot.pdf', height=6, width=10)
+ggsave('NI_IVAxRV_limma_facetgrid_volcanoplot.pdf', height=5, width=8)
 
 # prepare dataframe to compare logFC between conditions
 rv_results <- full_results %>% filter(condition=='RV') %>% select(V1, celltype, logFC)
@@ -54,7 +55,7 @@ long_results <- full_join(rv_results, iva_results, by=c('V1', 'celltype'))
 ggplot(long_results) + geom_pointdensity(aes(logFC.RV, logFC.IVA), show.legend=F) +
   stat_smooth(aes(logFC.RV, logFC.IVA), method='lm', geom='smooth', formula=y~x) +
   geom_abline(slope=1, color='red') + theme_bw() + facet_wrap(~celltype) + scale_color_viridis()
-ggsave('IVAxRV_limma_logFCcorrelation_scatterplot.pdf', height=6, width=7)
+ggsave('IVAxRV_limma_logFCcorrelation_scatterplot.pdf', height=5, width=6)
 rm(results, long_results, iva_results, rv_results)
 
 colnames(full_results)[1] <- c('Gene')
@@ -70,16 +71,16 @@ for (i in 1:length(conditions)){
     tmp_count <- tmp_bulk@assays$RNA$counts
     tmp_count <- tmp_count[rownames(tmp_count) %in% annotations,]
     
-    # get average logcpm
-    library_sizes <- Matrix::colSums(tmp_count)
-    cpm <- t(t(tmp_count) / library_sizes) * 1e6
-    log_cpm <- log2(cpm + 1)
-    average_log_cpm <- Matrix::rowMeans(log_cpm) %>% as.data.frame() %>% rownames_to_column()
-    colnames(average_log_cpm) <- c('GENE', 'AVG_logCPM')
+    # compute average logCPM per gene
+    count_data <- DGEList(tmp_count)
+    count_data <- calcNormFactors(count_data)
+    logCPM <- cpm(count_data, log=TRUE)
+    average_logCPM <- rowMeans(logCPM) %>% as.data.frame() %>% rownames_to_column()
+    colnames(average_logCPM) <- c('GENE', 'AVG_logCPM')
     
     # define 10 bins based on average logCPM
     tmp_full_results <- full_results %>% filter(celltype==cells_seurat[c], condition==conditions[i]) %>% 
-      inner_join(average_log_cpm, by=c('Gene'='GENE'))
+      inner_join(average_logCPM, by=c('Gene'='GENE'))
     tmp_full_results$bin <- cut2(tmp_full_results$AVG_logCPM, g=10)
     
     # combine dataframes
@@ -92,7 +93,7 @@ for (i in 1:length(conditions)){
       geom_hline(yintercept=0, color='red') + ggtitle(conditions[i]%&%' - '%&%cells_seurat[c]) +
         xlab('logCPM bins') + coord_flip()
     ggsave('NI_'%&%conditions[i]%&%'_'%&%cells_seurat[c]%&%'_logCPMbins.logFC_boxoplot.pdf', 
-           boxplots[[c]], height=4, width=8)
+           boxplots[[c]], height=4, width=5)
   }
   # plot all boxplots (per condition)
   pdf('NI_'%&%conditions[i]%&%'_logCPMbins.logFC_boxoplot.pdf', height=6, width=12)
@@ -107,13 +108,13 @@ rm(bulk_objs, tmp_bulk, tmp_count, library_sizes, cpm, log_cpm, average_log_cpm,
    tmp_full_results, boxplots, full_results, avglogCPMdf)
 
 # define minimum logCPM thresholds
-logCPMfilter_table <- data.frame(celltype=c('B','CD4-T','CD8-T','DC','Mono','NK',
-                                            'B','CD4-T','CD8-T','DC','Mono','NK'),
-                                 threshold=c(1.4,0.1,2.7,2.4,0.4,1.7,
-                                             2.9,1.2,1.4,0.4,0.1,3.2),
-                                 condition=c(rep('IVA',6),rep('RV',6)))
+logCPMfilter_table <- data.frame(celltype=c('B','CD4-T','CD8-T','Mono','NK',
+                                            'B','CD4-T','CD8-T','Mono','NK'),
+                                 threshold=c(2.8,-0.7,3.2,3.7,3.5,
+                                             3.5,0.8,1.7,3.7,3.5),
+                                 condition=c(rep('IVA',5),rep('RV',5)))
 for (i in 1:length(conditions)){
-  for (ctype in c('B','CD4-T','CD8-T','DC','Mono','NK')){
+  for (ctype in c('B','CD4-T','CD8-T','Mono','NK')){
     
     # filter results by the logCPM threshold
     tmp_threshold <- logCPMfilter_table %>% filter(celltype==ctype, condition==conditions[i]) %>%
@@ -138,11 +139,12 @@ for (i in 1:length(conditions)){
   }
 }
 rm(full_results_w.avglogCPM, tmp)
+
 # volcano plot of all them together
 ggplot(full_results_avglogCPM.filtered) + geom_point(aes(logFC, -log10(adj.P.Val)), size=0.5, alpha=0.5) +
   theme_bw() + ylab('-log10(FDR)') + facet_grid(cols=vars(celltype), rows=vars(condition)) +
   geom_hline(yintercept=1.30103, color='red')
-ggsave('NI_IVAxRV_limma_facetgrid_avglogCPM.filtered_volcanoplot.pdf', height=6, width=10)
+ggsave('NI_IVAxRV_limma_facetgrid_avglogCPM.filtered_volcanoplot.pdf', height=5, width=8)
 fwrite(full_results_avglogCPM.filtered, 'NI_IVAxRV_limma_results_avglogCPM.filtered.txt', sep=' ')
 
 ### BARPLOT OF DE GENES BASED ON FDR AND LOGFC CUTOFFS
@@ -160,7 +162,7 @@ ggplot(summary_results) + geom_col(aes(x=celltype, y=n_genes, fill=direction), p
 ggsave('NI_IVAxRV_NumOfDEgenes_barplot.pdf', height=4, width=6)
 
 # upset plot
-for (ctype in c('B','CD4-T','CD8-T','DC','Mono','NK')){
+for (ctype in c('B','CD4-T','CD8-T','Mono','NK')){
   IVA <- filtered_results %>% filter(celltype==ctype, condition=='IVA') %>% pull(Gene)
   RV <- filtered_results %>% filter(celltype==ctype, condition=='RV') %>% pull(Gene)
   
