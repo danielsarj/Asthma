@@ -61,17 +61,23 @@ for (i in 1:length(conditions)){
     count_df <- tmp@assays$RNA$counts %>% as.data.frame()
     count_df <- count_df[rownames(count_df) %in% annotations,]
     zero_var_genes <- apply(count_df, 1, var) == 0
-    low_exp_genes <- rowMeans(count_df) > 0.4
-    count_df <- count_df[!zero_var_genes & low_exp_genes, ]
+    count_df <- count_df[!zero_var_genes, ]
     exp_pcs <- prcomp(count_df, scale.=TRUE, center=TRUE)
     
     # find best K 
     K_elbow <- runElbow(prcompResult=exp_pcs)
     pc_set <- c(1:K_elbow)
 
-    # normalize and adjust for age, gender, and expression PCs
+    # normalize and remove genes with low expression (min. of 2 CPM across 3 samples)
     dge <- DGEList(counts=count_df)
     dge <- calcNormFactors(dge)
+    cpm_values <- cpm(dge)
+    threshold <- 2
+    min_samples <- 3
+    keep <- rowSums(cpm_values > threshold) >= min_samples
+    dge <- dge[keep, ]
+    
+    # adjust for age, gender, and expression PCs
     design <- model.matrix(~age+gender, data=filtered_meta)
     expression <- voom(dge, design, plot=FALSE)$E
     expression <- pca_rm(expression, pc_set)
