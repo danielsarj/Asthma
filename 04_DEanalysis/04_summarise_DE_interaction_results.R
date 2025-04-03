@@ -4,15 +4,15 @@ library(ggrepel)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/DEanalysis')
 conditions <- c('RV', 'IVA')
-cells_seurat <- c('B','CD4-T','CD8-T','DC','Mono','NK')
+cells_seurat <- c('B','CD4-T','CD8-T','Mono','NK')
 interactions <- c('asthma', 'income')
 
 # define minimum logCPM thresholds
-logCPMfilter_table <- data.frame(celltype=c('B','CD4-T','CD8-T','DC','Mono','NK',
-                                            'B','CD4-T','CD8-T','DC','Mono','NK'),
-                                 threshold=c(1.4,0.1,2.7,2.4,0.4,1.7,
-                                             2.9,1.2,1.4,0.4,0.1,3.2),
-                                 condition=c(rep('IVA',6),rep('RV',6)))
+logCPMfilter_table <- data.frame(celltype=c('B','CD4-T','CD8-T','Mono','NK',
+                                            'B','CD4-T','CD8-T','Mono','NK'),
+                                 threshold=c(2.8,-0.7,3.2,3.7,3.5,
+                                             3.5,0.8,1.7,3.7,3.5),
+                                 condition=c(rep('IVA',5),rep('RV',5)))
 
 # get avg logCPM per gene
 logCPM <- fread('genes_avglogCPM.txt')
@@ -47,7 +47,7 @@ for (int in interactions){
           theme_bw() + ylab('-log10(FDR)') + ggtitle(conditions[i]%&%' - '%&%ctype) +
           geom_text_repel(aes(logFC, -log10(adj.P.Val), label=ifelse(adj.P.Val<0.05,gene, '')), 
                       colour='red', size=3) 
-        ggsave('NI_'%&%conditions[i]%&%'_'%&%int%&%'_limma_'%&%ctype%&%'_volcanoplot.pdf', height=6, width=8)
+        ggsave('NI_'%&%conditions[i]%&%'_'%&%int%&%'_limma_'%&%ctype%&%'_volcanoplot.pdf', height=3, width=4)
     
         # combine dataframes
         if (exists('full_results')){
@@ -59,8 +59,8 @@ for (int in interactions){
   fwrite(full_results, 'NI_IVAxRV_'%&%int%&%'_limma_results_avglogCPM.filtered.txt', sep=' ')
   
   ggplot(full_results) + geom_point(aes(logFC, -log10(adj.P.Val)), size=0.5, alpha=0.5) +
-    theme_bw() + ylab('-log10(adjusted p-value)') + facet_grid(cols=vars(celltype), rows=vars(condition)) +
+    theme_bw() + ylab('-log10(FDR)') + facet_grid(cols=vars(celltype), rows=vars(condition)) +
     geom_hline(yintercept=1.30103, color='red')
-  ggsave('NI_IVAxRV_'%&%int%&%'_limma_facetgrid_volcanoplot.pdf', height=6, width=10)
+  ggsave('NI_IVAxRV_'%&%int%&%'_limma_facetgrid_volcanoplot.pdf', height=5, width=8)
   rm(full_results)
 }
