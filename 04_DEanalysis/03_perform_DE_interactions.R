@@ -65,6 +65,7 @@ for (i in 1:length(conditions)){
     # extract metadata and count matrices
     mdata <- tmp@meta.data
     mdata$condition <- factor(mdata$condition, levels=c('NI', conditions[i]))
+    mdata$gender <- factor(mdata$gender, levels=c('Male','Female'))
     mdata$IDs <- as.factor(mdata$IDs)
     mdata$asthma <- factor(mdata$asthma, levels=c('No', 'Yes'))
     mdata$income <- factor(mdata$income, levels=c('< $10,000', '$10,000-$29,999', '$30,000-$49,999', 
@@ -83,7 +84,7 @@ for (i in 1:length(conditions)){
         count <- calcNormFactors(count)
         
         # define design matrix
-        design <- model.matrix(~0+age+condition+condition:asthma, data=mdata)
+        design <- model.matrix(~age+gender+condition*asthma, data=mdata)
         
         # voom
         voom <- voom(count, design, plot=T)
@@ -92,12 +93,9 @@ for (i in 1:length(conditions)){
         fit <- eBayes(lmFit(voom, design))
         
         # get results
-        ni_results <- topTable(fit, coef='conditionNI:asthmaYes', number=Inf, adjust='BH') %>% 
-          rownames_to_column('gene') %>% mutate(condition='NI')
         results <- topTable(fit, coef='condition'%&%conditions[i]%&%':asthmaYes', number=Inf, adjust='BH') %>% 
           rownames_to_column('gene') %>% mutate(condition=conditions[i])
-        results <- rbind(ni_results, results)
-        
+
         fwrite(results, '../DEanalysis/NI_'%&%conditions[i]%&%'_asthma_limma_'%&%ctype%&%'_results.txt',
                sep=' ', col.names=T, na='NA')
       } else {
@@ -112,7 +110,7 @@ for (i in 1:length(conditions)){
         count <- calcNormFactors(count)
         
         # define design matrix
-        design <- model.matrix(~0+age+condition+condition:income, data=mdata)
+        design <- model.matrix(~age+gender+condition*income, data=mdata)
         
         # voom
         voom <- voom(count, design, plot=T)
@@ -121,12 +119,8 @@ for (i in 1:length(conditions)){
         fit <- eBayes(lmFit(voom, design))
         
         # get results
-        ni_results <- topTable(fit, coef='conditionNI:income', number=Inf, adjust='BH') %>% 
-          rownames_to_column('gene') %>% mutate(condition='NI')
         results <- topTable(fit, coef='condition'%&%conditions[i]%&%':income', number=Inf, adjust='BH') %>% 
           rownames_to_column('gene') %>% mutate(condition=conditions[i])
-        
-        results <- rbind(ni_results, results)
         
         fwrite(results, '../DEanalysis/NI_'%&%conditions[i]%&%'_income_limma_'%&%ctype%&%'_results.txt',
                sep=' ', col.names=T, na='NA')
