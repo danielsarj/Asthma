@@ -20,7 +20,7 @@ dos_matrix <- cbind(dos_matrix[,1], dos_matrix[, ..common_cols])
 setcolorder(dos_matrix, c(names(dos_matrix)[1], setdiff(common_cols, names(dos_matrix)[1])))
 
 # load genotype PCs and make sure columns are in the correct order
-geno_pcs <- fread('PCAIR.eigenvec') %>% select(sample_id, V1, V2)
+geno_pcs <- fread('PCAIR.eigenvec') %>% select(sample_id, V1, V2, V3, V4)
 geno_pcs$sample_id <- gsub('SEA3', 'SEA-3', geno_pcs$sample_id)
 geno_pcs <- geno_pcs %>% t() %>% as.data.frame() %>% row_to_names(row_number=1) %>%
   rownames_to_column() %>% setDT()
