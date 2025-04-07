@@ -1,5 +1,6 @@
 library(tidyverse)
 library(data.table)
+library(janitor)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/matrixEQTL_results')
 
@@ -26,6 +27,12 @@ for (cond in conditions){
 # load dosage file
 dos_matrix <- fread('../../genotypes/imputed_vcfs/imputed_dosage.txt')
 short.qtl <- compiled.QTL %>% select(snps, gene, celltype) %>% unique()
+
+summ_shortqtl <- short.qtl %>% group_by(celltype) %>% summarise(n=n())
+ggplot(summ_shortqtl, aes(x=celltype, y=n)) + geom_col() + 
+  geom_text(aes(label=n), position=position_dodge(width=0.9),
+            vjust=-0.5, size=4) + theme_bw()
+ggsave('plots/QTL_boxplots/eGenes_per_celltype_barplot.pdf', height=3, width=4)
 
 for (i in 1:nrow(short.qtl)){
   print(i/nrow(short.qtl)*100)
