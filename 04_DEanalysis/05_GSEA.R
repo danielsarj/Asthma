@@ -56,9 +56,7 @@ ggplot(summ) + geom_col(aes(x=celltype, y=n)) + theme_bw() +
   facet_grid(cols=vars(interaction), rows=vars(condition))
 ggsave('NI_IVAxRV_SigGeneSets_acrossInteractions.pdf', height=4, width=8)
 
-# bubble plots!
-
-# Bubble plot
+# bubble plots
 for (int in interactions){
   compiled.fgseaRes %>% filter(padj<0.05, abs(NES)>=1.5, interaction==int) %>% 
     ggplot(., aes(x=NES, y=reorder(pathway, NES), size=size, color=-log10(padj))) +

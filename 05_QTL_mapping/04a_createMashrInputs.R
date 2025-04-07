@@ -10,7 +10,7 @@ celltypes <- c('B', 'CD4-T', 'CD8-T', 'Mono', 'NK')
 # get gene intersection
 for (cond in conditions){
   for (ctype in celltypes){
-    tmp <- fread('../'%&%cond%&%'_'%&%ctype%&%'_rinResiduals.txt') %>% pull(GENES)
+    tmp <- fread('../'%&%cond%&%'_'%&%ctype%&%'_elbowPCs.txt') %>% pull(GENES)
     if (exists('shared_genes')){
       shared_genes <- intersect(shared_genes, tmp)
     } else {shared_genes <- tmp}
@@ -22,7 +22,7 @@ for (cond in conditions){
   print(cond)
   for (ctype in celltypes){
     print(ctype)
-    tmp <- fread(cond%&%'_'%&%ctype%&%'_cisQTL_sumstats.txt.gz') %>% 
+    tmp <- fread(cond%&%'_'%&%ctype%&%'_elbowPCs_cisQTL_sumstats.txt') %>% 
       filter(gene %in% shared_genes) %>% select(gene, snps)
       
     if (exists('combined_snps')){
@@ -30,6 +30,7 @@ for (cond in conditions){
     } else {combined_snps <- tmp}
   }
 }
+fwrite(combined_snps, 'intersection_elbowPCs_cisQTL_sumstats.txt', sep='\t', quote=F)
 rm(shared_genes, tmp)
 
 # get the most significant (lowest FDR) cis-snps across all conditions/celltypes
@@ -37,17 +38,15 @@ for (cond in conditions){
   print(cond)
   for (ctype in celltypes){
     print(ctype)
-    tmp <- fread(cond%&%'_'%&%ctype%&%'_cisQTL_sumstats.txt.gz') %>% 
-      select(gene, snps, FDR) %>% right_join(combined_snps, by=c('gene', 'snps')) %>% 
-      group_by(gene) %>% slice_min(FDR, with_ties=F)
+    tmp <- fread(cond%&%'_'%&%ctype%&%'_best_cisQTL_sumstats.txt') %>% 
+      select(gene, snps) 
     
     if (exists('top_pairs')){
-      top_pairs <- rbind(top_pairs, tmp) %>% group_by(gene) %>% slice_min(FDR, with_ties=F)
+      top_pairs <- union(top_pairs, tmp)
     } else {top_pairs <- tmp}
   }
 }
 rm(tmp)
-top_pairs <- top_pairs %>% select(-FDR)
 
 # get betas/SEs for random cis-snps pairs for every conditions/celltypes
 combined_snps <- combined_snps %>% slice_sample(n=200000)
@@ -55,7 +54,7 @@ for (cond in conditions){
   print(cond)
   for (ctype in celltypes){
     print(ctype)
-    tmp <- fread(cond%&%'_'%&%ctype%&%'_cisQTL_sumstats.txt.gz') %>% 
+    tmp <- fread(cond%&%'_'%&%ctype%&%'_elbowPCs_cisQTL_sumstats.txt') %>% 
       select(gene, snps, beta, SE) %>% right_join(combined_snps, by=c('gene', 'snps')) %>%
       group_by(gene, snps) %>% slice_head(n=1)
     colnames(tmp)[3:4] <- c(cond%&%'_'%&%ctype%&%'_beta', cond%&%'_'%&%ctype%&%'_SE')
@@ -73,7 +72,7 @@ for (cond in conditions){
   print(cond)
   for (ctype in celltypes){
     print(ctype)
-    tmp <- fread(cond%&%'_'%&%ctype%&%'_cisQTL_sumstats.txt.gz') %>% 
+    tmp <- fread(cond%&%'_'%&%ctype%&%'_elbowPCs_cisQTL_sumstats.txt') %>% 
       select(gene, snps, beta, SE) %>% right_join(top_pairs, by=c('gene', 'snps'))
     colnames(tmp)[3:4] <- c(cond%&%'_'%&%ctype%&%'_beta', cond%&%'_'%&%ctype%&%'_SE')
     

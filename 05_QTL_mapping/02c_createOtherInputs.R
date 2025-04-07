@@ -21,8 +21,8 @@ fwrite(gene_local, 'gene_location.txt', col.names=T, sep='\t')
 
 # create dosage file
 dosage <- fread('../genotypes/imputed_vcfs/imputed_dosage.raw') %>% 
-    select(-c(FID, PAT, MAT, SEX, PHENOTYPE)) %>% t() %>% as.data.frame() %>% 
-    rownames_to_column() %>% row_to_names(row_number=1)
+  select(-c(FID, PAT, MAT, SEX, PHENOTYPE)) %>% t() %>% as.data.frame() %>% 
+  rownames_to_column() %>% row_to_names(row_number=1)
 tmp_colnames <- colnames(dosage)
 tmp_colnames <- gsub('SEA3', 'SEA-3', tmp_colnames)
 colnames(dosage) <- tmp_colnames
