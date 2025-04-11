@@ -12,7 +12,7 @@ library(edgeR)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/DEanalysis')
 conditions <- c('RV', 'IVA')
-cells_seurat <- c('B','CD4-T','CD8-T','Mono','NK')
+cells_seurat <- c('B','T-CD4','T-CD8','Mono','NK')
 
 # load gene annotation from ensembl
 annotations <- fread('ensembl_genes.txt') %>% pull('hgnc_symbol')
@@ -60,14 +60,13 @@ rm(results, long_results, iva_results, rv_results)
 
 colnames(full_results)[1] <- c('Gene')
 ### COMPUTE AVG LOGCPM FOR EACH PSEUDOBULK, AND PLOT THEIR BINS/LOGFCS
+bulk_objs <- readRDS('../scRNAanalysis/NI_IVA_RV.integrated.pseudobulks.rds')
 for (i in 1:length(conditions)){
-  bulk_objs <- readRDS('NI_'%&%conditions[i]%&%'_pseudobulks.rds')
   boxplots <- list()
-  
   for (c in 1:length(cells_seurat)){
     
     # get specific celltype pseudobulk count matrix
-    tmp_bulk <- bulk_objs %>% subset(predicted.celltype.l1==cells_seurat[c])
+    tmp_bulk <- bulk_objs %>% subset(celltype==cells_seurat[c] & condition==conditions[i])
     tmp_count <- tmp_bulk@assays$RNA$counts
     tmp_count <- tmp_count[rownames(tmp_count) %in% annotations,]
     
@@ -100,21 +99,18 @@ for (i in 1:length(conditions)){
   do.call(grid.arrange, c(boxplots[1:length(cells_seurat)], ncol=3))
   dev.off()
 }
-
 avglogCPMdf <- full_results_w.avglogCPM %>% select(Gene, celltype, condition, AVG_logCPM)
 fwrite(avglogCPMdf, 'genes_avglogCPM.txt', sep=' ')
-
-rm(bulk_objs, tmp_bulk, tmp_count, library_sizes, cpm, log_cpm, average_log_cpm, 
-   tmp_full_results, boxplots, full_results, avglogCPMdf)
+rm(bulk_objs, tmp_bulk, tmp_count, tmp_full_results, boxplots, full_results, avglogCPMdf)
 
 # define minimum logCPM thresholds
-logCPMfilter_table <- data.frame(celltype=c('B','CD4-T','CD8-T','Mono','NK',
-                                            'B','CD4-T','CD8-T','Mono','NK'),
-                                 threshold=c(2.8,-0.7,3.2,3.7,3.5,
-                                             3.5,0.8,1.7,3.7,3.5),
+logCPMfilter_table <- data.frame(celltype=c('B','T-CD4','T-CD8','Mono','NK',
+                                            'B','T-CD4','T-CD8','Mono','NK'),
+                                 threshold=c(6.0,1.9,0.9,3.7,5.2,
+                                             5.1,0.1,1.6,3.7,5.8),
                                  condition=c(rep('IVA',5),rep('RV',5)))
 for (i in 1:length(conditions)){
-  for (ctype in c('B','CD4-T','CD8-T','Mono','NK')){
+  for (ctype in cells_seurat){
     
     # filter results by the logCPM threshold
     tmp_threshold <- logCPMfilter_table %>% filter(celltype==ctype, condition==conditions[i]) %>%
@@ -162,7 +158,7 @@ ggplot(summary_results) + geom_col(aes(x=celltype, y=n_genes, fill=direction), p
 ggsave('NI_IVAxRV_NumOfDEgenes_barplot.pdf', height=4, width=6)
 
 # upset plot
-for (ctype in c('B','CD4-T','CD8-T','Mono','NK')){
+for (ctype in cells_seurat){
   IVA <- filtered_results %>% filter(celltype==ctype, condition=='IVA') %>% pull(Gene)
   RV <- filtered_results %>% filter(celltype==ctype, condition=='RV') %>% pull(Gene)
   
