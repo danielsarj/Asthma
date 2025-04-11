@@ -9,7 +9,7 @@ setwd('/project/lbarreiro/USERS/daniel/asthma_project/DEanalysis')
 conditions <- c('RV', 'IVA')
 
 # load sample metadata
-sample_m <- fread('sample_metadata.txt')
+sample_m <- fread('../sample_metadata.txt')
 
 # load gene annotation from ensembl
 annotations <- fread('ensembl_genes.txt')
@@ -20,42 +20,42 @@ annotations <- annotations$hgnc_symbol[
   annotations$hgnc_symbol!='' &
   !grepl('^MT-', annotations$hgnc_symbol)]
 
+# load seurat object
+objs <- readRDS('../scRNAanalysis/NI_IVA_RV.integrated.pseudobulks.rds')
+
+# merge metadata
+mdata <- objs@meta.data
+mdata <- inner_join(mdata, sample_m, by=c('IDs'='ID')) %>% column_to_rownames('orig.ident')
+objs@meta.data <- mdata
+
+# plots about the metadata
+summ <- mdata %>% group_by(condition, celltype, asthma) %>% summarise(n=n())
+summ %>% ggplot(.) + geom_col(aes(x=celltype, y=n, fill=asthma), position='dodge') + 
+  scale_y_continuous(breaks=seq(0, max(summ$n), by=1)) + theme_bw() + facet_wrap(~condition)
+ggsave('SampleSizeByAsthmaStatus.pdf', height=4, width=8)
+
+summ <- mdata %>% group_by(condition, celltype, income) %>% summarise(n=n())
+summ %>% drop_na() %>% ggplot(.) + geom_col(aes(x=celltype, y=n, fill=income), position='dodge') + 
+  scale_y_continuous(breaks=seq(0, max(summ$n), by=1)) + theme_bw() + facet_wrap(~condition)
+ggsave('SampleSizeByIncomeStatus.pdf', height=4, width=8)
+
+summ <- mdata %>% group_by(condition, celltype, asthma, income) %>% summarise(n=n())
+summ %>% drop_na() %>% ggplot(.) + geom_col(aes(x=celltype, y=n, fill=condition), position='dodge') + 
+  scale_y_continuous(breaks=seq(0, max(summ$n), by=1)) + theme_bw() + 
+  facet_grid(cols=vars(income), rows=vars(asthma))
+ggsave('SampleSizeByIncomeStatusANDAsthmaStatus.pdf', height=6, width=12)
+
+# condition specific DE
 for (i in 1:length(conditions)){
   print(c(conditions[i]))
-  objs <- readRDS('NI_'%&%conditions[i]%&%'_pseudobulks.rds')
-  
-  # merge metadata
-  mdata <- objs@meta.data
-  mdata <- inner_join(mdata, sample_m, by=c('IDs'='ID')) %>% column_to_rownames('orig.ident')
-  objs@meta.data <- mdata
-  
-  # plots about the metadata
-  summ <- mdata %>% group_by(condition, predicted.celltype.l1, asthma) %>% summarise(n=n())
-  summ %>% filter(predicted.celltype.l1 %in% c('other', 'other-T')==FALSE) %>% 
-    ggplot(.) + geom_col(aes(x=predicted.celltype.l1, y=n, fill=asthma), position='dodge') + 
-    scale_y_continuous(breaks=seq(0, max(summ$n), by=1)) + theme_bw() + facet_wrap(~condition)
-  ggsave('NI_'%&%conditions[i]%&%'_SampleSizeByAsthmaStatus.pdf', height=3, width=7)
-  
-  summ <- mdata %>% group_by(condition, predicted.celltype.l1, income) %>% summarise(n=n())
-  summ %>% filter(predicted.celltype.l1 %in% c('other', 'other-T')==FALSE) %>% 
-    ggplot(.) + geom_col(aes(x=predicted.celltype.l1, y=n, fill=income), position='dodge') + 
-    scale_y_continuous(breaks=seq(0, max(summ$n), by=1)) + theme_bw() + facet_wrap(~condition)
-  ggsave('NI_'%&%conditions[i]%&%'_SampleSizeByIncomeStatus.pdf', height=3, width=7)
-  
-  summ <- mdata %>% group_by(condition, predicted.celltype.l1, asthma, income) %>% summarise(n=n())
-  summ %>% filter(predicted.celltype.l1 %in% c('other', 'other-T')==FALSE) %>% 
-    ggplot(.) + geom_col(aes(x=predicted.celltype.l1, y=n, fill=condition), position='dodge') + 
-    scale_y_continuous(breaks=seq(0, max(summ$n), by=1)) + theme_bw() + 
-    facet_grid(cols=vars(income), rows=vars(asthma))
-  ggsave('NI_'%&%conditions[i]%&%'_SampleSizeByIncomeStatusANDAsthmaStatus.pdf', height=6, width=15)
-  
+
   # celltype specific DE
-  for (ctype in c('B','CD4-T','CD8-T','Mono','NK')){
+  for (ctype in c('B','T-CD4','T-CD8','Mono','NK')){
     print(ctype)
     
     # extract metadata for subsetting
     meta_df <- objs@meta.data
-    filtered_meta <- meta_df %>% filter(predicted.celltype.l1 == ctype)
+    filtered_meta <- meta_df %>% filter(celltype==ctype, condition %in% c(conditions[i], 'NI'))
     
     # subset bulk object
     matching_cells <- rownames(filtered_meta)
@@ -70,8 +70,11 @@ for (i in 1:length(conditions)){
     mdata$asthma <- factor(mdata$asthma, levels=c('No', 'Yes'))
     mdata$income <- factor(mdata$income, levels=c('< $10,000', '$10,000-$29,999', '$30,000-$49,999', 
                                                   '$50,000-$69,999', '$70,000-$89,999')) %>% as.numeric()
+    no_NA_income <- mdata %>% filter(!is.na(income)) %>% rownames(.)
     
     for (interaction_term in c('asthma', 'income')){
+      print(interaction_term)
+      
       if (interaction_term=='asthma'){
         # filter count matrix (only keep protein coding genes)
         count <- tmp@assays$RNA$counts
@@ -87,7 +90,7 @@ for (i in 1:length(conditions)){
         design <- model.matrix(~age+gender+condition*asthma, data=mdata)
         
         # voom
-        voom <- voom(count, design, plot=T)
+        voom <- voom(count, design, plot=F)
         
         # fit linear model 
         fit <- eBayes(lmFit(voom, design))
@@ -95,12 +98,13 @@ for (i in 1:length(conditions)){
         # get results
         results <- topTable(fit, coef='condition'%&%conditions[i]%&%':asthmaYes', number=Inf, adjust='BH') %>% 
           rownames_to_column('gene') %>% mutate(condition=conditions[i])
-
-        fwrite(results, '../DEanalysis/NI_'%&%conditions[i]%&%'_asthma_limma_'%&%ctype%&%'_results.txt',
+        fwrite(results, 'NI_'%&%conditions[i]%&%'_asthma_limma_'%&%ctype%&%'_results.txt',
                sep=' ', col.names=T, na='NA')
+        
       } else {
         # filter count matrix (only keep protein coding genes)
         count <- tmp@assays$RNA$counts
+        count <- count[,colnames(count) %in% no_NA_income]
         count <- count[rownames(count) %in% annotations,]
         zero_var_genes <- apply(count, 1, var) == 0
         count <- count[!zero_var_genes, ]
@@ -113,7 +117,7 @@ for (i in 1:length(conditions)){
         design <- model.matrix(~age+gender+condition*income, data=mdata)
         
         # voom
-        voom <- voom(count, design, plot=T)
+        voom <- voom(count, design, plot=F)
         
         # fit linear model 
         fit <- eBayes(lmFit(voom, design))
@@ -121,8 +125,7 @@ for (i in 1:length(conditions)){
         # get results
         results <- topTable(fit, coef='condition'%&%conditions[i]%&%':income', number=Inf, adjust='BH') %>% 
           rownames_to_column('gene') %>% mutate(condition=conditions[i])
-        
-        fwrite(results, '../DEanalysis/NI_'%&%conditions[i]%&%'_income_limma_'%&%ctype%&%'_results.txt',
+        fwrite(results, 'NI_'%&%conditions[i]%&%'_income_limma_'%&%ctype%&%'_results.txt',
                sep=' ', col.names=T, na='NA')
       }
     }
