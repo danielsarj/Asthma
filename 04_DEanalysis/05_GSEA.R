@@ -5,7 +5,7 @@ library(msigdbr)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/DEanalysis')
 conditions <- c('RV', 'IVA')
-cells_seurat <- c('B','CD4-T','CD8-T','Mono','NK')
+cells_seurat <- c('B','T-CD4','T-CD8','Mono','NK')
 interactions <- c('none','asthma', 'income')
 
 # retrieve human genes for the hallmark collection gene sets
@@ -37,6 +37,12 @@ for (int in interactions){
                         maxSize=1000)
       fgseaRes <- fgseaRes %>% mutate(celltype=ctype, condition=conditions[i], interaction=int) %>% 
         select('pathway','pval','padj','log2err','ES','NES','size','celltype','condition','interaction','leadingEdge')
+      
+      topPathwaysUp <- fgseaRes[NES>0][head(order(pval), n=5), pathway]
+      topPathwaysDown <- fgseaRes[NES<0][head(order(pval), n=5), pathway]
+      topPathways <- c(topPathwaysUp, rev(topPathwaysDown))
+      plotGseaTable(human.path.list[topPathways], subset_DE_results, fgseaRes, gseaParam=0.5)
+      ggsave('NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_'%&%int%&%'_topSigPathways.pdf', height=6, width=10)
       
       # compile results
       if (exists('compiled.fgseaRes')){
