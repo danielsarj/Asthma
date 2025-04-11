@@ -8,7 +8,7 @@ library(PCAForQTL)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping')
 conditions <- c('NI', 'RV', 'IVA')
-celltypes <- c('B', 'CD4-T', 'CD8-T', 'Mono', 'NK')
+celltypes <- c('B', 'T-CD4', 'T-CD8', 'Mono', 'NK')
 
 # function to regress out k number of pcs from expression data frame
 pca_rm <- function(input_data, pc_set) {
@@ -22,7 +22,7 @@ pca_rm <- function(input_data, pc_set) {
 }
 
 # load sample metadata
-sample_m <- fread('../DEanalysis/sample_metadata.txt')
+sample_m <- fread('../sample_metadata.txt')
 
 # load gene annotation from ensembl
 annotations <- fread('../DEanalysis/ensembl_genes.txt')
@@ -32,31 +32,26 @@ annotations <- annotations$hgnc_symbol[
     !grepl('^MT-', annotations$hgnc_symbol)]
 
 for (i in 1:length(conditions)){
-  # load pseudobulk object
   print(conditions[i])
   
-  if (conditions[i]=='IVA'){
-    obj <- readRDS('../DEanalysis/NI_IVA_pseudobulks.rds')
-  } else {
-    obj <- readRDS('../DEanalysis/NI_RV_pseudobulks.rds')
-  }
+  # load pseudobulk object
+  obj <- readRDS('../scRNAanalysis/NI_IVA_RV.integrated.pseudobulks.rds')
 
   for (j in 1:length(celltypes)){
     print(celltypes[j])
     
     # extract metadata
     meta_df <- obj@meta.data
-    filtered_meta <- meta_df[meta_df$predicted.celltype.l1 == celltypes[j] & meta_df$condition == conditions[i], ]
+    filtered_meta <- meta_df[meta_df$celltype == celltypes[j] & meta_df$condition == conditions[i], ]
     
     # subset bulk object
     matching_cells <- rownames(filtered_meta)
     tmp <- subset(obj, cells=matching_cells)
     
     # edit metadata
-    filtered_meta$IDs <- gsub('SEA3', 'SEA-3', filtered_meta$IDs)
     filtered_meta <- left_join(filtered_meta, sample_m, by=c('IDs'='ID'))
     filtered_meta$gender <- as.factor(filtered_meta$gender)
-    
+
     # extract count 
     count_df <- tmp@assays$RNA$counts %>% as.data.frame()
     count_df <- count_df[rownames(count_df) %in% annotations,]
@@ -68,25 +63,24 @@ for (i in 1:length(conditions)){
     K_elbow <- runElbow(prcompResult=exp_pcs)
     pc_set <- c(1:K_elbow)
 
-    # normalize and remove genes with low expression (min. of 2 CPM across 3 samples)
+    # normalize and remove genes with low expression (min. of 2 CPM across 5 samples)
     dge <- DGEList(counts=count_df)
     dge <- calcNormFactors(dge)
     cpm_values <- cpm(dge)
     threshold <- 2
-    min_samples <- 3
+    min_samples <- 5
     keep <- rowSums(cpm_values > threshold) >= min_samples
     dge <- dge[keep, ]
     
-    # adjust for age, gender, and expression PCs
-    design <- model.matrix(~age+gender, data=filtered_meta)
+    # adjust for age, gender, number of cells, and expression PCs
+    design <- model.matrix(~age+gender+n, data=filtered_meta)
     expression <- voom(dge, design, plot=FALSE)$E
     expression <- pca_rm(expression, pc_set)
 
     # edit matrix and save results
     expression <- expression %>% as.data.frame() %>% rownames_to_column(var='GENES')
     tmp_colnames <- colnames(expression)
-    tmp_colnames <- gsub('SEA3', 'SEA-3', tmp_colnames)
-    tmp_colnames <- gsub('_'%&%celltypes[j]%&%'_'%&%conditions[i], '', tmp_colnames)
+    tmp_colnames <- gsub('_'%&%conditions[i]%&%'_'%&%celltypes[i], '', tmp_colnames)
     colnames(expression) <- tmp_colnames
     fwrite(expression, conditions[i]%&%'_'%&%celltypes[j]%&%'_elbowPCs.txt', col.names=T, sep='\t')
   }
