@@ -4,14 +4,14 @@ library(ggrepel)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/DEanalysis')
 conditions <- c('RV', 'IVA')
-cells_seurat <- c('B','CD4-T','CD8-T','Mono','NK')
+cells_seurat <- c('B','T-CD4','T-CD8','Mono','NK')
 interactions <- c('asthma', 'income')
 
 # define minimum logCPM thresholds
-logCPMfilter_table <- data.frame(celltype=c('B','CD4-T','CD8-T','Mono','NK',
-                                            'B','CD4-T','CD8-T','Mono','NK'),
-                                 threshold=c(2.8,-0.7,3.2,3.7,3.5,
-                                             3.5,0.8,1.7,3.7,3.5),
+logCPMfilter_table <- data.frame(celltype=c('B','T-CD4','T-CD8','Mono','NK',
+                                            'B','T-CD4','T-CD8','Mono','NK'),
+                                 threshold=c(6.0,1.9,0.9,3.7,5.2,
+                                             5.1,0.1,1.6,3.7,5.8),
                                  condition=c(rep('IVA',5),rep('RV',5)))
 
 # get avg logCPM per gene
