@@ -24,12 +24,8 @@ done
 # convert vcf to plink format
 plink --chr 1-22 --keep-allele-order --vcf-idspace-to - --make-bed --out merged --vcf reduced_merged.vcf.gz
 
-# LD prune
-plink --bfile merged --indep-pairwise 50 5 0.5 --out merged
-plink --bfile merged --extract merged.prune.in --make-bed --out merged_pruned
-
 # perform genotype QC 
-plink --bfile merged_pruned --maf 0.05 --hwe 1e-6 --make-bed --out filtered_merged
+plink --bfile merged --maf 0.05 --hwe 1e-6 --make-bed --out filtered_merged
 
 # change snp IDs
 awk '{print $1, $1":"$4, $3, $4, $5, $6}' filtered_merged.bim > updated.bim
