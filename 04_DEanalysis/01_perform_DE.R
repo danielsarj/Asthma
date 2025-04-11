@@ -20,40 +20,18 @@ annotations <- annotations$hgnc_symbol[
   annotations$hgnc_symbol!='' &
   !grepl('^MT-', annotations$hgnc_symbol)]
 
+# load seurat object
+objs <- readRDS('NI_IVA_RV.integrated.pseudobulks.rds')
+
 for (i in 1:length(conditions)){
   print(c(conditions[i]))
-  
-  objs <- readRDS('NI_'%&%conditions[i]%&%'.integrated.w_celltype.rds')
-  
-  # clean and organize metadata
-  meta.data <- objs@meta.data
-  meta.data$condition <- factor(meta.data$condition, levels=c('NI', conditions[i]))
-  meta.data$batch <- as.factor(meta.data$batch)
-  meta.data$IDs <- as.factor(meta.data$IDs)
-  meta.data$predicted.celltype.l1 <- gsub(' ', '-', meta.data$predicted.celltype.l1)
-  meta.data$predicted.celltype.l2 <- gsub(' ', '-', meta.data$predicted.celltype.l2)
-  objs@meta.data <- meta.data
-  
-  # compute number of cells per condition/IDs
-  cells_summary <- meta.data %>% group_by(IDs,predicted.celltype.l1,condition) %>% summarise(n_cells=n())
-  cells_summary$predicted.celltype.l1 <- gsub('_', '-', cells_summary$predicted.celltype.l1)
-  
-  # aggregate cell types per individual per condition (pseudobulk)
-  bulk_objs <- AggregateExpression(objs, group.by=c('IDs','predicted.celltype.l1','condition'), 
-                                   slot='counts', assays='RNA', return.seurat=T)
-  
-  # update pseudobulk metadata with number of cells
-  meta.data <- bulk_objs@meta.data %>% inner_join(cells_summary)
-  rownames(meta.data) <- meta.data$orig.ident
-  bulk_objs@meta.data <- meta.data
-  
-  saveRDS(bulk_objs, file='../DEanalysis/NI_'%&%conditions[i]%&%'_pseudobulks.rds')
 
   # celltype specific DE
-  for (ctype in c('B','CD4-T','CD8-T','Mono','NK')){
+  for (ctype in c('B','T-CD4','T-CD8','Mono','NK')){
     print(ctype)
+    
     # subset pseudobulk object
-    tmp <- subset(bulk_objs, predicted.celltype.l1==ctype)
+    tmp <- subset(objs, celltype==ctype & (condition==conditions[i] | condition=='NI'))
     
     # extract metadata and count matrices
     mdata <- tmp@meta.data
@@ -75,7 +53,7 @@ for (i in 1:length(conditions)){
     design <- model.matrix(~0+IDs+condition, data=mdata)
     
     # voom
-    voom <- voom(count, design, plot=T)
+    voom <- voom(count, design, plot=F)
     
     # fit linear model 
     fit <- eBayes(lmFit(voom, design))
