@@ -5,7 +5,7 @@ library(ggrepel)
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/DEanalysis')
 conditions <- c('RV', 'IVA')
 cells_seurat <- c('B','T-CD4','T-CD8','Mono','NK')
-interactions <- c('asthma', 'income')
+interactions <- c('asthma','asthma_alb','income')
 
 # define minimum logCPM thresholds
 logCPMfilter_table <- data.frame(celltype=c('B','T-CD4','T-CD8','Mono','NK',
@@ -19,8 +19,11 @@ logCPM <- fread('genes_avglogCPM.txt')
 
 ### INTEGRATE LIMMA RESULTS AND MAKE VOLCANO PLOT
 for (int in interactions){
+  print(int)
   for (i in 1:length(conditions)){
+    print(conditions[i])
     for (ctype in cells_seurat){
+      print(ctype)
       
       # retrieve logCPM threshold
       tmp_threshold <- logCPMfilter_table %>% filter(celltype==ctype, condition==conditions[i]) %>%
