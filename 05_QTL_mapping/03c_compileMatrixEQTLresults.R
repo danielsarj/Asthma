@@ -6,7 +6,7 @@ setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/matrixEQTL_resu
 
 # define all vectors
 conditions <- c('NI', 'RV', 'IVA')
-celltypes <- c('B', 'CD4-T', 'CD8-T', 'Mono', 'NK')
+celltypes <- c('B', 'T-CD4', 'T-CD8', 'Mono', 'NK')
 permutations <- c(0:10)
 
 for (cond in conditions){
