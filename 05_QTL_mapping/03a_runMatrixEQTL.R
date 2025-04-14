@@ -15,6 +15,9 @@ args <- parser$parse_args()
 # make sure the columns are in the same order
 exp_matrix <- fread(args$cond%&%'_'%&%args$ctype%&%'_elbowPCs.txt')
 dos_matrix <- fread('../genotypes/imputed_vcfs/imputed_dosage.txt')
+tmp_names <- colnames(dos_matrix)
+tmp_names <- gsub('SEA3', 'SEA-3', tmp_names)
+colnames(dos_matrix) <- tmp_names
 common_cols <- intersect(names(exp_matrix), names(dos_matrix))  
 dos_matrix <- cbind(dos_matrix[,1], dos_matrix[, ..common_cols])
 setcolorder(dos_matrix, c(names(dos_matrix)[1], setdiff(common_cols, names(dos_matrix)[1])))
@@ -41,19 +44,37 @@ rownames(geno_pcs_mat) <- geno_pcs[[1]]
 snp_local <- fread('../genotypes/imputed_vcfs/snp_location.txt')
 gene_local <- fread('gene_location.txt')
 
+# save temporary files
+fwrite(dos_matrix_mat, cond%&%'_'%&%ctype%&%'_dosage_TMP.txt', quote=F, sep='\t', row.names=TRUE)
+fwrite(exp_matrix_mat, cond%&%'_'%&%ctype%&%'_expression_TMP.txt', quote=F, sep='\t', row.names=TRUE)
+fwrite(geno_pcs_mat, cond%&%'_'%&%ctype%&%'_covariates_TMP.txt', quote=F, sep='\t', row.names=TRUE)
+rm(dos_matrix, dos_matrix_mat, exp_matrix, exp_matrix_mat, geno_pcs, geno_pcs_mat)
+
 # create SlicedData objects
 ## genotype data
 snp_d <- SlicedData$new()    
-snp_d$CreateFromMatrix(dos_matrix_mat)
-rm(dos_matrix, dos_matrix_mat)
+snp_d$fileDelimiter='\t'
+snp_d$fileOmitCharacters='NA'
+snp_d$fileSkipRows=1
+snp_d$fileSkipColumns=1
+snp_d$fileSliceSize=2000
+snp_d$LoadFile(cond%&%'_'%&%ctype%&%'_dosage_TMP.txt')
 ## expression data
 exp_d <- SlicedData$new()
-exp_d$CreateFromMatrix(exp_matrix_mat)
-rm(exp_matrix, exp_matrix_mat)
+exp_d$fileDelimiter='\t'
+exp_d$fileOmitCharacters='NA'
+exp_d$fileSkipRows=1
+exp_d$fileSkipColumns=1
+exp_d$fileSliceSize=2000
+exp_d$LoadFile(cond%&%'_'%&%ctype%&%'_expression_TMP.txt')
 ## covariates data
 cov_d <- SlicedData$new()
-cov_d$CreateFromMatrix(geno_pcs_mat)
-rm(geno_pcs, geno_pcs_mat)
+cov_d$fileDelimiter='\t'
+cov_d$fileOmitCharacters='NA'
+cov_d$fileSkipRows=1
+cov_d$fileSkipColumns=1
+cov_d$fileSliceSize=2000
+cov_d$LoadFile(cond%&%'_'%&%ctype%&%'_covariates_TMP.txt')
 
 # run main MatrixeQTL function
 n_permutations <- 10
@@ -81,7 +102,7 @@ for (i in 1:(n_permutations+1)){
     cis_qtls <- me$cis$eqtls %>% mutate(condition=args$cond, celltype=args$ctype, SE=abs(beta/qnorm(pvalue/2)))
     cis_qtls <- inner_join(cis_qtls, snp_local, by=c('snps'='snpid')) %>% 
       select(snps, chr, pos, gene, statistic, pvalue, FDR, beta, SE, condition, celltype) %>% arrange(chr, pos)
-    fwrite(cis_qtls, 'matrixEQTL_results/'%&%args$cond%&%'_'%&%args$ctype%&%'_elbowPCs_cisQTL_sumstats.txt', quote=F, sep='\t', na='NA')
+    fwrite(cis_qtls, 'matrixEQTL_results/'%&%args$cond%&%'_'%&%args$ctype%&%'_elbowPCs_cisQTL_sumstats_V2.txt', quote=F, sep='\t', na='NA')
     
   } else {
     
@@ -110,6 +131,6 @@ for (i in 1:(n_permutations+1)){
     cis_qtls <- me$cis$eqtls %>% mutate(condition=args$cond, celltype=args$ctype, SE=abs(beta/qnorm(pvalue/2)))
     cis_qtls <- inner_join(cis_qtls, snp_local, by=c('snps'='snpid')) %>% 
       select(snps, chr, pos, gene, statistic, pvalue, FDR, beta, SE, condition, celltype) %>% arrange(chr, pos)
-    fwrite(cis_qtls, 'matrixEQTL_results/'%&%args$cond%&%'_'%&%args$ctype%&%'_Perm'%&%as.character(as.numeric(i)-1)%&%'_elbowPCs_cisQTL_sumstats.txt', quote=F, sep='\t', na='NA')
+    fwrite(cis_qtls, 'matrixEQTL_results/'%&%args$cond%&%'_'%&%args$ctype%&%'_Perm'%&%as.character(as.numeric(i)-1)%&%'_elbowPCs_cisQTL_sumstats_V2.txt', quote=F, sep='\t', na='NA')
   }
 }
