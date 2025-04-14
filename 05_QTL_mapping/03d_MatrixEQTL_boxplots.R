@@ -1,12 +1,13 @@
 library(tidyverse)
 library(data.table)
 library(janitor)
+library(UpSetR)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/matrixEQTL_results')
 
 # define all vectors
 conditions <- c('NI', 'RV', 'IVA')
-celltypes <- c('B', 'CD4-T', 'CD8-T', 'Mono', 'NK')
+celltypes <- c('B', 'T-CD4', 'T-CD8', 'Mono', 'NK')
 
 for (cond in conditions){
   print(cond)
@@ -23,17 +24,30 @@ for (cond in conditions){
     }
   }
 }
-
-# load dosage file
-dos_matrix <- fread('../../genotypes/imputed_vcfs/imputed_dosage.txt')
+# assess number of eGenes per celltype (regardless of condition)
 short.qtl <- compiled.QTL %>% select(snps, gene, celltype) %>% unique()
-
 summ_shortqtl <- short.qtl %>% group_by(celltype) %>% summarise(n=n())
 ggplot(summ_shortqtl, aes(x=celltype, y=n)) + geom_col() + 
   geom_text(aes(label=n), position=position_dodge(width=0.9),
             vjust=-0.5, size=4) + theme_bw()
 ggsave('plots/QTL_boxplots/eGenes_per_celltype_barplot.pdf', height=3, width=4)
 
+# assess number celltype-eGene sharing across conditions
+short.qtl <- compiled.QTL %>% select(snps, gene, celltype, condition) %>%
+  mutate(celltype_eGene = celltype%&%'_'%&%gene)
+NI_pairs <- short.qtl %>% filter(condition=='NI') %>% pull(celltype_eGene)
+RV_pairs <- short.qtl %>% filter(condition=='RV') %>% pull(celltype_eGene)
+IVA_pairs <- short.qtl %>% filter(condition=='IVA') %>% pull(celltype_eGene)
+celltype_eGenes <- list(NI=NI_pairs, RV=RV_pairs, IVA=IVA_pairs)
+
+# upset plot
+pdf('NI_RV_IVA_celltype.eGenes_upsetplot.pdf', height=3, width=4, onefile=F)
+plot.new() 
+upset(fromList(celltype_eGenes), point.size=3.5, line.size=2, text.scale=c(1.3, 1.3, 1, 1, 2, 1.5))
+dev.off()
+
+# load dosage file
+dos_matrix <- fread('../../genotypes/imputed_vcfs/imputed_dosage.txt')
 for (i in 1:nrow(short.qtl)){
   print(i/nrow(short.qtl)*100)
   
