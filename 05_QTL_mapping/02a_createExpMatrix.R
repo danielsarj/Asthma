@@ -80,7 +80,7 @@ for (i in 1:length(conditions)){
     # edit matrix and save results
     expression <- expression %>% as.data.frame() %>% rownames_to_column(var='GENES')
     tmp_colnames <- colnames(expression)
-    tmp_colnames <- gsub('_'%&%conditions[i]%&%'_'%&%celltypes[i], '', tmp_colnames)
+    tmp_colnames <- gsub('_'%&%conditions[i]%&%'_'%&%celltypes[j], '', tmp_colnames)
     colnames(expression) <- tmp_colnames
     fwrite(expression, conditions[i]%&%'_'%&%celltypes[j]%&%'_elbowPCs.txt', col.names=T, sep='\t')
   }
