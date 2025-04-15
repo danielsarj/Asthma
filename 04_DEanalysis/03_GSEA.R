@@ -6,7 +6,7 @@ library(msigdbr)
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/DEanalysis')
 conditions <- c('RV', 'IVA')
 cells_seurat <- c('B','T-CD4','T-CD8','Mono','NK')
-interactions <- c('none','asthma', 'income')
+interactions <- c('none','asthma', 'asthma_alb','income')
 
 # retrieve human genes for the hallmark collection gene sets
 human.path.list <- msigdbr(species='Homo sapiens', collection='H') %>% 
