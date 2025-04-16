@@ -6,8 +6,8 @@ conditions <- c('NI', 'RV', 'IVA')
 celltypes <- c('B', 'T-CD4', 'T-CD8', 'Mono', 'NK')
 
 # sbtach file topper
-sbatch_topper <- '#!/bin/sh\n' %&% '#SBATCH --time=5:00:00\n' %&%
-  '#SBATCH --mem=80G\n' %&% '#SBATCH --partition=caslake\n' %&%
+sbatch_topper <- '#!/bin/sh\n' %&% '#SBATCH --time=1:30:00\n' %&%
+  '#SBATCH --mem=50G\n' %&% '#SBATCH --partition=caslake\n' %&%
   '#SBATCH --account=pi-lbarreiro\n\n' %&% 'conda init\n' %&%
   'conda activate seurat_env\n\n' %&%
   'export R_LIBS_USER=$CONDA_PREFIX/lib/R/library\n' %&%
