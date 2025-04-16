@@ -93,7 +93,7 @@ for (i in 1:(n_permutations+1)){
       pvOutputThreshold.cis = 1,
       snpspos = snp_local,
       genepos = gene_local,
-      cisDist = 1e6,
+      cisDist = 1e5,
       pvalue.hist = TRUE,
       min.pv.by.genesnp = FALSE,
       noFDRsaveMemory = FALSE)
@@ -125,7 +125,7 @@ for (i in 1:(n_permutations+1)){
       pvOutputThreshold.cis = 1,
       snpspos = snp_local,
       genepos = gene_local,
-      cisDist = 1e6,
+      cisDist = 1e5,
       pvalue.hist = TRUE,
       min.pv.by.genesnp = FALSE,
       noFDRsaveMemory = FALSE)
