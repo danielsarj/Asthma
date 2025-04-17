@@ -37,7 +37,7 @@ for (i in 1:length(celltypes)){
   if (length(significant_genes)>0){
     tmp <- tmp %>% filter(gene %in% significant_genes)
     
-    if (nrow(tmp) <= 140){
+    if (length(significant_genes) <= 80){
       # forest plot
       ggplot(tmp, aes(y=gene, x=beta, xmin=lower, xmax=upper, color=condition)) +
         geom_pointrange(position=position_dodge(width=0.5), size=0.5) +
@@ -46,21 +46,27 @@ for (i in 1:length(celltypes)){
       ggsave(celltypes[i]%&%'_eGenes_forestplot.pdf', height=8, width=6)
     
     } else {
-      p1 <- ggplot(tmp[1:floor((nrow(tmp)/2)),], aes(y=gene, x=beta, xmin=lower, xmax=upper, color=condition)) +
+      # split df into two for viz purposes
+      last_idx <- tmp %>% mutate(row=row_number()) %>% 
+        filter(gene == significant_genes[floor(length(significant_genes)/2)]) %>% 
+        summarise(last_row = max(row)) %>% pull(last_row)
+      tmp_before <- tmp %>% slice(1:last_idx)
+      tmp_after  <- tmp %>% slice((last_idx + 1):n())
+      
+      p1 <- ggplot(tmp_before, aes(y=gene, x=beta, xmin=lower, xmax=upper, color=condition)) +
           geom_pointrange(position=position_dodge(width=0.5), size=0.5) +
           geom_vline(xintercept=0, linetype='dashed', color='black') + 
           theme_bw() + labs(x='Effect Size', y='Gene', color='Condition') +
           theme(legend.position='none')
-      p2 <- ggplot(tmp[(floor((nrow(tmp)/2))+1):nrow(tmp),], aes(y=gene, x=beta, xmin=lower, xmax=upper, color=condition)) +
+      p2 <- ggplot(tmp_after, aes(y=gene, x=beta, xmin=lower, xmax=upper, color=condition)) +
           geom_pointrange(position=position_dodge(width=0.5), size=0.5) +
           geom_vline(xintercept=0, linetype='dashed', color='black') + 
           theme_bw() + labs(x='Effect Size', y='Gene', color='Condition')
 
-    p1 | p2
-    ggsave(celltypes[i]%&%'_eGenes_forestplot.pdf', height=8, width=8)
-    }
+      p1 | p2
+      ggsave(celltypes[i]%&%'_eGenes_forestplot.pdf', height=8, width=8)
+      }
     
-
     if(exists('final.df')){
       final.df <- rbind(final.df, tmp)
     } else {final.df <- tmp}
