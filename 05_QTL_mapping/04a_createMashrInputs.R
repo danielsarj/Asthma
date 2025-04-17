@@ -5,7 +5,7 @@ setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/matrixEQTL_resu
 
 # define all vectors
 conditions <- c('NI', 'RV', 'IVA')
-celltypes <- c('B', 'CD4-T', 'CD8-T', 'Mono', 'NK')
+celltypes <- c('B', 'T-CD4', 'T-CD8', 'Mono', 'NK')
 
 # get gene intersection
 for (cond in conditions){
@@ -30,10 +30,10 @@ for (cond in conditions){
     } else {combined_snps <- tmp}
   }
 }
-fwrite(combined_snps, 'intersection_elbowPCs_cisQTL_sumstats.txt', sep='\t', quote=F)
+fwrite(combined_snps, 'intersection_cisQTL.txt', sep='\t', quote=F)
 rm(shared_genes, tmp)
 
-# get the most significant (lowest FDR) cis-snps across all conditions/celltypes
+# get the most significant (lowest qvalue) cis-snps across all conditions/celltypes
 for (cond in conditions){
   print(cond)
   for (ctype in celltypes){
@@ -48,38 +48,32 @@ for (cond in conditions){
 }
 rm(tmp)
 
-# get betas/SEs for random cis-snps pairs for every conditions/celltypes
+# get betas/SEs for each random cis-snps pair and for each top cis-snps pair for every conditions/celltypes
 combined_snps <- combined_snps %>% slice_sample(n=200000)
 for (cond in conditions){
   print(cond)
   for (ctype in celltypes){
     print(ctype)
+    
     tmp <- fread(cond%&%'_'%&%ctype%&%'_elbowPCs_cisQTL_sumstats.txt') %>% 
-      select(gene, snps, beta, SE) %>% right_join(combined_snps, by=c('gene', 'snps')) %>%
+      select(gene, snps, beta, SE) 
+    
+    tmp_random <- tmp %>% right_join(combined_snps, by=c('gene', 'snps')) %>%
       group_by(gene, snps) %>% slice_head(n=1)
-    colnames(tmp)[3:4] <- c(cond%&%'_'%&%ctype%&%'_beta', cond%&%'_'%&%ctype%&%'_SE')
+    colnames(tmp_random)[3:4] <- c(cond%&%'_'%&%ctype%&%'_beta', cond%&%'_'%&%ctype%&%'_SE')
+    
+    tmp_strong <- tmp %>% right_join(top_pairs, by=c('gene', 'snps'))
+    colnames(tmp_strong)[3:4] <- c(cond%&%'_'%&%ctype%&%'_beta', cond%&%'_'%&%ctype%&%'_SE')
     
     if (exists('random_df')){
-      random_df <- left_join(random_df, tmp, by=c('gene', 'snps'))
-    } else {random_df <- tmp}
-  }
-}
-fwrite(random_df, '../mashr_in_random_df.txt', quote=F, sep=' ', na='NA')
-rm(random_df, tmp, combined_snps)
-    
-# finally, get betas/SEs for each top cis-snps pair for every conditions/celltypes
-for (cond in conditions){
-  print(cond)
-  for (ctype in celltypes){
-    print(ctype)
-    tmp <- fread(cond%&%'_'%&%ctype%&%'_elbowPCs_cisQTL_sumstats.txt') %>% 
-      select(gene, snps, beta, SE) %>% right_join(top_pairs, by=c('gene', 'snps'))
-    colnames(tmp)[3:4] <- c(cond%&%'_'%&%ctype%&%'_beta', cond%&%'_'%&%ctype%&%'_SE')
+      random_df <- left_join(random_df, tmp_random, by=c('gene', 'snps'))
+    } else {random_df <- tmp_random}
     
     if (exists('strong_df')){
-      strong_df <- left_join(strong_df, tmp, by=c('gene', 'snps'))
-    } else {strong_df <- tmp}
+      strong_df <- left_join(strong_df, tmp_strong, by=c('gene', 'snps'))
+    } else {strong_df <- tmp_strong}
+    
   }
 }
-fwrite(strong_df, '../mashr_in_strong_df.txt', quote=F, sep=' ', na='NA')
-rm(strong_df, tmp)
+fwrite(random_df, '../mashr/mashr_in_random_df.txt', quote=F, sep='\t', na='NA')
+fwrite(strong_df, '../mashr/mashr_in_strong_df.txt', quote=F, sep='\t', na='NA')
