@@ -103,7 +103,7 @@ for (i in 1:length(conditions)){
             count <- calcNormFactors(count)
             
             # define design matrix
-            design <- model.matrix(~age+gender+condition*asthma, data=mdata)
+            design <- model.matrix(~batch+age+gender+n+condition*asthma, data=mdata)
             
             # voom
             voom <- voom(count, design, plot=F)
@@ -131,7 +131,7 @@ for (i in 1:length(conditions)){
             count <- calcNormFactors(count)
             
             # define design matrix
-            design <- model.matrix(~age+gender+albuterol+condition*asthma, data=mdata)
+            design <- model.matrix(~batch+age+gender+n+albuterol+condition*asthma, data=mdata)
             
             # voom
             voom <- voom(count, design, plot=F)
@@ -161,7 +161,7 @@ for (i in 1:length(conditions)){
         count <- calcNormFactors(count)
         
         # define design matrix
-        design <- model.matrix(~age+gender+condition*income, data=mdata)
+        design <- model.matrix(~batch+age+gender+n+condition*income, data=mdata)
         
         # voom
         voom <- voom(count, design, plot=F)

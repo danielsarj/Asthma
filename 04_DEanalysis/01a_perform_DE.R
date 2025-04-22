@@ -14,6 +14,9 @@ conditions <- c('RV', 'IVA')
 # load gene annotation from ensembl
 annotations <- fread('../DEanalysis/ensembl_genes.txt')
 
+# load sample metadata
+sample_m <- fread('../sample_metadata.txt')
+
 # keep only protein coding and non-MT genes
 annotations <- annotations$hgnc_symbol[
   annotations$gene_biotype=='protein_coding' &
@@ -22,6 +25,11 @@ annotations <- annotations$hgnc_symbol[
 
 # load seurat object
 objs <- readRDS('NI_IVA_RV.integrated.pseudobulks.rds')
+
+# merge metadata
+mdata <- objs@meta.data
+mdata <- inner_join(mdata, sample_m, by=c('IDs'='ID')) %>% column_to_rownames('orig.ident')
+objs@meta.data <- mdata
 
 for (i in 1:length(conditions)){
   print(c(conditions[i]))
@@ -37,6 +45,7 @@ for (i in 1:length(conditions)){
     mdata <- tmp@meta.data
     mdata$condition <- factor(mdata$condition, levels=c('NI', conditions[i]))
     mdata$IDs <- as.factor(mdata$IDs)
+    mdata$gender <- factor(mdata$gender, levels=c('Male','Female'))
     count <- tmp@assays$RNA$counts
     
     # filter count matrix (only keep protein coding genes)
@@ -50,7 +59,7 @@ for (i in 1:length(conditions)){
     count <- calcNormFactors(count)
     
     # define design matrix
-    design <- model.matrix(~0+IDs+condition, data=mdata)
+    design <- model.matrix(~batch+age+gender+n+condition, data=mdata)
     
     # voom
     voom <- voom(count, design, plot=F)
