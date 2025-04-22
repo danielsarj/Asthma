@@ -21,6 +21,20 @@ pca_rm <- function(input_data, pc_set) {
   return(new)
 }
 
+# function to quantilize normalize expression
+quantile_norm <- function(df){
+  quantile_expression <- matrix(, nrow = nrow(df), ncol = ncol(df))
+  for (j in 1:nrow(quantile_expression)){
+    exp <- df[j,]
+    exp_QN <- qqnorm(exp, plot = FALSE)
+    exp_QN <- exp_QN$x
+    quantile_expression[j,] <- exp_QN
+  }
+  rownames(quantile_expression) <- rownames(df)
+  colnames(quantile_expression) <- colnames(df)
+  return(quantile_expression)
+}
+
 # load sample metadata
 sample_m <- fread('../sample_metadata.txt')
 
@@ -75,6 +89,7 @@ for (i in 1:length(conditions)){
     # adjust for age, gender, number of cells, and expression PCs
     design <- model.matrix(~age+gender+n, data=filtered_meta)
     expression <- voom(dge, design, plot=FALSE)$E
+    expression <- quantile_norm(expression)
     expression <- pca_rm(expression, pc_set)
 
     # edit matrix and save results
