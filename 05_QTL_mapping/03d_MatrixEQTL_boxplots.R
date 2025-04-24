@@ -48,6 +48,7 @@ dev.off()
 
 # load dosage file
 dos_matrix <- fread('../../genotypes/imputed_vcfs/imputed_dosage.txt')
+short.qtl <- compiled.QTL %>% select(snps, gene, celltype) %>% unique()
 for (i in 1:nrow(short.qtl)){
   print(i/nrow(short.qtl)*100)
   
@@ -73,6 +74,7 @@ for (i in 1:nrow(short.qtl)){
   full_tbl <- full_join(subset_dosage, compiled.exp, by=c('ID')) %>% drop_na()
   full_tbl[,2] <- as.factor(full_tbl[,2])
   full_tbl[,3] <- as.numeric(full_tbl[,3])
+  full_tbl$condition <- factor(full_tbl$condition, levels=c('NI','IVA','RV'))
   colnames(full_tbl)[2:3] <- c('SNP', 'Gene')
 
   # make boxplot
@@ -82,7 +84,7 @@ for (i in 1:nrow(short.qtl)){
   
   # save plots
   ggsave('plots/QTL_boxplots/'%&%short.qtl$celltype[i]%&%'_'%&%short.qtl$gene[i]%&%'_QTL_boxplot.pdf', 
-         height=4, width=12)
+         height=3, width=6)
   
   rm(compiled.exp)
 }
