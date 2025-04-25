@@ -2,7 +2,7 @@ library(tidyverse)
 library(data.table)
 library(patchwork)
 "%&%" <- function(a,b) paste(a,b, sep = "")
-setwd('/project/lbarreiro/USERS/daniel/asthma_project/mashr')
+setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/mashr')
 celltypes <- c('B', 'T-CD4', 'T-CD8', 'Mono', 'NK')
 
 # read mashr dfs
@@ -30,6 +30,7 @@ for (i in 1:length(celltypes)){
                               names_pattern='(.*)_(beta|SD)') %>% 
     mutate(lower=beta-1.96*SD, upper=beta+1.96*SD, celltype=celltypes[i])
   tmp$condition <- gsub('_'%&%celltypes[i], '', tmp$condition)
+  tmp$condition <- factor(tmp$condition, levels=c('NI','IVA','RV'))
   
   # identify genes where at least one condition has a CI that does not include zero
   significant_genes <- tmp %>% filter(lower>0 | upper<0) %>% distinct(gene) %>% pull()
@@ -37,13 +38,13 @@ for (i in 1:length(celltypes)){
   if (length(significant_genes)>0){
     tmp <- tmp %>% filter(gene %in% significant_genes)
     
-    if (length(significant_genes) <= 80){
+    if (length(significant_genes) <= 8){
       # forest plot
       ggplot(tmp, aes(y=gene, x=beta, xmin=lower, xmax=upper, color=condition)) +
         geom_pointrange(position=position_dodge(width=0.5), size=0.5) +
         geom_vline(xintercept=0, linetype='dashed', color='black') + 
         theme_bw() + labs(x='Effect Size', y='Gene', color='Condition')
-      ggsave(celltypes[i]%&%'_eGenes_forestplot.pdf', height=8, width=6)
+      ggsave(celltypes[i]%&%'_eGenes_forestplot.pdf', height=6, width=6)
     
     } else {
       # split df into two for viz purposes
@@ -64,7 +65,7 @@ for (i in 1:length(celltypes)){
           theme_bw() + labs(x='Effect Size', y='Gene', color='Condition')
 
       p1 | p2
-      ggsave(celltypes[i]%&%'_eGenes_forestplot.pdf', height=8, width=8)
+      ggsave(celltypes[i]%&%'_eGenes_forestplot.pdf', height=6, width=8)
       }
     
     if(exists('final.df')){
