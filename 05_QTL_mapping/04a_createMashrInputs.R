@@ -39,14 +39,21 @@ for (cond in conditions){
   for (ctype in celltypes){
     print(ctype)
     tmp <- fread(cond%&%'_'%&%ctype%&%'_best_cisQTL_sumstats.txt') %>% 
-      select(gene, snps) 
+      select(gene, snps, qvals) 
     
     if (exists('top_pairs')){
-      top_pairs <- union(top_pairs, tmp)
+      # combine both data frames
+      top_pairs <- rbind(top_pairs, tmp)
+      
+      # a gene should only be in the df once (lowest qval)
+      top_pairs <- top_pairs %>% group_by(gene) %>%
+        slice_min(qvals, with_ties=F) %>% ungroup()
+      
     } else {top_pairs <- tmp}
   }
 }
 rm(tmp)
+top_pairs <- top_pairs %>% select(gene, snps)
 
 # get betas/SEs for each random cis-snps pair and for each top cis-snps pair for every conditions/celltypes
 combined_snps <- combined_snps %>% slice_sample(n=200000)
