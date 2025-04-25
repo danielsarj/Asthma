@@ -1,45 +1,55 @@
 library(tidyverse)
 library(data.table)
-library(reshape2)
+library(janitor)
 "%&%" <- function(a,b) paste(a,b, sep = "")
-setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping')
+setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/mashr')
 
-ctype <- list('B', 'NK')
-Gene <- 'CCL2'
+# define condition vector
+conditions <- c('NI', 'RV', 'IVA')
 
-for (i in 1:length(ctype)){
-  # load expression matrix
-  iva_exp_matrix <- fread('IVA_'%&%ctype[i]%&%'_rinResiduals.txt') %>% filter(GENES==Gene) %>%
-    melt() %>% mutate(condition='IVA', celltype=as.character(ctype[i]))
+# read sig mashr genes
+sig_mashr <- fread('sig_mashr_results.lfsr0.05.txt') %>% 
+  select(gene, snps, celltype) %>% unique()
+
+# load dosage file
+dos_matrix <- fread('../../genotypes/imputed_vcfs/imputed_dosage.txt')
+
+for (i in 1:nrow(sig_mashr)){
+  print(i/nrow(sig_mashr)*100)
   
-  rv_exp_matrix <- fread('RV_'%&%ctype[i]%&%'_rinResiduals.txt') %>% filter(GENES==Gene) %>%
-    melt() %>% mutate(condition='RV', celltype=as.character(ctype[i]))
+  # subset dosage file for the specific SNP
+  subset_dosage <- dos_matrix %>% filter(snpid==sig_mashr$snps[i]) %>% t() %>% 
+    as.data.frame() %>% rownames_to_column() %>% row_to_names(row_number=1) %>%
+    rename(ID=snpid)
   
-  ni_exp_matrix <- fread('NI_'%&%ctype[i]%&%'_rinResiduals.txt') %>% filter(GENES==Gene) %>%
-    melt() %>% mutate(condition='NI', celltype=as.character(ctype[i]))
-
-  if (exists('exp_matrix')){
-    exp_matrix <- rbind(exp_matrix, iva_exp_matrix, rv_exp_matrix, ni_exp_matrix)
-  } else {
-  exp_matrix <- rbind(iva_exp_matrix, rv_exp_matrix, ni_exp_matrix)
+  # get expression levels for the specific gene across all conditions
+  for (cond in conditions){
+    expression <- fread('../'%&%cond%&%'_'%&%sig_mashr$celltype[i]%&%'_elbowPCs.txt') %>%
+      filter(GENES==sig_mashr$gene[i]) %>% t() %>% as.data.frame() %>% rownames_to_column() %>% 
+      row_to_names(row_number=1) %>% rename(ID=GENES) %>% mutate(condition=cond)
+    
+    if (ncol(expression)==3){
+      if (exists('compiled.exp')){
+        compiled.exp <- rbind(compiled.exp, expression)
+      } else {compiled.exp <- expression}
+    }
   }
+  
+  # join dosage and expression tbl
+  full_tbl <- full_join(subset_dosage, compiled.exp, by=c('ID')) %>% drop_na()
+  full_tbl[,2] <- as.factor(full_tbl[,2])
+  full_tbl[,3] <- as.numeric(full_tbl[,3])
+  full_tbl$condition <- factor(full_tbl$condition, levels=c('NI','IVA','RV'))
+  colnames(full_tbl)[2:3] <- c('SNP', 'Gene')
+  
+  # make boxplot
+  ggplot(full_tbl, aes(x=SNP, y=Gene)) + geom_boxplot() + 
+    xlab(sig_mashr$snps[i]) + ylab(sig_mashr$gene[i]) +
+    theme_bw() + facet_wrap(~condition) 
+  
+  # save plots
+  ggsave('QTL_boxplots/'%&%sig_mashr$celltype[i]%&%'_'%&%sig_mashr$gene[i]%&%'_QTL_boxplot.pdf', 
+         height=3, width=6)
+  
+  rm(compiled.exp)
 }
-  
-# retrieve gene-associated snp
-snp <- fread('mashr_out_beta_df.txt') %>% filter(gene==Gene) %>% pull(snps)
-chrom <-  str_extract(snp, '^[^:]+')
-  
-# get dosage
-dos_matrix <- fread('../genotypes/imputed_vcfs/imputed_chr'%&%chrom%&%'_dosage.txt') %>% 
-  filter(snpid==snp) %>% select(-snpid) %>% melt()
-dos_matrix$value <- factor(dos_matrix$value, levels=c('0','1','2'))
-
-# combine tables
-combined_tbl <- inner_join(exp_matrix, dos_matrix, by=c('variable'))
-
-ggplot(combined_tbl, aes(x=value.y, y=value.x)) + geom_boxplot() + 
-  facet_grid(rows=vars(celltype), cols=vars(condition)) + theme_bw() +
-  geom_jitter(color='black', size=0.1, alpha=0.4) +
-  xlab('Dosage ('%&%snp%&%')') + ylab(Gene)
-ggsave(Gene%&%'_boxplot.pdf', width=5, height=4)
-rm(exp_matrix)
