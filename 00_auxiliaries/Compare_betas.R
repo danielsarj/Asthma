@@ -6,7 +6,7 @@ library(viridis)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping')
 conditions <- c('NI', 'IVA')
-celltypes <- c('B', 'CD4-T', 'CD8-T', 'Mono', 'NK')
+celltypes <- c('B', 'T-CD4', 'T-CD8', 'Mono', 'NK')
 
 haley_b <- fread('haley_betas.txt') %>% separate(gene_SNP, 
                                                  into=c('gene', 
@@ -19,16 +19,20 @@ haley_b <- fread('haley_betas.txt') %>% separate(gene_SNP,
 haley_cols <- colnames(haley_b)
 haley_cols <- gsub('monocytes', 'Mono', haley_cols)
 haley_cols <- gsub('flu', 'IVA', haley_cols)
-haley_cols <- gsub('CD8T', 'CD8-T', haley_cols)
-haley_cols <- gsub('CD4T', 'CD4-T', haley_cols)
+haley_cols <- gsub('CD8T', 'T-CD8', haley_cols)
+haley_cols <- gsub('CD4T', 'T-CD4', haley_cols)
 colnames(haley_b) <- haley_cols
+haley_snps <- haley_b$snps 
+haley_snps <- paste(haley_snps, collapse='|')
 
 for (c in conditions){
   print(c)
   for (ct in celltypes){
     print(ct)
-    daniel_b <- fread('matrixEQTL_results/'%&%c%&%'_'%&%ct%&%'_elbowPCs_cisQTL_sumstats.txt') %>% 
-      select(gene, snps, beta)
+    daniel_b <- fread('matrixEQTL_results/'%&%c%&%'_'%&%ct%&%'_elbowPCs_cisQTL_sumstats_V2.txt') %>% 
+      select(gene, snps, beta) %>% filter(grepl(haley_snps, snps))
+
+    a <- daniel_b %>% separate(snps, into=c('snpss','alt'), sep='_') %>% select(-snps) %>% rename(snps=snpss)
     
     haley_subset <- haley_b %>% select(gene, snps, ct%&%'_'%&%c)
     haley_daniel_b <- inner_join(haley_subset, daniel_b, by=c('gene', 'snps')) %>%
@@ -43,9 +47,9 @@ for (c in conditions){
 
 
 # scatter plot with point density 
-ggplot(compiled.betas) + geom_pointdensity(aes(D_beta, H_beta), show.legend=F) +
-  stat_smooth(aes(D_beta, H_beta), method='lm', geom='smooth', formula=y~x) +
+ggplot(compiled.betas) + geom_pointdensity(aes(abs(D_beta), abs(H_beta)), show.legend=F) +
+  stat_smooth(aes(abs(D_beta), abs(H_beta)), method='lm', geom='smooth', formula=y~x) +
   geom_abline(slope=1, color='red') + theme_bw() + 
   facet_grid(cols=vars(celltype), rows=vars(condition)) + scale_color_viridis()
-ggsave('eQTLmapping_DanielvsHaley_betas.pdf', height=5, width=10)
+ggsave('eQTLmapping_DanielvsHaley_betas_absbetas.pdf', height=5, width=10)
 
