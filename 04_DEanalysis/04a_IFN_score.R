@@ -3,7 +3,6 @@ library(SeuratData)
 library(data.table)
 library(msigdbr)
 library(janitor)
-library(ggpubr)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/scRNAanalysis')
 
@@ -36,6 +35,11 @@ for (cond in c('IVA','RV')){
     # extract metadata
     meta_df <- objs@meta.data
     filtered_meta <- meta_df[meta_df$celltype==ctype & (meta_df$condition=='NI' | meta_df$condition==cond),]
+    
+    # remove unique IDs
+    filtered_meta <- filtered_meta %>% group_by(IDs) %>% mutate(is_unique = n() == 1)
+    filtered_meta <- filtered_meta %>% filter(is_unique==FALSE) %>% select(-is_unique) %>% as.data.frame()
+    rownames(filtered_meta) <- filtered_meta$orig.ident
     
     # subset bulk object
     matching_cells <- rownames(filtered_meta)
@@ -71,26 +75,22 @@ for (cond in c('IVA','RV')){
       
       for (id in unique(sub_compiled$ID)){
         # select indv
-        subset_score <- sub_compiled %>% filter(ID==id)
+        subset_score <- sub_compiled %>% filter(ID==id) %>% as.data.table() %>% melt(measure.vars=4)
         
-        if (nrow(subset_score)==2){
-          subset_score <- subset_score %>% as.data.table() %>% melt()
+        # confirm position of NI vs infection
+        NI_row <- which(subset_score$condition=='NI')
+        Inf_row <- which(subset_score$condition==cond)
           
-          # confirm position of NI vs infection
-          NI_row <- which(subset_score$condition=='NI')
-          Inf_row <- which(subset_score$condition==cond)
+        # compute inf score
+        subset_score$score <- subset_score$value[Inf_row] - subset_score$value[NI_row]
           
-          # compute inf score
-          subset_score$score <- subset_score$value[Inf_row] - subset_score$value[NI_row]
+        # add columns
+        subset_score <- subset_score %>% filter(condition==cond) %>% select(ID, celltype, score, condition) %>% 
+          mutate(interferon=ifn) 
           
-          # add columns
-          subset_score <- subset_score %>% filter(condition==cond) %>% select(ID, celltype, score, condition) %>% 
-            mutate(interferon=ifn) 
-          
-          if (exists('ifn.scores')){
-            ifn.scores <- rbind(ifn.scores, subset_score)
-          } else {ifn.scores <- subset_score}
-        }
+        if (exists('ifn.scores')){
+          ifn.scores <- rbind(ifn.scores, subset_score)
+        } else {ifn.scores <- subset_score}
       }
     }
   }
