@@ -138,13 +138,23 @@ for (cond in c('NI','IVA','RV')){
 # summary
 mash_summary <- mash.long.df %>% group_by(condition, celltype) %>% filter(lfsr < 0.05) %>% 
   summarise(n_eGenes=n())
+mash_summary$condition <- factor(mash_summary$condition, levels=c('NI','IVA','RV'))
 ggplot(mash_summary, aes(x=celltype, y=n_eGenes, fill=condition)) + geom_col(position='dodge') +
   theme_bw()
 ggsave('sig_eGenes_per_cond.ctype.pdf', height=4, width=5)
 
+# unique eQTLs
+mash_unique <- mash.long.df %>% group_by(gene, snps, celltype) %>%
+  filter(sum(lfsr< 0.05)==1) %>% ungroup() %>% filter(lfsr<0.05) %>% 
+    group_by(condition, celltype) %>% summarise(n_eGenes=n())
+mash_unique$condition <- factor(mash_unique$condition, levels=c('NI','IVA','RV'))
+ggplot(mash_unique, aes(x=celltype, y=n_eGenes, fill=condition)) + geom_col(position='dodge') +
+  theme_bw()
+ggsave('sig_eGenes_per_cond.unique.ctype.pdf', height=4, width=5)
+
 # forest plot
 mash_filt <- mash.long.df %>% group_by(gene, snps, celltype) %>%
-  filter(any(lfsr<0.05) & any(lfsr>0.3)) %>%ungroup()
+  filter(any(lfsr<0.05) & any(lfsr>0.3)) %>% ungroup()
 mash_filt <- mash_filt %>% mutate(lower=beta-1.96*SD, upper=beta+1.96*SD)
 
 ggplot(mash_filt, aes(y=gene, x=beta, xmin=lower, xmax=upper, color=condition)) +
