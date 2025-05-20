@@ -101,3 +101,8 @@ ifn.scores <- ifn.scores %>% full_join(sample_m, by=c('ID'))
     
 ifn.scores %>% drop_na() %>% ggplot(., aes(x=condition, y=score, fill=asthma)) + geom_boxplot() + 
   facet_grid(cols=vars(interferon), rows=vars(celltype), scale='free') + theme_bw() 
+ggsave('IFNscore_asthma.pdf', height=7, width=6)
+
+ifn.scores %>% mutate(across(where(is.character), ~na_if(.x, ''))) %>% drop_na() %>% ggplot(., aes(x=condition, y=score, fill=income)) + geom_boxplot() + 
+  facet_grid(cols=vars(interferon), rows=vars(celltype), scale='free') + theme_bw() 
+ggsave('IFNscore_income.pdf', height=7, width=6)
