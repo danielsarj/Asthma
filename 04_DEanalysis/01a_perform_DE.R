@@ -58,11 +58,43 @@ for (i in 1:length(conditions)){
     count <- DGEList(counts=count)
     count <- calcNormFactors(count)
     
-    # define design matrix
-    design <- model.matrix(~batch+age+gender+n+condition, data=mdata)
+    # design matrix to remove batch effects
+    design <- model.matrix(~0+batch, data=mdata)
+    design <- design[,colSums(design!=0)>0]
     
-    # voom
-    voom <- voom(count, design, plot=F)
+    # apply mean variance weights and design matrix to phenotype data
+    voom <- voom(count, design, plot=FALSE)
+    fit <- lmFit(voom, design)
+    fit <- eBayes(fit)
+    
+    # get residuals to regress out batch effect
+    residuals <- residuals.MArrayLM(object=fit, voom)
+    
+    # calculate average batch effect for each gene
+    avg_batch_effect <- rowMeans(fit$coefficients)
+    
+    # add the average batch effect back into residuals
+    corrected_expression <- apply(residuals,2,function(x){x+avg_batch_effect})
+    weights <- voom$weights
+    colnames(weights) <- colnames(corrected_expression)
+    rownames(weights) <- rownames(corrected_expression)
+    
+    # identify rows with no negative values and subset matrices
+    keep_rows <- rowSums(corrected_expression<0)==0
+    corrected_expression <- corrected_expression[keep_rows, ]
+    weights <- weights[keep_rows, ]
+    
+    # save files
+    fwrite(corrected_expression, 'NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_corrected_expression.txt', 
+           quote=F, sep=' ', col.names=T, row.names=T)
+    fwrite(weights, 'NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_weights.txt', quote=F,
+           sep=' ', col.names=T, row.names=T)
+    
+    # model infection differential expression
+    design <- model.matrix(~0+age+gender+n+condition, data=mdata)
+    
+    # fit linear model voom
+    voom <- voom(corrected_expression, weights=weights, design, plot=F)
     
     # fit linear model 
     fit <- eBayes(lmFit(voom, design))
