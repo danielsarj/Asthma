@@ -11,15 +11,6 @@ conditions <- c('RV', 'IVA')
 # load sample metadata
 sample_m <- fread('../sample_metadata.txt')
 
-# load gene annotation from ensembl
-annotations <- fread('ensembl_genes.txt')
-
-# keep only protein coding and non-MT genes
-annotations <- annotations$hgnc_symbol[
-  annotations$gene_biotype=='protein_coding' &
-  annotations$hgnc_symbol!='' &
-  !grepl('^MT-', annotations$hgnc_symbol)]
-
 # load seurat object
 objs <- readRDS('../scRNAanalysis/NI_IVA_RV.integrated.pseudobulks.rds')
 
@@ -69,7 +60,7 @@ for (i in 1:length(conditions)){
     tmp <- subset(objs, cells=matching_cells)
     rm(meta_df, filtered_meta, matching_cells)
     
-    # extract metadata and count matrices
+    # extract metadata 
     mdata <- tmp@meta.data
     mdata$condition <- factor(mdata$condition, levels=c('NI', conditions[i]))
     mdata$gender <- factor(mdata$gender, levels=c('Male','Female'))
@@ -82,6 +73,12 @@ for (i in 1:length(conditions)){
     no_NA_income <- mdata %>% filter(!is.na(income)) %>% rownames(.)
     no_NA_albuterol <- mdata %>% filter(!is.na(albuterol)) %>% rownames(.)
     
+    # read in corrected expression and weights
+    count <- fread('../scRNAanalysis/NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_corrected_expression.txt') %>%
+      column_to_rownames('V1')
+    weights <- fread('../scRNAanalysis/NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_weights.txt') %>%
+      column_to_rownames('V1')
+    
     for (interaction_term in c('asthma', 'income')){
       print(interaction_term)
       
@@ -92,21 +89,12 @@ for (i in 1:length(conditions)){
           
           # dont account for albuterol intake
           if (alb=='no'){
-            # filter count matrix (only keep protein coding genes)
-            count <- tmp@assays$RNA$counts
-            count <- count[rownames(count) %in% annotations,]
-            zero_var_genes <- apply(count, 1, var) == 0
-            count <- count[!zero_var_genes, ]
-            
-            # transform count into dge object
-            count <- DGEList(counts=count)
-            count <- calcNormFactors(count)
             
             # define design matrix
-            design <- model.matrix(~batch+age+gender+n+condition*asthma, data=mdata)
+            design <- model.matrix(~age+gender+n+condition+condition:asthma, data=mdata)
             
             # voom
-            voom <- voom(count, design, plot=F)
+            voom <- voom(count, weights=weights, design, plot=F)
             
             # fit linear model 
             fit <- eBayes(lmFit(voom, design))
@@ -119,22 +107,15 @@ for (i in 1:length(conditions)){
             
             # adjust for albuterol intake
           } else {
-            # filter count matrix (only keep protein coding genes)
-            count <- tmp@assays$RNA$counts
-            count <- count[,colnames(count) %in% no_NA_albuterol]
-            count <- count[rownames(count) %in% annotations,]
-            zero_var_genes <- apply(count, 1, var) == 0
-            count <- count[!zero_var_genes, ]
-            
-            # transform count into dge object
-            count <- DGEList(counts=count)
-            count <- calcNormFactors(count)
+            # filter count and weight matrices
+            filt_count <- count %>% select(all_of(no_NA_albuterol))
+            filt_weights <- weights %>% select(all_of(no_NA_albuterol))
             
             # define design matrix
-            design <- model.matrix(~batch+age+gender+n+albuterol+condition*asthma, data=mdata)
+            design <- model.matrix(~age+gender+n+albuterol+condition+condition:asthma, data=mdata)
             
             # voom
-            voom <- voom(count, design, plot=F)
+            voom <- voom(filt_count, weights=filt_weights, design, plot=F)
             
             # fit linear model 
             fit <- eBayes(lmFit(voom, design))
@@ -149,22 +130,15 @@ for (i in 1:length(conditions)){
         
         
       } else {
-        # filter count matrix (only keep protein coding genes)
-        count <- tmp@assays$RNA$counts
-        count <- count[,colnames(count) %in% no_NA_income]
-        count <- count[rownames(count) %in% annotations,]
-        zero_var_genes <- apply(count, 1, var) == 0
-        count <- count[!zero_var_genes, ]
-        
-        # transform count into dge object
-        count <- DGEList(counts=count)
-        count <- calcNormFactors(count)
+        # filter count and weight matrices
+        filt_count <- count %>% select(all_of(no_NA_income))
+        filt_weights <- weights %>% select(all_of(no_NA_income))
         
         # define design matrix
-        design <- model.matrix(~batch+age+gender+n+condition*income, data=mdata)
+        design <- model.matrix(~age+gender+n+condition+condition:income, data=mdata)
         
         # voom
-        voom <- voom(count, design, plot=F)
+        voom <- voom(filt_count, weights=filt_weights, design, plot=F)
         
         # fit linear model 
         fit <- eBayes(lmFit(voom, design))
