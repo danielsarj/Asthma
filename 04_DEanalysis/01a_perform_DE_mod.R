@@ -20,8 +20,8 @@ sample_m <- fread('../sample_metadata.txt')
 # keep only protein coding and non-MT genes
 annotations <- annotations$hgnc_symbol[
   annotations$gene_biotype=='protein_coding' &
-    annotations$hgnc_symbol!='' &
-    !grepl('^MT-', annotations$hgnc_symbol)]
+  annotations$hgnc_symbol!='' &
+  !grepl('^MT-', annotations$hgnc_symbol)]
 
 # load seurat object
 objs <- readRDS('NI_IVA_RV.integrated.pseudobulks.rds')
@@ -33,7 +33,7 @@ objs@meta.data <- mdata
 
 for (i in 1:length(conditions)){
   print(c(conditions[i]))
-  
+
   # celltype specific DE
   for (ctype in c('B','T-CD4','T-CD8','Mono','NK')){
     print(ctype)
@@ -58,18 +58,50 @@ for (i in 1:length(conditions)){
     count <- DGEList(counts=count)
     count <- calcNormFactors(count)
     
-    # define design matrix
-    design <- model.matrix(~batch+age+gender+n+condition, data=mdata)
+    # design matrix to remove batch effects
+    design <- model.matrix(~0+batch, data=mdata)
+    design <- design[,colSums(design!=0)>0]
     
-    # voom
-    voom <- voom(count, design, plot=F)
+    # apply mean variance weights and design matrix to phenotype data
+    voom <- voom(count, design, plot=FALSE)
+    fit <- lmFit(voom, design)
+    fit <- eBayes(fit)
+    
+    # get residuals to regress out batch effect
+    residuals <- residuals.MArrayLM(object=fit, voom)
+    
+    # calculate average batch effect for each gene
+    avg_batch_effect <- rowMeans(fit$coefficients)
+    
+    # add the average batch effect back into residuals
+    corrected_expression <- apply(residuals,2,function(x){x+avg_batch_effect})
+    weights <- voom$weights
+    colnames(weights) <- colnames(corrected_expression)
+    rownames(weights) <- rownames(corrected_expression)
+    
+    # identify rows with no negative values and subset matrices
+    keep_rows <- rowSums(corrected_expression<0)==0
+    corrected_expression <- corrected_expression[keep_rows, ]
+    weights <- weights[keep_rows, ]
+    
+    # save files
+    fwrite(corrected_expression, 'NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_corrected_expression.txt', 
+           quote=F, sep=' ', col.names=T, row.names=T)
+    fwrite(weights, 'NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_weights.txt', quote=F,
+           sep=' ', col.names=T, row.names=T)
+    
+    # model infection differential expression
+    design <- model.matrix(~0+age+gender+n+condition, data=mdata)
+    
+    # fit linear model voom
+    voom <- voom(corrected_expression, weights=weights, design, plot=F)
     
     # fit linear model 
     fit <- eBayes(lmFit(voom, design))
     
     # get results
     results <- topTable(fit, coef=ncol(fit), number=Inf)
-    fwrite(results, '../DEanalysis/NI_'%&%conditions[i]%&%'_limma_'%&%ctype%&%'_results.txt',
+    fwrite(results, '../DEanalysis/NI_'%&%conditions[i]%&%'_limma_'%&%ctype%&%'_results_mod.txt',
            sep=' ', col.names=T, row.names=T)
   }
 }

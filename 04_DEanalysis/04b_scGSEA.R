@@ -1,6 +1,8 @@
 library(Seurat)
 library(msigdbr)
 library(data.table)
+library(tidyverse)
+library(ggpubr)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/scRNAanalysis')
 conditions <- c('RV', 'IVA', 'NI')
@@ -143,6 +145,13 @@ paired.ifn.scores %>% drop_na() %>% ggplot(., aes(x=condition, y=IFNy_score, fil
   geom_boxplot() + facet_wrap(~celltype, scale='free') + theme_bw() 
 ggsave('scGSEA_IFNyscore_pairedID_asthma_boxplots.pdf', height=4, width=6)
 
+
+paired.ifn.scores %>% filter(condition=='RV') %>% 
+  drop_na() %>% ggplot(., aes(x=condition, y=IFNy_score, fill=asthma)) + 
+  geom_boxplot() + facet_wrap(~celltype, scale='free') + theme_bw() 
+
+
+
 ### SAME THING AGAIN BUT SCORING ON ADJUSTED RESIDUALS
 # load pseudobulk seurat object
 bulk_obj <- readRDS('NI_IVA_RV.integrated.pseudobulks.rds') 
@@ -209,10 +218,21 @@ for (ctype in celltypes){
 # merge w metadata
 paired.bulk.ifn.scores <- paired.bulk.ifn.scores %>% full_join(sample_m, by=c('IDs'='ID'))
 
+asthma_ifn_scores <- paired.bulk.ifn.scores %>% select(celltype, condition, IFNa_score, IFNy_score, asthma, albuterol) %>%
+  drop_na()
+
 # plot
-paired.bulk.ifn.scores %>% drop_na() %>% ggplot(., aes(x=condition, y=IFNa_score, fill=asthma)) + 
-  geom_boxplot() + facet_wrap(~celltype, scale='free') + theme_bw() 
+asthma_ifn_scores %>% ggplot(., aes(x=condition, y=IFNa_score, fill=asthma)) + 
+  geom_boxplot() + facet_wrap(~celltype, scale='free') + theme_bw() +
+  stat_compare_means(aes(group = asthma), method = "t.test")
 ggsave('scGSEA_IFNascore_pairedID_adjusted.exp_asthma_boxplots.pdf', height=4, width=6)
-paired.bulk.ifn.scores %>% drop_na() %>% ggplot(., aes(x=condition, y=IFNy_score, fill=asthma)) + 
+asthma_ifn_scores %>% ggplot(., aes(x=condition, y=IFNy_score, fill=asthma)) + 
   geom_boxplot() + facet_wrap(~celltype, scale='free') + theme_bw() 
 ggsave('scGSEA_IFNyscore_pairedID_adjusted.exp_asthma_boxplots.pdf', height=4, width=6)
+
+
+
+
+
+
+
