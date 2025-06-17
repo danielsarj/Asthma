@@ -3,6 +3,7 @@ library(SeuratData)
 library(data.table)
 library(msigdbr)
 library(janitor)
+library(ggpubr)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/scRNAanalysis')
 
@@ -100,7 +101,9 @@ for (cond in c('IVA','RV')){
 ifn.scores <- ifn.scores %>% full_join(sample_m, by=c('ID'))
     
 ifn.scores %>% drop_na() %>% ggplot(., aes(x=condition, y=score, fill=asthma)) + geom_boxplot() + 
-  facet_grid(cols=vars(interferon), rows=vars(celltype), scale='free') + theme_bw() 
+  facet_grid(cols=vars(interferon), rows=vars(celltype), scale='free') + theme_bw() +
+  stat_compare_means(aes(group = asthma), method='wilcox.test', label='p.format') +
+  scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
 ggsave('IFNscore_asthma.pdf', height=7, width=6)
 
 ifn.scores %>% mutate(across(where(is.character), ~na_if(.x, ''))) %>% drop_na() %>% ggplot(., aes(x=condition, y=score, fill=income)) + geom_boxplot() + 

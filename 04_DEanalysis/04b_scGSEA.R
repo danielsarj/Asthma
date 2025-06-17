@@ -224,15 +224,11 @@ asthma_ifn_scores <- paired.bulk.ifn.scores %>% select(celltype, condition, IFNa
 # plot
 asthma_ifn_scores %>% ggplot(., aes(x=condition, y=IFNa_score, fill=asthma)) + 
   geom_boxplot() + facet_wrap(~celltype, scale='free') + theme_bw() +
-  stat_compare_means(aes(group = asthma), method = "t.test")
+  stat_compare_means(aes(group = asthma), method='wilcox.test', label='p.format') +
+  scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
 ggsave('scGSEA_IFNascore_pairedID_adjusted.exp_asthma_boxplots.pdf', height=4, width=6)
 asthma_ifn_scores %>% ggplot(., aes(x=condition, y=IFNy_score, fill=asthma)) + 
-  geom_boxplot() + facet_wrap(~celltype, scale='free') + theme_bw() 
+  geom_boxplot() + facet_wrap(~celltype, scale='free') + theme_bw() +
+  stat_compare_means(aes(group = asthma), method='wilcox.test', label='p.format') +
+  scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
 ggsave('scGSEA_IFNyscore_pairedID_adjusted.exp_asthma_boxplots.pdf', height=4, width=6)
-
-
-
-
-
-
-
