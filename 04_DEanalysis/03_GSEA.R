@@ -27,7 +27,7 @@ for (int in interactions){
       subset_DE_results <- DE_results %>% filter(celltype==ctype, condition==conditions[i]) 
       
       # format values for fGSEA
-      subset_DE_results <- subset_DE_results %>% arrange(t) %>% select(gene, t)
+      subset_DE_results <- subset_DE_results %>% arrange(desc(t)) %>% select(gene, t)
       subset_DE_results <- setNames(subset_DE_results$t, subset_DE_results$gene)
       
       # run fGSEA
@@ -42,7 +42,7 @@ for (int in interactions){
       topPathwaysDown <- fgseaRes[NES<0][head(order(pval), n=5), pathway]
       topPathways <- c(topPathwaysUp, rev(topPathwaysDown))
       plotGseaTable(human.path.list[topPathways], subset_DE_results, fgseaRes, gseaParam=0.5)
-      ggsave('NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_'%&%int%&%'_topSigPathways.pdf', height=6, width=10)
+      ggsave('NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_'%&%int%&%'_desc_topSigPathways.pdf', height=6, width=10)
       
       # compile results
       if (exists('compiled.fgseaRes')){
@@ -53,14 +53,14 @@ for (int in interactions){
     }
   }
 }
-fwrite(compiled.fgseaRes, 'NI_IVAxRV_GSEAresults.txt', sep=' ', na='NA', col.names=T)
+fwrite(compiled.fgseaRes, 'NI_IVAxRV_descGSEAresults.txt', sep=' ', na='NA', col.names=T)
 
 # plot number of enriched pathways per celltype/condition/interaction
 summ <- compiled.fgseaRes %>% group_by(celltype, condition, interaction) %>% filter(padj<0.05) %>%
   summarise(n=n())
 ggplot(summ) + geom_col(aes(x=celltype, y=n)) + theme_bw() + 
   facet_grid(cols=vars(interaction), rows=vars(condition))
-ggsave('NI_IVAxRV_SigGeneSets_acrossInteractions.pdf', height=4, width=8)
+ggsave('NI_IVAxRV_descSigGeneSets_acrossInteractions.pdf', height=4, width=8)
 
 # bubble plots
 for (int in interactions){
@@ -69,5 +69,5 @@ for (int in interactions){
     geom_point(alpha=0.8) + scale_size(range=c(1,10)) + scale_color_gradient(low='blue', high='red') +  
     labs(x='Normalized Enrichment Score (NES)', y='Pathway', size='Gene Count', color='-log10(FDR)') +
     theme_bw() + facet_grid(cols=vars(celltype), rows=vars(condition))
-  ggsave('NI_IVAxRV_SigGeneSets_'%&%int%&%'_bubbleplot.pdf', height=8, width=12)
+  ggsave('NI_IVAxRV_descSigGeneSets_'%&%int%&%'_bubbleplot.pdf', height=8, width=12)
 }
