@@ -17,13 +17,18 @@ obj <- obj %>% subset(subset = SOC_infection_status=='NI')
 
 # ID metadata
 mdata <- fread('HALEYs/individual_meta_data_for_GE_with_scaledCovars_with_geneProps.txt') %>% 
-  select(indiv_ID, age_Scale, YRI_Scale) %>% drop_na() %>% unique() 
+  select(indiv_ID, age_Scale, YRI_Scale) %>% unique() 
 
-# join ID metadata to Seurat's metadat
-s_mdata <- obj@meta.data %>% full_join(mdata, by=c('SOC_indiv_ID'='indiv_ID'), relationship='many-to-many')
+# join ID metadata to Seurat's metadata
+s_mdata <- obj@meta.data %>% inner_join(mdata, by=c('SOC_indiv_ID'='indiv_ID'), relationship='many-to-many')
 rownames(s_mdata) <- rownames(obj@meta.data)
 obj@meta.data <- s_mdata
 rm(s_mdata, mdata)
+
+# remove individuals for which there are NAs in covariates
+complete_cells <- complete.cases(obj@meta.data)
+obj <- obj %>% subset(cells = colnames(obj)[complete_cells])
+rm(complete_cells)
 
 # load gene annotation from ensembl
 annotations <- fread('../DEanalysis/ensembl_genes.txt')
@@ -74,9 +79,3 @@ for (ctype in c('B','CD4_T','CD8_T','monocytes','NK')){
   
   fwrite(full_df, 'Saige/step1/inputs/'%&%ctype%&%'_NI_counts.w.covs.txt', sep='\t', col.names=TRUE)
 }
-
-length(full_df$NOC2L)
-length(full_df$age_Scale)
-length(full_df$YRI_Scale)
-length(full_df$PC1)
-
