@@ -17,7 +17,7 @@ obj <- obj %>% subset(subset = SOC_infection_status=='NI')
 
 # ID metadata
 mdata <- fread('HALEYs/individual_meta_data_for_GE_with_scaledCovars_with_geneProps.txt') %>% 
-  select(indiv_ID, age_Scale, YRI_Scale) %>% unique()
+  select(indiv_ID, age_Scale, YRI_Scale) %>% drop_na() %>% unique() 
 
 # join ID metadata to Seurat's metadat
 s_mdata <- obj@meta.data %>% full_join(mdata, by=c('SOC_indiv_ID'='indiv_ID'), relationship='many-to-many')
@@ -34,6 +34,7 @@ annotations <- annotations$hgnc_symbol[
 
 # work with one cell type at a time
 for (ctype in c('B','CD4_T','CD8_T','monocytes','NK')){
+  print(ctype)
   
   # subset seurat object
   subset_obj <- obj %>% subset(subset = celltype == ctype)
@@ -73,4 +74,9 @@ for (ctype in c('B','CD4_T','CD8_T','monocytes','NK')){
   
   fwrite(full_df, 'Saige/step1/inputs/'%&%ctype%&%'_NI_counts.w.covs.txt', sep='\t', col.names=TRUE)
 }
+
+length(full_df$NOC2L)
+length(full_df$age_Scale)
+length(full_df$YRI_Scale)
+length(full_df$PC1)
 
