@@ -1,0 +1,76 @@
+import os
+
+configfile: "saigeqtl_config.yaml"
+
+# Load gene list
+with open(config["gene_list"]) as f:
+    GENES = [line.strip() for line in f if line.strip()]
+
+CELLTYPE = config["celltype"]
+PHENO_FILE = config["pheno_file"]
+PLINK_PREFIX = config["plink_prefix"]
+
+rule all:
+    input:
+        expand("/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/outputs/{celltype}/{gene}.SAIGE.txt", celltype=CELLTYPE, gene=GENES)
+
+rule step1:
+    output:
+        rda="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step1/outputs/{celltype}/{celltype}_{gene}.rda",
+        variance_ratio="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step1/outputs/{celltype}/{celltype}_{gene}.varianceRatio.txt",
+    params:
+        covars="age_Scale,YRI_Scale,PC1,PC2,PC3",
+        sample_covars="age_Scale,YRI_Scale",
+        sample_id_col="SOC_indiv_ID"
+    shell:
+        """
+        module load singularity
+        bash {config[singularity_image]} step1_fitNULLGLMM_qtl.R \
+            --useSparseGRMtoFitNULL=FALSE \
+            --useGRMtoFitNULL=FALSE \
+            --phenoFile={PHENO_FILE} \
+            --phenoCol={wildcards.gene} \
+            --covarColList={params.covars} \
+            --sampleCovarColList={params.sample_covars} \
+            --sampleIDColinphenoFile={params.sample_id_col} \
+            --traitType=count \
+            --outputPrefix=/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step1/outputs/{wildcards.celltype}/{wildcards.celltype}_{wildcards.gene} \
+            --skipVarianceRatioEstimation=FALSE \
+            --isRemoveZerosinPheno=FALSE \
+            --isCovariateOffset=FALSE \
+            --isCovariateTransform=TRUE \
+            --skipModelFitting=FALSE \
+            --tol=0.00001 \
+            --plinkFile={PLINK_PREFIX} \
+            --IsOverwriteVarianceRatioFile=TRUE \
+        """
+
+rule step2:
+    input:
+        bed=PLINK_PREFIX + ".bed",
+        bim=PLINK_PREFIX + ".bim",
+        fam=PLINK_PREFIX + ".fam",
+        model="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step1/outputs/{celltype}/{celltype}_{gene}.rda",
+        variance_ratio="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step1/outputs/{celltype}/{celltype}_{gene}.varianceRatio.txt",
+    output:
+        assoc="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/outputs/{celltype}/{gene}.SAIGE.txt",
+        index="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/outputs/{celltype}/{gene}.SAIGE.txt.index",
+    params:
+        minMAF="0.05",
+        cutoff="2",
+        chunk_size="10000",
+    shell:
+        """
+        module load singularity
+        bash {config[singularity_image]} step2_tests_qtl.R \
+            --bedFile={input.bed} \
+            --bimFile={input.bim} \
+            --famFile={input.fam} \
+            --SAIGEOutputFile=/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/outputs/{wildcards.celltype}/{wildcards.gene}.SAIGE.txt \
+            --minMAF={params.minMAF} \
+            --GMMATmodelFile={input.model} \
+            --SPAcutoff={params.cutoff} \
+            --LOCO=FALSE \
+            --varianceRatioFile={input.variance_ratio} \
+            --markers_per_chunk={params.chunk_size}
+        """
