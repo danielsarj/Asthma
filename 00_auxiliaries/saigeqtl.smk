@@ -23,22 +23,27 @@ rule step1:
     output:
         rda="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step1/outputs/{celltype}/{celltype}_{gene}.rda",
         variance_ratio="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step1/outputs/{celltype}/{celltype}_{gene}.varianceRatio.txt"
+    conda:
+        "saigeqtl_env"
     params:
+        inv_norm="TRUE",
         covars="age_Scale,YRI_Scale,PC1,PC2,PC3",
         sample_covars="age_Scale,YRI_Scale",
-        sample_id_col="SOC_indiv_ID"
+        sample_id_col="SOC_indiv_ID",
+        cell_id_col="cell_ID"
     shell:
         """
-        conda activate saigeqtl_env
         step1_fitNULLGLMM_qtl.R \
             --useSparseGRMtoFitNULL=FALSE \
             --useGRMtoFitNULL=FALSE \
+            --invNormalize={params.inv_norm} \
             --phenoFile={PHENO_FILE} \
             --phenoCol={wildcards.gene} \
             --covarColList={params.covars} \
             --sampleCovarColList={params.sample_covars} \
             --sampleIDColinphenoFile={params.sample_id_col} \
-            --traitType=count \
+            --cellIDColinphenoFile={params.cell_id_col} \
+            --traitType=quantitative \
             --outputPrefix=/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step1/outputs/{wildcards.celltype}/{wildcards.celltype}_{wildcards.gene} \
             --skipVarianceRatioEstimation=FALSE \
             --isRemoveZerosinPheno=FALSE \
@@ -59,7 +64,9 @@ rule step2:
         variance_ratio="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step1/outputs/{celltype}/{celltype}_{gene}.varianceRatio.txt"
     output:
         assoc="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/outputs/{celltype}/{gene}.SAIGE.txt",
-        index="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/outputs/{celltype}/{gene}.SAIGE.txt.index",
+        index="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/outputs/{celltype}/{gene}.SAIGE.txt.index"
+    conda:
+        "saigeqtl_env"
     params:
         minMAF="0.05",
         cutoff="2",
@@ -68,7 +75,6 @@ rule step2:
         chr=lambda wildcards: GENE_CHR[wildcards.gene]
     shell:
         """
-        conda activate saigeqtl_env
         step2_tests_qtl.R \
             --bedFile={input.bed} \
             --bimFile={input.bim} \
