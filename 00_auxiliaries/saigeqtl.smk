@@ -29,9 +29,8 @@ rule step1:
         sample_id_col="SOC_indiv_ID"
     shell:
         """
-        module load R/3.6.3
-        module load singularity
-        bash {config[singularity_image]} step1_fitNULLGLMM_qtl.R \
+        conda activate saigeqtl_env
+        step1_fitNULLGLMM_qtl.R \
             --useSparseGRMtoFitNULL=FALSE \
             --useGRMtoFitNULL=FALSE \
             --phenoFile={PHENO_FILE} \
@@ -69,9 +68,8 @@ rule step2:
         chr=lambda wildcards: GENE_CHR[wildcards.gene]
     shell:
         """
-        module load R/3.6.3
-        module load singularity
-        bash {config[singularity_image]} step2_tests_qtl.R \
+        conda activate saigeqtl_env
+        step2_tests_qtl.R \
             --bedFile={input.bed} \
             --bimFile={input.bim} \
             --famFile={input.fam} \
