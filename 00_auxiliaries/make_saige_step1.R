@@ -30,12 +30,11 @@ complete_cells <- complete.cases(obj@meta.data)
 obj <- obj %>% subset(cells = colnames(obj)[complete_cells])
 rm(complete_cells)
 
-# load gene annotation from ensembl
-annotations <- fread('../DEanalysis/ensembl_genes.txt')
-annotations <- annotations$hgnc_symbol[
-  annotations$gene_biotype=='protein_coding' &
-    annotations$hgnc_symbol!='' &
-    !grepl('^MT-', annotations$hgnc_symbol)]
+# get gene annotation from ensembl
+annotations <- fread('../DEanalysis/ensembl_genes.txt') %>% filter(gene_biotype=='protein_coding',
+                     hgnc_symbol!='', !grepl('^MT-', hgnc_symbol))
+annotations$chromosome_name <- as.numeric(annotations$chromosome_name)
+annotations <- annotations %>% drop_na()
 
 # work with one cell type at a time
 for (ctype in c('B','CD4_T','CD8_T','monocytes','NK')){
@@ -48,7 +47,7 @@ for (ctype in c('B','CD4_T','CD8_T','monocytes','NK')){
   count_mat <- subset_obj@assays$RNA$counts
   
   # keep only protein-coding genes with variance > 0
-  keep_genes <- rownames(count_mat) %in% annotations
+  keep_genes <- rownames(count_mat) %in% annotations$hgnc_symbol
   count_mat <- count_mat[keep_genes, ]
   gene_vars <- apply(count_mat, 1, function(x) var(as.numeric(x)))
   count_mat <- count_mat[gene_vars > 0, ]
@@ -70,12 +69,17 @@ for (ctype in c('B','CD4_T','CD8_T','monocytes','NK')){
   
   # subset metadata
   mdata <- subset_obj@meta.data %>% as.data.frame() %>% rownames_to_column('cell_ID') %>%
-    select(cell_ID, SOC_indiv_ID, age_Scale, YRI_Scale)
+    dplyr::select(cell_ID, SOC_indiv_ID, age_Scale, YRI_Scale)
   
   # join metadata, exp_pcs, and count_mat
   full_df <- inner_join(mdata, exp_pcs, by=c('cell_ID')) %>% inner_join(count_mat, by=c('cell_ID')) %>% 
-    select(-cell_ID) %>% arrange(SOC_indiv_ID)
-  rm(count_mat, exp_pcs, mdata)
+    dplyr::select(-cell_ID) %>% arrange(SOC_indiv_ID)
   
+  # make chr-gene df 
+  sub_anno <- annotations %>% dplyr::select(hgnc_symbol, chromosome_name) %>% filter(hgnc_symbol %in% colnames(full_df))
+    
   fwrite(full_df, 'Saige/step1/inputs/'%&%ctype%&%'_NI_counts.w.covs.txt', sep='\t', col.names=TRUE)
+  fwrite(sub_anno, 'Saige/step1/inputs/'%&%ctype%&%'_NI_gene_list.txt', sep='\t', col.names=FALSE)
+  
+  rm(count_mat, exp_pcs, mdata, sub_anno, full_df)
 }
