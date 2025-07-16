@@ -1,8 +1,8 @@
-conda activate saigeqtl_env
 snakemake -s saigeqtl.smk \
   --jobs 1000 \
   --latency-wait 30 \
   --keep-going \
+  --use-conda \
   --rerun-incomplete \
   --use-envmodules \
   --cluster "sbatch \
