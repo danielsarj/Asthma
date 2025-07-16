@@ -73,7 +73,7 @@ for (ctype in c('B','CD4_T','CD8_T','monocytes','NK')){
   
   # join metadata, exp_pcs, and count_mat
   full_df <- inner_join(mdata, exp_pcs, by=c('cell_ID')) %>% inner_join(count_mat, by=c('cell_ID')) %>% 
-    dplyr::select(-cell_ID) %>% arrange(SOC_indiv_ID)
+    arrange(SOC_indiv_ID)
   
   # make chr-gene df 
   sub_anno <- annotations %>% dplyr::select(hgnc_symbol, chromosome_name) %>% filter(hgnc_symbol %in% colnames(full_df))
