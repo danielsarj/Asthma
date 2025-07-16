@@ -26,7 +26,7 @@ rule step1:
     conda:
         "saigeqtl_env"
     params:
-        inv_norm="TRUE",
+        inv_norm="FALSE",
         covars="age_Scale,YRI_Scale,PC1,PC2,PC3",
         sample_covars="age_Scale,YRI_Scale",
         sample_id_col="SOC_indiv_ID",
@@ -43,7 +43,7 @@ rule step1:
             --sampleCovarColList={params.sample_covars} \
             --sampleIDColinphenoFile={params.sample_id_col} \
             --cellIDColinphenoFile={params.cell_id_col} \
-            --traitType=quantitative \
+            --traitType=count \
             --outputPrefix=/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step1/outputs/{wildcards.celltype}/{wildcards.celltype}_{wildcards.gene} \
             --skipVarianceRatioEstimation=FALSE \
             --isRemoveZerosinPheno=FALSE \
@@ -52,7 +52,7 @@ rule step1:
             --skipModelFitting=FALSE \
             --tol=0.00001 \
             --plinkFile={PLINK_PREFIX} \
-            --IsOverwriteVarianceRatioFile=TRUE \
+            --IsOverwriteVarianceRatioFile=TRUE
         """
 
 rule step2:
