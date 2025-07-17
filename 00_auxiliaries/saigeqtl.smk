@@ -17,7 +17,7 @@ PLINK_IN = config["plink_in"]
 
 rule all:
     input:
-        expand("/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/outputs/{celltype}/{gene}.SAIGE.txt", celltype=CELLTYPE, gene=GENES)
+        expand("/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step3/outputs/{celltype}/{gene}.genePval.txt", celltype=CELLTYPE, gene=GENES)
 
 rule step1:
     output:
@@ -87,4 +87,19 @@ rule step2:
             --LOCO={params.loco} \
             --varianceRatioFile={input.variance_ratio} \
             --markers_per_chunk={params.chunk_size}
+        """
+
+rule step3:
+    input:
+        assoc="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/outputs/{celltype}/{gene}.SAIGE.txt"
+    output:
+        geneassoc="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step3/outputs/{celltype}/{gene}.genePval.txt"
+    conda:
+        "saigeqtl_env"
+    shell:
+        """
+        step3_gene_pvalue_qtl.R \
+            --assocFile={input.assoc} \
+            --geneName={wildcards.gene} \
+            --genePval_outputFile=/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step3/outputs/{wildcards.celltype}/{wildcards.gene}.genePval.txt
         """
