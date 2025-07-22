@@ -20,7 +20,8 @@ if (args$mode == 'compile'){
                                                         'Chromosome', 
                                                         'Position', 'Ref', 'Alt'), 
                                                  sep='_') %>% 
-  mutate(snps=Chromosome%&%':'%&%Position) %>% drop_na() %>% select(gene, snps, Ref, Alt, all_of(args$celltype))
+    rename(CD4_T_NI=CD4T_NI, CD8_T_NI=CD8T_NI) %>% mutate(snps=Chromosome%&%':'%&%Position) %>% 
+    drop_na() %>% select(gene, snps, Ref, Alt, all_of(args$celltype))
 
   # only keep SAIGE genes that are also in haleys results
   genes <- unique(haley_b$gene) %&% '.SAIGE.txt'
