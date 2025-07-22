@@ -42,7 +42,7 @@ if (args$mode == 'compile'){
     # read file
     tmp_f <- fread('Saige/step2/outputs/'%&%args$celltype%&%'/'%&%f) %>% mutate(gene=g_name) %>% 
       filter(MarkerID==snp_id) %>% select(gene, MarkerID, Allele1, Allele2, BETA) %>% 
-      rename(snps=MarkerID, Ref=Allele1, Alt=Allele2, args$celltype=BETA)
+      rename(snps=MarkerID, Ref=Allele1, Alt=Allele2)
   
     if (exists('saige_b')){
       saige_b <- rbind(saige_b, tmp_f)
