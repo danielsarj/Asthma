@@ -20,7 +20,7 @@ if (args$mode == 'compile'){
                                                         'Chromosome', 
                                                         'Position', 'Ref', 'Alt'), 
                                                  sep='_') %>% 
-  mutate(snps=Chromosome%&%':'%&%Position) %>% drop_na() %>% select(gene, snps, Ref, Alt, args$celltype)
+  mutate(snps=Chromosome%&%':'%&%Position) %>% drop_na() %>% select(gene, snps, Ref, Alt, all_of(args$celltype))
 
   # only keep SAIGE genes that are also in haleys results
   genes <- unique(haley_b$gene) %&% '.SAIGE.txt'
@@ -30,6 +30,9 @@ if (args$mode == 'compile'){
 
   # get SAIGE beta for each gene-snp pair
   for (f in sage_files){
+    # counter to keep track of progress
+    (which(sage_files==f)/length(sage_files))*100
+    
     # get gene name
     g_name <-  sub('\\.SAIGE\\.txt$', '', f)
   
@@ -45,6 +48,10 @@ if (args$mode == 'compile'){
       saige_b <- rbind(saige_b, tmp_f)
     } else {saige_b <- tmp_f}
   }
+  
+  # save file
+  fwrite(saige_b, 'Saige/'%&%args$celltype%&%'_compiled_betas.txt', col.names=T)
+  
 } else if (args$mode == 'analyze'){
   
   # # join dfs
