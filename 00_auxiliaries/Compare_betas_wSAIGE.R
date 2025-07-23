@@ -53,24 +53,36 @@ if (args$mode == 'compile'){
   # save file
   fwrite(saige_b, 'Saige/'%&%args$celltype%&%'_compiled_betas.txt', col.names=T)
   
+  # COMPARE ALL BETAS TO HALEY'S
 } else if (args$mode == 'analyze'){
+  # read haleys betas
+  haley_b <- readRDS('HALEYs/eQTL_QN_combined.rds')[[1]] %>% rownames_to_column()
+  haley_cols <- colnames(haley_b)
+  haley_cols <- gsub('CD8T', 'CD8_T', haley_cols)
+  haley_cols <- gsub('CD4T', 'CD4_T', haley_cols)
+  colnames(haley_b) <- haley_cols
+  haley_b <- haley_b %>% separate(rowname, into=c('gene','chr','pos','Ref','Alt'), sep='_') %>%
+    mutate(snps=chr%&%':'%&%pos) %>% select(gene, snps, Ref, Alt, contains('NI')) %>%
+    pivot_longer(cols=starts_with('beta_'), names_to='celltype', values_to='H_beta',
+      names_transform=list(celltype = ~ sub('^beta_', '', .)))
   
-  # # join dfs
-  # joint_betas <- inner_join(haley_b, saige_b, by=c('gene', 'snps')) 
-  # joint_betas <- joint_betas %>% rename(H_ref=Ref.x, H_alt=Alt.x, H_beta=NK_NI.x, S_ref=Ref.y, S_alt=Alt.y, S_beta=NK_NI.y) %>%
-  #   mutate(celltype='NK')
-  # 
-  # # check if refs and alts match
-  # which(joint_betas$H_ref!=joint_betas$S_ref)
-  # which(joint_betas$H_alt!=joint_betas$S_alt)
-  # 
-  # # scatter plot with point density 
-  # ggplot(joint_betas, aes(x=H_beta, y=S_beta)) + geom_pointdensity(show.legend=F) +
-  #   stat_smooth(method='lm', geom='smooth', formula=y~x) +
-  #   geom_abline(slope=1, color='red') + theme_bw() + 
-  #   stat_cor(method='pearson', label.x=-1, label.y=1.5, size=3) +
-  #   facet_wrap(~celltype) + scale_color_viridis()
-  # 
-  # ggsave('mashr/eQTLmapping_DanielvsHaley_betas_absbetas_postmash.pdf', height=5, width=10)
+  # read sage's betas
+  for (ct in celltypes){
+    tmp_f <- fread('Saige/'%&%ct%&%'_compiled_betas.txt') %>% rename(S_beta=BETA) %>% mutate(celltype=ct)
+    if (exists('saige_b')){
+      saige_b <- rbind(saige_b, tmp_f)
+    } else {saige_b <- tmp_f}
+  }
+  rm(tmp_f)
   
+  # join data frames
+  joint_b <- inner_join(haley_b, saige_b, by=c('gene', 'snps', 'Ref', 'Alt', 'celltype'))
+  
+  # plot 
+  ggplot(joint_b, aes(x=H_beta, y=S_beta)) + geom_pointdensity(show.legend=F) +
+    stat_smooth(method='lm', geom='smooth', formula=y~x) +
+    geom_abline(slope=1, color='red') + theme_bw() + 
+    stat_cor(method='pearson', label.x=-1, label.y=1.5, size=3) +
+    facet_wrap(~celltype) + scale_color_viridis()
+  ggsave('Saige/Haleys_pseudobulk.vs.saige_betas_premash.pdf', height=5, width=8)
 }
