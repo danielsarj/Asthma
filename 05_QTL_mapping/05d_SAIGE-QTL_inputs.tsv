@@ -1,0 +1,16 @@
+celltype    gene_list   pheno_file
+IVA_B   /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/IVA_B_gene_list.txt /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/IVA_B_counts.w.covs.txt
+IVA_Mono    /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/IVA_Mono_gene_list.txt  /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/IVA_Mono_counts.w.covs.txt
+IVA_NK  /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/IVA_NK_gene_list.txt /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/IVA_NK_counts.w.covs.txt
+IVA_T-CD4   /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/IVA_T-CD4_gene_list.txt /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/IVA_T-CD4_counts.w.covs.txt
+IVA_T-CD8   /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/IVA_T-CD8_gene_list.txt /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/IVA_T-CD8_counts.w.covs.txt
+NI_B   /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/NI_B_gene_list.txt /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/NI_B_counts.w.covs.txt
+NI_Mono    /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/NI_Mono_gene_list.txt  /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/NI_Mono_counts.w.covs.txt
+NI_NK  /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/NI_NK_gene_list.txt /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/NI_NK_counts.w.covs.txt
+NI_T-CD4   /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/NI_T-CD4_gene_list.txt /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/NI_T-CD4_counts.w.covs.txt
+NI_T-CD8   /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/NI_T-CD8_gene_list.txt /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/NI_T-CD8_counts.w.covs.txt
+RV_B   /project/lbarreiro/USERS/daRVel/asthma_project/QTLmapping/SAIGE_results/RV_B_gene_list.txt /project/lbarreiro/USERS/daRVel/asthma_project/QTLmapping/SAIGE_results/RV_B_counts.w.covs.txt
+RV_Mono    /project/lbarreiro/USERS/daRVel/asthma_project/QTLmapping/SAIGE_results/RV_Mono_gene_list.txt  /project/lbarreiro/USERS/daRVel/asthma_project/QTLmapping/SAIGE_results/RV_Mono_counts.w.covs.txt
+RV_NK  /project/lbarreiro/USERS/daRVel/asthma_project/QTLmapping/SAIGE_results/RV_NK_gene_list.txt /project/lbarreiro/USERS/daRVel/asthma_project/QTLmapping/SAIGE_results/RV_NK_counts.w.covs.txt
+RV_T-CD4   /project/lbarreiro/USERS/daRVel/asthma_project/QTLmapping/SAIGE_results/RV_T-CD4_gene_list.txt /project/lbarreiro/USERS/daRVel/asthma_project/QTLmapping/SAIGE_results/RV_T-CD4_counts.w.covs.txt
+RV_T-CD8   /project/lbarreiro/USERS/daRVel/asthma_project/QTLmapping/SAIGE_results/RV_T-CD8_gene_list.txt /project/lbarreiro/USERS/daRVel/asthma_project/QTLmapping/SAIGE_results/RV_T-CD8_counts.w.covs.txt

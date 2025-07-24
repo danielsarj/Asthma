@@ -1,0 +1,3 @@
+input_list: /project/lbarreiro/USERS/daniel/Asthma/05_QTL_mapping/05d_SAIGE-QTL_inputs.tsv
+plink_prefix: /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/genotypes_0.2maf_random1k
+plink_in: /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/filtered_genotypes
