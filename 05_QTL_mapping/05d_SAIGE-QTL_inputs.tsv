@@ -1,4 +1,3 @@
-celltype    gene_list   pheno_file
 IVA_B   /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/IVA_B_gene_list.txt /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/IVA_B_counts.w.covs.txt
 IVA_Mono    /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/IVA_Mono_gene_list.txt  /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/IVA_Mono_counts.w.covs.txt
 IVA_NK  /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/IVA_NK_gene_list.txt /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/IVA_NK_counts.w.covs.txt
