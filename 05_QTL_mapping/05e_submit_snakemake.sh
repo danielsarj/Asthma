@@ -1,0 +1,15 @@
+snakemake -s 05b_saigeqtl.smk \
+  --jobs 1000 \
+  --latency-wait 60 \
+  --keep-going \
+  --use-conda \
+  --rerun-incomplete \
+  --use-envmodules \
+  --cluster "sbatch \
+    --partition=caslake \
+    --account=pi-lbarreiro \
+    --time=3:00:00 \
+    --mem=50G \
+    --cpus-per-task=1 \
+    -e /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/LOGS/{rule}.{wildcards.celltype}.{wildcards.gene}.err \
+    -o /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/LOGS/{rule}.{wildcards.celltype}.{wildcards.gene}.out"
