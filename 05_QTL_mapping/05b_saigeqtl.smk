@@ -28,12 +28,12 @@ CELL_COVS=",".join(selected_columns)
 
 rule all:
     input:
-        expand("/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/STEP3/{celltype}_{gene}.genePval.txt", celltype=CELLTYPE, gene=GENES)
+        expand("/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/STEP3/{celltype}/{celltype}_{gene}.genePval.txt", celltype=CELLTYPE, gene=GENES)
 
 rule step1:
     output:
-        rda="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/STEP1/{celltype}_{gene}.rda",
-        variance_ratio="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/STEP1/{celltype}_{gene}.varianceRatio.txt"
+        rda="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/STEP1/{celltype}/{celltype}_{gene}.rda",
+        variance_ratio="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/STEP1/{celltype}/{celltype}_{gene}.varianceRatio.txt"
     conda:
         "saigeqtl_env"
     params:
@@ -52,7 +52,7 @@ rule step1:
             --sampleIDColinphenoFile={params.sample_id_col} \
             --cellIDColinphenoFile={params.cell_id_col} \
             --traitType=count \
-            --outputPrefix=/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/STEP1/{wildcards.celltype}_{wildcards.gene} \
+            --outputPrefix=/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/STEP1/{wildcards.celltype}/{wildcards.celltype}_{wildcards.gene} \
             --skipVarianceRatioEstimation=FALSE \
             --isRemoveZerosinPheno=FALSE \
             --isCovariateOffset=FALSE \
@@ -68,11 +68,11 @@ rule step2:
         bed=PLINK_IN + ".bed",
         bim=PLINK_IN + ".bim",
         fam=PLINK_IN + ".fam",
-        model="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/STEP1/{celltype}_{gene}.rda",
-        variance_ratio="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/STEP1/{celltype}_{gene}.varianceRatio.txt"
+        model="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/STEP1/{celltype}/{celltype}_{gene}.rda",
+        variance_ratio="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/STEP1/{celltype}/{celltype}_{gene}.varianceRatio.txt"
     output:
-        assoc="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/STEP2/{celltype}_{gene}.SAIGE.txt",
-        index="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/STEP2/{celltype}_{gene}.SAIGE.txt.index"
+        assoc="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/STEP2/{celltype}/{celltype}_{gene}.SAIGE.txt",
+        index="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/STEP2/{celltype}/{celltype}_{gene}.SAIGE.txt.index"
     conda:
         "saigeqtl_env"
     params:
@@ -87,7 +87,7 @@ rule step2:
             --bedFile={input.bed} \
             --bimFile={input.bim} \
             --famFile={input.fam} \
-            --SAIGEOutputFile=/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/STEP2/{wildcards.celltype}_{wildcards.gene}.SAIGE.txt \
+            --SAIGEOutputFile=/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/STEP2/{wildcards.celltype}/{wildcards.celltype}_{wildcards.gene}.SAIGE.txt \
             --chrom={params.chr} \
             --minMAF={params.minMAF} \
             --GMMATmodelFile={input.model} \
@@ -99,9 +99,9 @@ rule step2:
 
 rule step3:
     input:
-        assoc="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/STEP2/{celltype}_{gene}.SAIGE.txt"
+        assoc="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/STEP2/{celltype}/{celltype}_{gene}.SAIGE.txt"
     output:
-        geneassoc="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/STEP3/{celltype}_{gene}.genePval.txt"
+        geneassoc="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/STEP3/{celltype}/{celltype}_{gene}.genePval.txt"
     conda:
         "saigeqtl_env"
     shell:
@@ -109,5 +109,5 @@ rule step3:
         step3_gene_pvalue_qtl.R \
             --assocFile={input.assoc} \
             --geneName={wildcards.gene} \
-            --genePval_outputFile=/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/STEP3/{wildcards.celltype}_{wildcards.gene}.genePval.txt
+            --genePval_outputFile=/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/STEP3/{wildcards.celltype}/{wildcards.celltype}_{wildcards.gene}.genePval.txt
         """
