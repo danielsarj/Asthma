@@ -64,8 +64,8 @@ ggplot(summ_condition) + geom_col(aes(x=condition, y=n, fill=celltype), position
 ggsave(filename='BarPlot_NI_IVA_RV_proportion.celltypes.perCond.pdf', height=5, width=6)
   
 ## proportion of celltype per indv. and condition
-summ_indv_condition <- filtered_meta %>% select(batch, condition, IDs, celltype) %>%
-  group_by(batch, condition, IDs, celltype) %>% summarise(n=n())
+summ_indv_condition <- filtered_meta %>% select(batch, condition, IDs, celltype, percent.mt) %>%
+  group_by(batch, condition, IDs, celltype) %>% summarise(n=n(), avg_mt=mean(percent.mt))
 summ_indv_condition <- summ_indv_condition %>%
   mutate(batch_ID = paste0(batch, '_', IDs))
 ggplot(summ_indv_condition) + geom_col(aes(x=batch_ID, y=n, fill=celltype, group=batch), position='fill') +

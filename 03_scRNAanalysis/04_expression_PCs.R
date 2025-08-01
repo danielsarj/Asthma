@@ -1,6 +1,5 @@
 library(Seurat)
 library(tidyverse)
-library(reshape2)
 "%&%" <- function(a,b) paste(a,b, sep = '')
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/scRNAanalysis')
 
@@ -42,10 +41,10 @@ for (ct in unique(obj@meta.data$celltype)){
   # compute expression PCs
   exp_pcs <- prcomp(count_mat, scale.=TRUE, center=TRUE)
   pve <- exp_pcs$sdev[1:30]^2 / sum(exp_pcs$sdev[1:30]^2) 
-  exp_pcs <- exp_pcs$x[,1:30] %>% as.data.frame() %>% rownames_to_column('orig.ident')
+  exp_pcs_x <- exp_pcs$x[,1:30] %>% as.data.frame() %>% rownames_to_column('orig.ident')
   
   # add expression PCs to metadata
-  pcs_mdata <- inner_join(subset_obj@meta.data, exp_pcs, by=('orig.ident'))
+  pcs_mdata <- inner_join(subset_obj@meta.data, exp_pcs_x, by=('orig.ident'))
   pve <- pve %>% as.data.frame() %>% mutate(PC=seq(1:n()))
   colnames(pve)[1] <- 'PVE'
   
@@ -54,7 +53,7 @@ for (ct in unique(obj@meta.data$celltype)){
   pcs_mdata$batch <- factor(pcs_mdata$batch, levels=c('B1','B2','B3','B4'))
   pcs_mdata$gender <- factor(pcs_mdata$gender, levels=c('Female', 'Male'))
   pcs_mdata$asthma <- factor(pcs_mdata$asthma, levels=c('No', 'Yes'))
-  mmatrix <- model.matrix(~condition+batch+n+age+gender+asthma, data=pcs_mdata)[,-1]
+  mmatrix <- model.matrix(~condition+batch+n+age+gender+avg_mt+asthma, data=pcs_mdata)[,-1]
   pcs_only <- pcs_mdata[,grep('^PC', colnames(pcs_mdata))]
   
   # create empty matrices
