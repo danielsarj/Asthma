@@ -20,10 +20,23 @@ annotations$chromosome_name <- as.numeric(annotations$chromosome_name)
 annotations <- annotations %>% drop_na()
 
 # compute PCs per cell type
-for (ct in unique(obj@meta.data$celltype)){
+for (ct in c(unique(obj@meta.data$celltype), 'PBMC')){
   print(ct)
-  # subset seurat object
-  subset_obj <- subset(obj, subset = celltype == ct)  
+  if (ct=='PBMC'){
+    # create a PBMC-like pseudobulk
+    subset_obj <- AggregateExpression(obj, group.by=c('IDs','condition'),
+                                      slot='counts', assays='RNA', return.seurat=T)
+    # pbmc-like metadata
+    pbmc_m <- obj@meta.data %>% group_by(IDs, condition) %>% reframe(batch=batch, n=sum(n), avg_mt=mean(avg_mt),
+                                 age=age, gender=gender, asthma=asthma) %>% unique()
+    pbmc_m <- inner_join(subset_obj@meta.data, pbmc_m, by=c('IDs', 'condition'))
+    rownames(pbmc_m) <- pbmc_m$orig.ident
+    subset_obj@meta.data <- pbmc_m
+    rm(pbmc_m)
+  } else {
+    # subset seurat object
+    subset_obj <- subset(obj, subset = celltype == ct)  
+  }
   
   # extract count matrix
   count_mat <- subset_obj@assays$RNA$counts
