@@ -56,6 +56,12 @@ rm(results, long_results, iva_results, rv_results)
 
 colnames(full_results)[1] <- c('Gene')
 fwrite(full_results, 'NI_IVAxRV_limma_results_mod.txt', sep=' ')
+
+# histogram of pvalues
+ggplot(full_results, aes(x=P.Value)) + geom_histogram() + theme_bw() +
+  facet_grid(rows=vars(condition), cols=vars(celltype), scales='free')
+ggsave('NI_IVAxRV_pval_histogram_mod.pdf', height=4, width  0)
+
 ### BARPLOT OF DE GENES BASED ON FDR AND LOGFC CUTOFFS
 # filter results 
 filtered_results <- full_results %>% filter(abs(logFC)>=1, adj.P.Val<0.05)

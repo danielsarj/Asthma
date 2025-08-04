@@ -143,6 +143,11 @@ ggplot(full_results_avglogCPM.filtered) + geom_point(aes(logFC, -log10(adj.P.Val
 ggsave('NI_IVAxRV_limma_facetgrid_avglogCPM.filtered_volcanoplot.pdf', height=5, width=8)
 fwrite(full_results_avglogCPM.filtered, 'NI_IVAxRV_limma_results_avglogCPM.filtered.txt', sep=' ')
 
+# histogram of pvalues
+ggplot(full_results_avglogCPM.filtered, aes(x=P.Value)) + geom_histogram() + theme_bw() +
+  facet_grid(rows=vars(condition), cols=vars(celltype), scales='free')
+ggsave('NI_IVAxRV_pval_histogram.pdf', height=4, width=10)
+
 ### BARPLOT OF DE GENES BASED ON FDR AND LOGFC CUTOFFS
 # filter results 
 filtered_results <- full_results_avglogCPM.filtered %>% filter(abs(logFC)>=1, adj.P.Val<0.05)

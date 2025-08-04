@@ -61,6 +61,12 @@ for (int in interactions){
   }
   fwrite(full_results, 'NI_IVAxRV_'%&%int%&%'_limma_results_avglogCPM.filtered.txt', sep=' ')
   
+  # histogram of pvalues
+  ggplot(full_results, aes(x=P.Value)) + geom_histogram() + theme_bw() +
+    facet_grid(rows=vars(condition), cols=vars(celltype), scales='free')
+  ggsave('NI_IVAxRV_'%&%int%&%'_pval_histogram.pdf', height=4, width=10)
+  
+  # volcano plot
   ggplot(full_results) + geom_point(aes(logFC, -log10(P.Value)), size=0.5, alpha=0.5) +
     theme_bw() + ylab('-log10(pvalue)') + facet_grid(cols=vars(celltype), rows=vars(condition)) +
     geom_hline(yintercept=1.30103, color='red')
