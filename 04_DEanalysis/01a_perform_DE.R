@@ -59,7 +59,7 @@ for (i in 1:length(conditions)){
     count <- calcNormFactors(count)
     
     # define design matrix
-    design <- model.matrix(~batch+age+gender+n+condition, data=mdata)
+    design <- model.matrix(~IDs+batch+age+gender+n+avg_mt+condition, data=mdata)
     
     # voom
     voom <- voom(count, design, plot=F)

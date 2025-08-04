@@ -91,7 +91,7 @@ for (i in 1:length(conditions)){
           if (alb=='no'){
             
             # define design matrix
-            design <- model.matrix(~age+gender+n+condition+condition:asthma, data=mdata)
+            design <- model.matrix(~age+gender+n+avg_mt+condition+condition:asthma, data=mdata)
             
             # voom
             voom <- voom(count, weights=weights, design, plot=F)
@@ -112,7 +112,7 @@ for (i in 1:length(conditions)){
             filt_weights <- weights %>% select(all_of(no_NA_albuterol))
             
             # define design matrix
-            design <- model.matrix(~age+gender+n+albuterol+condition+condition:asthma, data=mdata)
+            design <- model.matrix(~age+gender+n+avg_mt+albuterol+condition+condition:asthma, data=mdata)
             
             # voom
             voom <- voom(filt_count, weights=filt_weights, design, plot=F)
@@ -135,7 +135,7 @@ for (i in 1:length(conditions)){
         filt_weights <- weights %>% select(all_of(no_NA_income))
         
         # define design matrix
-        design <- model.matrix(~age+gender+n+condition+condition:income, data=mdata)
+        design <- model.matrix(~age+gender+n+avg_mt+condition+condition:income, data=mdata)
         
         # voom
         voom <- voom(filt_count, weights=filt_weights, design, plot=F)

@@ -91,7 +91,7 @@ for (i in 1:length(conditions)){
            sep=' ', col.names=T, row.names=T)
     
     # model infection differential expression
-    design <- model.matrix(~0+age+gender+n+condition, data=mdata)
+    design <- model.matrix(~0+IDs+age+gender+n+avg_mt+condition, data=mdata)
     
     # fit linear model voom
     voom <- voom(corrected_expression, weights=weights, design, plot=F)
