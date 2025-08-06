@@ -39,6 +39,42 @@ annotations <- fread('../DEanalysis/ensembl_genes.txt') %>% filter(gene_biotype=
 annotations$chromosome_name <- as.numeric(annotations$chromosome_name)
 annotations <- annotations %>% drop_na()
 
+# define chromosome sizes
+chrom_sizes <- data.frame(
+  chromosome = seq(1:22),
+  size = c(
+    248956422, 242193529, 198295559, 190214555, 181538259, 170805979,
+    159345973, 145138636, 138394717, 133797422, 135086622, 133275309,
+    114364328, 107043718, 101991189, 90338345, 83257441, 80373285,
+    58617616, 64444167, 46709983, 50818468
+  )
+)
+
+# create regions file
+cis_regions <- annotations %>% select(hgnc_symbol, chromosome_name, start_position, end_position) %>%
+  mutate(start_position=start_position-(5e5), end_position=end_position+(5e5))
+
+# fix out-of-bonds cis regions 
+cis_regions <- cis_regions %>% left_join(chrom_sizes, by=c('chromosome_name'='chromosome')) %>%
+  mutate(start_position=pmax(start_position, 1), end_position=pmin(end_position, size)) %>% select(-size)
+fwrite(cis_regions, 'SAIGE_results/cis_regions.txt', sep=' ', col.names=F)
+rm(cis_regions, chrom_sizes)
+
+# load PLINK .fam file to create 10 permutations of genotypes
+plink_fam <- fread('SAIGE_results/filtered_genotypes.fam')
+for (permutation in seq(1:10)){
+  new_fam <- plink_fam
+  ids <- new_fam[, 1:2] 
+  shuffled_ids <- ids[sample(nrow(ids)), ]
+  new_fam[, 1:2] <- shuffled_ids
+  
+  fwrite(new_fam, 'SAIGE_results/filtered_genotypes_'%&%permutation%&%'.fam')
+  file.copy('SAIGE_results/filtered_genotypes.bed', 'SAIGE_results/filtered_genotypes_'%&%permutation%&%'.bed', 
+            overwrite=TRUE)
+  file.copy('SAIGE_results/filtered_genotypes.bim', 'SAIGE_results/filtered_genotypes_'%&%permutation%&%'.bim', 
+            overwrite=TRUE)
+}
+
 # work with one condition-cell type at a time
 for (cond in c('NI', 'IVA', 'RV')){
   print(cond)
@@ -62,28 +98,29 @@ for (cond in c('NI', 'IVA', 'RV')){
     count_mat <- count_mat %>% as.matrix() %>% t()
   
     # compute expression PCs
-    exp_pcs <- prcomp_irlba(count_mat, n=20, scale.=TRUE, center=TRUE)
-  
-    # find best K 
+    exp_pcs <- prcomp_irlba(count_mat, n=10, scale.=TRUE, center=TRUE)
     class(exp_pcs) <- 'prcomp'
-    K_elbow <- runElbow(prcompResult=exp_pcs)
-    exp_pcs <- exp_pcs$x[,c(1:K_elbow)] %>% as.data.frame() %>% mutate(cell_ID=rownames(count_mat))
+    
+    # try different PCs
+    for (pcs in seq(1:10)){
+      print(pcs)
+      exp_pcs_df <- exp_pcs$x[,c(1:pcs)] %>% as.data.frame() %>% mutate(cell_ID=rownames(count_mat))
 
-    # adjust count_mat to append metadata
-    count_mat <- count_mat %>% as.data.frame() %>% rownames_to_column('cell_ID')
+      # adjust count_mat to append metadata
+      count_mat_df <- count_mat %>% as.data.frame() %>% rownames_to_column('cell_ID')
   
-    # join metadata, exp_pcs, and count_mat
-    full_df <- inner_join(subset_obj@meta.data, exp_pcs, by=c('cell_ID')) %>% 
-      inner_join(count_mat, by=c('cell_ID')) %>% arrange(IDs) %>% select(-c(condition, celltype))
+      # join metadata, exp_pcs_df, and count_mat
+      full_df <- inner_join(subset_obj@meta.data, exp_pcs_df, by=c('cell_ID')) %>% 
+        inner_join(count_mat_df, by=c('cell_ID')) %>% arrange(IDs) %>% select(-c(condition, celltype))
   
+      # save files
+      fwrite(full_df, 'SAIGE_results/'%&%cond%&%'_'%&%ctype%&%'_counts.w.covs_'%&%pcs%&%'.txt', sep='\t', col.names=TRUE)
+    }
+    rm(exp_pcs, exp_pcs_df, count_mat, count_mat_df, subset_obj)
     # make chr-gene df 
     sub_anno <- annotations %>% dplyr::select(hgnc_symbol, chromosome_name) %>% 
       filter(hgnc_symbol %in% colnames(full_df))
-    
-    # save files
-    fwrite(full_df, 'SAIGE_results/'%&%cond%&%'_'%&%ctype%&%'_counts.w.covs.txt', sep='\t', col.names=TRUE)
     fwrite(sub_anno, 'SAIGE_results/'%&%cond%&%'_'%&%ctype%&%'_gene_list.txt', sep='\t', col.names=FALSE)
-  
-    rm(count_mat, exp_pcs, sub_anno, full_df)
+    rm(full_df, sub_anno)
   }
 }
