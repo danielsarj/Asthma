@@ -30,6 +30,21 @@ complete_cells <- complete.cases(obj@meta.data)
 obj <- obj %>% subset(cells = colnames(obj)[complete_cells])
 rm(complete_cells)
 
+# load PLINK .fam file to create 10 permutations of genotypes
+plink_fam <- fread('Saige/step2/inputs/Haley_filtered_genotypes.fam')
+for (permutation in seq(1:10)){
+  new_fam <- plink_fam
+  ids <- new_fam[, 1:2] 
+  shuffled_ids <- ids[sample(nrow(ids)), ]
+  new_fam[, 1:2] <- shuffled_ids
+  
+  fwrite(new_fam, 'Saige/step2/inputs/Haley_filtered_genotypes_'%&%permutation%&%'.fam')
+  file.copy('Saige/step2/inputs/Haley_filtered_genotypes.bed', 'Saige/step2/inputs/Haley_filtered_genotypes_'%&%permutation%&%'.bed', 
+            overwrite=TRUE)
+  file.copy('Saige/step2/inputs/Haley_filtered_genotypes.bim', 'Saige/step2/inputs/Haley_filtered_genotypes_'%&%permutation%&%'.bim', 
+            overwrite=TRUE)
+}
+
 # get gene annotation from ensembl
 annotations <- fread('../DEanalysis/ensembl_genes.txt') %>% filter(gene_biotype=='protein_coding',
                      hgnc_symbol!='', !grepl('^MT-', hgnc_symbol))
@@ -57,29 +72,28 @@ for (ctype in c('B','CD4_T','CD8_T','monocytes','NK')){
   count_mat <- count_mat %>% as.matrix() %>% t()
   
   # compute expression PCs
-  exp_pcs <- prcomp_irlba(count_mat, n=20, scale.=TRUE, center=TRUE)
+  exp_pcs <- prcomp_irlba(count_mat, n=10, scale.=TRUE, center=TRUE)
   
-  # find best K 
-  class(exp_pcs) <- 'prcomp'
-  K_elbow <- runElbow(prcompResult=exp_pcs)
-  exp_pcs <- exp_pcs$x[,c(1:K_elbow)] %>% as.data.frame() %>% mutate(cell_ID=rownames(count_mat))
-
-  # adjust count_mat to append metadata
-  count_mat <- count_mat %>% as.data.frame() %>% rownames_to_column('cell_ID')
-  
-  # subset metadata
-  mdata <- subset_obj@meta.data %>% as.data.frame() %>% rownames_to_column('cell_ID') %>%
-    dplyr::select(cell_ID, SOC_indiv_ID, age_Scale, YRI_Scale)
-  
-  # join metadata, exp_pcs, and count_mat
-  full_df <- inner_join(mdata, exp_pcs, by=c('cell_ID')) %>% inner_join(count_mat, by=c('cell_ID')) %>% 
-    arrange(SOC_indiv_ID)
-  
-  # make chr-gene df 
-  sub_anno <- annotations %>% dplyr::select(hgnc_symbol, chromosome_name) %>% filter(hgnc_symbol %in% colnames(full_df))
+  # try different PCs
+  for (pcs in seq(1:10)){
+    print(pcs)
+    exp_pcs_df <- exp_pcs$x[,c(1:pcs)] %>% as.data.frame() %>% mutate(cell_ID=rownames(count_mat))
     
-  fwrite(full_df, 'Saige/step1/inputs/'%&%ctype%&%'_NI_counts.w.covs.txt', sep='\t', col.names=TRUE)
+    # adjust count_mat to append metadata
+    count_mat_df <- count_mat %>% as.data.frame() %>% rownames_to_column('cell_ID')
+    
+    # join metadata, exp_pcs_df, and count_mat
+    full_df <- inner_join(subset_obj@meta.data, exp_pcs_df, by=c('cell_ID')) %>% 
+      inner_join(count_mat_df, by=c('cell_ID')) %>% arrange(IDs) %>% select(-c(condition, celltype))
+    
+    # save files
+    fwrite(full_df, 'Saige/step1/inputs/'%&%ctype%&%'_NI_counts.w.covs_'%&%pcs%&%'.txt', sep='\t', col.names=TRUE)
+    
+  }
+  rm(exp_pcs, exp_pcs_df, count_mat, count_mat_df, subset_obj)
+  # make chr-gene df 
+  sub_anno <- annotations %>% dplyr::select(hgnc_symbol, chromosome_name) %>% 
+    filter(hgnc_symbol %in% colnames(full_df))
   fwrite(sub_anno, 'Saige/step1/inputs/'%&%ctype%&%'_NI_gene_list.txt', sep='\t', col.names=FALSE)
-  
-  rm(count_mat, exp_pcs, mdata, sub_anno, full_df)
+  rm(full_df, sub_anno)
 }
