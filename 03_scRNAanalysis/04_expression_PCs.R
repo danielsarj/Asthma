@@ -13,6 +13,10 @@ rownames(mdata) <- mdata$orig.ident
 obj@meta.data <- mdata
 rm(sample_m, mdata)
 
+# look at number of cells per individual
+ggplot(obj@meta.data, aes(x=IDs, y=n, color=condition)) + geom_boxplot() + theme_bw() +
+  facet_wrap(~condition)
+
 # load gene annotation from ensembl
 annotations <- fread('../DEanalysis/ensembl_genes.txt') %>% filter(gene_biotype=='protein_coding',
                                                                    hgnc_symbol!='', !grepl('^MT-', hgnc_symbol))
@@ -37,6 +41,12 @@ for (ct in c(unique(obj@meta.data$celltype), 'PBMC')){
     # subset seurat object
     subset_obj <- subset(obj, subset = celltype == ct)  
   }
+  
+  # find cell number outliers and remove them
+  outliers <- subset_obj@meta.data %>% mutate(zscore_n=scale(n)) %>% 
+    filter(abs(zscore_n)>2) %>% pull(orig.ident)
+  cells_to_keep <- colnames(subset_obj)[!(subset_obj$orig.ident %in% outliers)]
+  subset_obj <- subset(subset_obj, cells = cells_to_keep)
   
   # extract count matrix
   count_mat <- subset_obj@assays$RNA$counts
