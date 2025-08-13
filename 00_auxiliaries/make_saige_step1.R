@@ -20,7 +20,8 @@ mdata <- fread('HALEYs/individual_meta_data_for_GE_with_scaledCovars_with_genePr
   select(indiv_ID, age_Scale, YRI_Scale) %>% unique() 
 
 # join ID metadata to Seurat's metadata
-s_mdata <- obj@meta.data %>% inner_join(mdata, by=c('SOC_indiv_ID'='indiv_ID'), relationship='many-to-many')
+s_mdata <- obj@meta.data %>% rownames_to_column('cell_ID') %>% 
+  inner_join(mdata, by=c('SOC_indiv_ID'='indiv_ID'), relationship='many-to-many')
 rownames(s_mdata) <- rownames(obj@meta.data)
 obj@meta.data <- s_mdata
 rm(s_mdata, mdata)
@@ -72,28 +73,28 @@ for (ctype in c('B','CD4_T','CD8_T','monocytes','NK')){
   count_mat <- count_mat %>% as.matrix() %>% t()
   
   # compute expression PCs
-  exp_pcs <- prcomp_irlba(count_mat, n=10, scale.=TRUE, center=TRUE)
-  
-  # try different PCs
-  for (pcs in seq(1:10)){
-    print(pcs)
-    exp_pcs_df <- exp_pcs$x[,c(1:pcs)] %>% as.data.frame() %>% mutate(cell_ID=rownames(count_mat))
+  exp_pcs <- prcomp_irlba(count_mat, n=20, scale.=TRUE, center=TRUE)
+  exp_pcs <- exp_pcs$x[, 1:20] %>% as.matrix()
+  colnames(exp_pcs) <- paste0("PC", 1:20)
+  exp_pcs <- as.data.frame(exp_pcs) %>% mutate(cell_ID = rownames(count_mat))
     
-    # adjust count_mat to append metadata
-    count_mat_df <- count_mat %>% as.data.frame() %>% rownames_to_column('cell_ID')
+  # adjust count_mat to append metadata
+  count_mat <- count_mat %>% as.data.frame() %>% rownames_to_column('cell_ID')
     
-    # join metadata, exp_pcs_df, and count_mat
-    full_df <- inner_join(subset_obj@meta.data, exp_pcs_df, by=c('cell_ID')) %>% 
-      inner_join(count_mat_df, by=c('cell_ID')) %>% arrange(IDs) %>% select(-c(condition, celltype))
+  # join metadata, exp_pcs_df, and count_mat
+  full_df <- inner_join(subset_obj@meta.data, exp_pcs, by=c('cell_ID')) %>% 
+    inner_join(count_mat, by=c('cell_ID')) %>% arrange(SOC_indiv_ID) %>% 
+    select(-c(orig.ident, nCount_RNA, nFeature_RNA, batchID, percent.mt, SOC_status,
+                SOC_infection_status, SOC_genetic_ancestry, CEU, YRI, nCount_SCT, nFeature_SCT,
+                integrated_snn_res.0.5, cluster_IDs, celltype, sample_condition))
     
-    # save files
-    fwrite(full_df, 'Saige/step1/inputs/'%&%ctype%&%'_NI_counts.w.covs_'%&%pcs%&%'.txt', sep='\t', col.names=TRUE)
-    
-  }
-  rm(exp_pcs, exp_pcs_df, count_mat, count_mat_df, subset_obj)
+  # save count file
+  fwrite(full_df, 'Saige/step1/inputs/'%&%ctype%&%'_NI_counts.w.covs_upto20PCs.txt', sep='\t', col.names=TRUE)
+
   # make chr-gene df 
   sub_anno <- annotations %>% dplyr::select(hgnc_symbol, chromosome_name) %>% 
     filter(hgnc_symbol %in% colnames(full_df))
   fwrite(sub_anno, 'Saige/step1/inputs/'%&%ctype%&%'_NI_gene_list.txt', sep='\t', col.names=FALSE)
-  rm(full_df, sub_anno)
+  
+  rm(full_df, sub_anno, exp_pcs, count_mat, subset_obj)
 }
