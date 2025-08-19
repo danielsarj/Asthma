@@ -11,6 +11,7 @@ setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping')
 mdata <- readRDS('HALEYs/pseudobulks/all_metadata.rds')
 obj <- readRDS('HALEYs/pseudobulks/all_raw_counts.rds') %>% CreateSeuratObject()
 obj@meta.data <- mdata
+obj$log_total_counts <- log(obj$nCount_RNA)
 
 # keep only NI 
 obj <- obj %>% subset(subset = SOC_infection_status=='NI')
@@ -74,8 +75,8 @@ for (ctype in c('B','CD4_T','CD8_T','monocytes','NK')){
   
   # compute expression PCs
   exp_pcs <- prcomp_irlba(count_mat, n=20, scale.=TRUE, center=TRUE)
-  exp_pcs <- exp_pcs$x[, 1:20] %>% as.matrix()
-  colnames(exp_pcs) <- paste0("PC", 1:20)
+  exp_pcs <- exp_pcs$x[, 1:10] %>% as.matrix()
+  colnames(exp_pcs) <- paste0("PC", 1:10)
   exp_pcs <- as.data.frame(exp_pcs) %>% mutate(cell_ID = rownames(count_mat))
     
   # adjust count_mat to append metadata
@@ -84,12 +85,12 @@ for (ctype in c('B','CD4_T','CD8_T','monocytes','NK')){
   # join metadata, exp_pcs_df, and count_mat
   full_df <- inner_join(subset_obj@meta.data, exp_pcs, by=c('cell_ID')) %>% 
     inner_join(count_mat, by=c('cell_ID')) %>% arrange(SOC_indiv_ID) %>% 
-    select(-c(orig.ident, nCount_RNA, nFeature_RNA, batchID, percent.mt, SOC_status,
+    select(-c(orig.ident, nCount_RNA, nFeature_RNA, batchID, SOC_status,
                 SOC_infection_status, SOC_genetic_ancestry, CEU, YRI, nCount_SCT, nFeature_SCT,
                 integrated_snn_res.0.5, cluster_IDs, celltype, sample_condition))
     
   # save count file
-  fwrite(full_df, 'Saige/step1/inputs/'%&%ctype%&%'_NI_counts.w.covs_upto20PCs.txt', sep='\t', col.names=TRUE)
+  fwrite(full_df, 'Saige/step1/inputs/'%&%ctype%&%'_NI_counts.w.covs_upto10PCs.txt', sep='\t', col.names=TRUE)
 
   # make chr-gene df 
   sub_anno <- annotations %>% dplyr::select(hgnc_symbol, chromosome_name) %>% 
