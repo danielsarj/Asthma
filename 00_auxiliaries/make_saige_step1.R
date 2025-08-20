@@ -40,7 +40,7 @@ for (permutation in seq(1:10)){
   shuffled_ids <- ids[sample(nrow(ids)), ]
   new_fam[, 1:2] <- shuffled_ids
   
-  fwrite(new_fam, 'Saige/step2/inputs/Haley_filtered_genotypes_'%&%permutation%&%'.fam')
+  fwrite(new_fam, 'Saige/step2/inputs/Haley_filtered_genotypes_'%&%permutation%&%'.fam', col.names=F, sep=' ')
   file.copy('Saige/step2/inputs/Haley_filtered_genotypes.bed', 'Saige/step2/inputs/Haley_filtered_genotypes_'%&%permutation%&%'.bed', 
             overwrite=TRUE)
   file.copy('Saige/step2/inputs/Haley_filtered_genotypes.bim', 'Saige/step2/inputs/Haley_filtered_genotypes_'%&%permutation%&%'.bim', 
