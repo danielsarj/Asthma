@@ -1,5 +1,7 @@
 celltype: NK_NI
 gene_list: /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step1/inputs/NK_NI_gene_list.txt
-pheno_file: /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step1/inputs/NK_NI_counts.w.covs.txt
+cis_regions: /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/SAIGE_results/cis_regions.txt
+pheno_file: /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step1/inputs/NK_NI_counts.w.covs_upto10PCs.txt
 plink_prefix: /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step1/inputs/Haley_0.2maf_random1k
 plink_in: /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/inputs/Haley_filtered_genotypes
+n_perms: 5
