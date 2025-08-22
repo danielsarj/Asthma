@@ -17,33 +17,42 @@ PLINK_PREFIX = config["plink_prefix"]
 PLINK_IN = config["plink_in"]
 CIS_REGIONS = config["cis_regions"]
 N_PERMS = config["n_perms"]
+PERMS = ["no_perm"] + [f"perm{i}" for i in range(1, N_PERMS + 1)]
 
 rule all:
     input:
-        # final outputs
         expand(
-            "/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step3/outputs/{celltype}/perms/perm{i}/{gene}.genePval.txt",
-            celltype=CELLTYPE, gene=GENES, i=range(1, N_PERMS+1)
+            "/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step3/outputs/{celltype}/perms/{perm}/{gene}.genePval.txt",
+            celltype=CELLTYPE, gene=GENES, perm=PERMS
         )
 
 rule permute_plink:
     input:
+        bed = PLINK_IN + ".bed",
+        bim = PLINK_IN + ".bim",
         fam = PLINK_IN + ".fam"
     output:
-        bed="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/inputs/perm{perm}.bed",
-        bim="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/inputs/perm{perm}.bim",
-        fam="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/inputs/perm{perm}.fam"
+        bed = "/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/inputs/{perm}.bed",
+        bim = "/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/inputs/{perm}.bim",
+        fam = "/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/inputs/{perm}.fam"
     conda:
         "saigeqtl_env"
     shell:
         """
-        # shuffle IDs
-        cut -d' ' -f1,2 {input.fam} | shuf > /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/inputs/perm_ids.{wildcards.perm}.txt
+        if [ "{wildcards.perm}" = "no_perm" ]; then
+            cp {input.bed} {output.bed}
+            cp {input.bim} {output.bim}
+            cp {input.fam} {output.fam}
+        else
+            awk '{{print $1, $2}}' {input.fam} | shuf | \
+            awk 'NR==FNR{{a[NR]=$2; next}} {{print $1, $2, $1, a[FNR]}}' - {input.fam} \
+            > /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/inputs/perm_ids.{wildcards.perm}.txt
 
-        plink --bfile {PLINK_IN} \
-              --update-ids /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/QTLmapping/Saige/step2/inputs/perm_ids.{wildcards.perm}.txt \
-              --make-bed \
-              --out /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/inputs/perm{wildcards.perm}
+            plink --bfile {PLINK_IN} \
+                  --update-ids /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/inputs/perm_ids.{wildcards.perm}.txt \
+                  --make-bed \
+                  --out /project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/inputs/{wildcards.perm}
+        fi
         """
 
 rule step1:
@@ -54,7 +63,7 @@ rule step1:
         "saigeqtl_env"
     params:
         inv_norm="FALSE",
-        covars="age_Scale,YRI_Scale,percent.mt,PC1,PC2,PC3",
+        covars="age_Scale,YRI_Scale,percent.mt,PC1,PC2,PC3,PC4",
         sample_covars="age_Scale,YRI_Scale",
         offset_col="log_total_counts",
         sample_id_col="SOC_indiv_ID",
@@ -86,15 +95,15 @@ rule step1:
 
 rule step2:
     input:
-        bed="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/inputs/perm{perm}.bed",
-        bim="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/inputs/perm{perm}.bim",
-        fam="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/inputs/perm{perm}.fam",
+        bed="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/inputs/{perm}.bed",
+        bim="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/inputs/{perm}.bim",
+        fam="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/inputs/{perm}.fam",
         model="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step1/outputs/{celltype}/perms/no_perm/{celltype}_{gene}.rda",
         variance_ratio="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step1/outputs/{celltype}/perms/no_perm/{celltype}_{gene}.varianceRatio.txt"
     output:
-        assoc="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/outputs/{celltype}/perms/perm{perm}/{gene}.SAIGE.txt",
-        index="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/outputs/{celltype}/perms/perm{perm}/{gene}.SAIGE.txt.index",
-        ranges=temp("/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/tmp/{celltype}_{gene}_perm{perm}_ranges.txt")
+        assoc="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/outputs/{celltype}/perms/{perm}/{gene}.SAIGE.txt",
+        index="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/outputs/{celltype}/perms/{perm}/{gene}.SAIGE.txt.index",
+        ranges=temp("/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/tmp/{celltype}_{gene}_{perm}_ranges.txt")
     conda:
         "saigeqtl_env"
     params:
@@ -124,9 +133,9 @@ rule step2:
 
 rule step3:
     input:
-        assoc="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/outputs/{celltype}/perms/perm{perm}/{gene}.SAIGE.txt"
+        assoc="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/outputs/{celltype}/perms/{perm}/{gene}.SAIGE.txt"
     output:
-        geneassoc="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step3/outputs/{celltype}/perms/perm{perm}/{gene}.genePval.txt"
+        geneassoc="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step3/outputs/{celltype}/perms/{perm}/{gene}.genePval.txt"
     conda:
         "saigeqtl_env"
     shell:
