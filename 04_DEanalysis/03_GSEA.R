@@ -74,7 +74,7 @@ for (int in interactions){
   compiled.fgseaRes %>% filter(padj<0.05, abs(NES)>=1.5, interaction==int) %>% 
     ggplot(., aes(x=NES, y=reorder(pathway, NES), size=size, color=-log10(padj))) +
     geom_point(alpha=0.8) + scale_size(range=c(1,10)) + scale_color_gradient(low='blue', high='red') +  
-    labs(x='Normalized Enrichment Score (NES)', y='Pathway', size='Gene Count', color='-log10(FDR)') +
+    labs(x='Normalized Enrichment Score (NES)', y='Pathway', size='Gene Count', color='-log10(padj)') +
     theme_bw() + facet_grid(cols=vars(celltype), rows=vars(condition))
   ggsave('NI_IVAxRV_descSigGeneSets_'%&%int%&%'_bubbleplot.pdf', height=8, width=12)
 }
