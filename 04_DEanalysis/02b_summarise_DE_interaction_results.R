@@ -62,14 +62,24 @@ for (int in interactions){
   fwrite(full_results, 'NI_IVAxRV_'%&%int%&%'_limma_results_avglogCPM.filtered.txt', sep=' ')
   
   # histogram of pvalues
-  ggplot(full_results, aes(x=P.Value)) + geom_histogram() + theme_bw() +
+  ggplot(full_results, aes(x=adj.P.Val)) + geom_histogram() + theme_bw() +
     facet_grid(rows=vars(condition), cols=vars(celltype), scales='free')
   ggsave('NI_IVAxRV_'%&%int%&%'_pval_histogram.pdf', height=4, width=10)
   
   # volcano plot
-  ggplot(full_results) + geom_point(aes(logFC, -log10(P.Value)), size=0.5, alpha=0.5) +
-    theme_bw() + ylab('-log10(pvalue)') + facet_grid(cols=vars(celltype), rows=vars(condition)) +
+  ggplot(full_results) + geom_point(aes(logFC, -log10(adj.P.Val)), size=0.5, alpha=0.5) +
+    theme_bw() + ylab('-log10(adjusted p-value)') + facet_grid(cols=vars(celltype), rows=vars(condition)) +
     geom_hline(yintercept=1.30103, color='red')
   ggsave('NI_IVAxRV_'%&%int%&%'_limma_facetgrid_volcanoplot.pdf', height=5, width=8)
+  
+  # get summary
+  summary_results <- full_results %>% filter(abs(logFC)>=1, adj.P.Val<0.05) %>% 
+    group_by(celltype, condition, direction) %>% summarise(n_genes=n())
+  
+  # make bar plot
+  ggplot(summary_results) + geom_col(aes(x=celltype, y=n_genes, fill=direction), position='dodge') +
+    geom_text(aes(x=celltype, y=n_genes, label=n_genes, group=direction), position=position_dodge(width=0.9),
+              vjust=-0.5, size=4) + theme_bw() + facet_wrap(~condition)
+  ggsave('NI_IVAxRV_'%&%int%&%'_NumOfDEgenes_barplot.pdf', height=4, width=6)
   rm(full_results)
 }
