@@ -63,8 +63,8 @@ rule step1:
         "saigeqtl_env"
     params:
         inv_norm="FALSE",
-        covars="age_Scale,YRI_Scale,percent.mt,PC1,PC2,PC3,PC4",
-        sample_covars="age_Scale,YRI_Scale",
+        covars="age_Scale,batchID,YRI_Scale,percent.mt,PC1,PC2,PC3,PC4",
+        sample_covars="age_Scale,YRI_Scale,batchID",
         offset_col="log_total_counts",
         sample_id_col="SOC_indiv_ID",
         cell_id_col="cell_ID"
