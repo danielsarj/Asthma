@@ -30,11 +30,18 @@ for (int in interactions){
       subset_DE_results <- subset_DE_results %>% arrange(desc(t)) %>% select(gene, t)
       subset_DE_results <- setNames(subset_DE_results$t, subset_DE_results$gene)
       
+      
+      length(subset_DE_results)
+      length(unique(subset_DE_results))
+      
+      
+      
       # run fGSEA
-      fgseaRes <- fgsea(pathways=human.path.list,
+      fgseaRes <- fgseaMultilevel(pathways=human.path.list,
                         stats=subset_DE_results, 
                         minSize=15, 
-                        maxSize=1000)
+                        maxSize=1000,
+                        nPermSimple=100000)
       fgseaRes <- fgseaRes %>% mutate(celltype=ctype, condition=conditions[i], interaction=int) %>% 
         select('pathway','pval','padj','log2err','ES','NES','size','celltype','condition','interaction','leadingEdge')
       
