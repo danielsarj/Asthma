@@ -70,7 +70,7 @@ for (ctype in c('B','CD4_T','CD8_T','monocytes','NK')){
   # join metadata, exp_pcs_df, and count_mat
   full_df <- inner_join(subset_obj@meta.data, exp_pcs, by=c('cell_ID')) %>% 
     inner_join(count_mat, by=c('cell_ID')) %>% arrange(SOC_indiv_ID) %>% 
-    select(-c(orig.ident, nCount_RNA, nFeature_RNA, batchID, SOC_status,
+    select(-c(orig.ident, nCount_RNA, nFeature_RNA, SOC_status,
                 SOC_infection_status, SOC_genetic_ancestry, CEU, YRI, nCount_SCT, nFeature_SCT,
                 integrated_snn_res.0.5, cluster_IDs, celltype, sample_condition))
     
