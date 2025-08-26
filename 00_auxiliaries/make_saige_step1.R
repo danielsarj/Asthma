@@ -73,6 +73,9 @@ for (ctype in c('B','CD4_T','CD8_T','monocytes','NK')){
     select(-c(orig.ident, nCount_RNA, nFeature_RNA, SOC_status,
                 SOC_infection_status, SOC_genetic_ancestry, CEU, YRI, nCount_SCT, nFeature_SCT,
                 integrated_snn_res.0.5, cluster_IDs, celltype, sample_condition))
+  
+  # change batch to numeric
+  full_df$batchID <- as.numeric(as.factor(full_df$batchID))
     
   # save count file
   fwrite(full_df, 'Saige/step1/inputs/'%&%ctype%&%'_NI_counts.w.covs_upto10PCs.txt', sep='\t', col.names=TRUE)
