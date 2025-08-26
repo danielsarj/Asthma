@@ -1,5 +1,4 @@
 import os
-import pandas as pd
 import random
 
 configfile: "saigeqtl_config.yaml"
@@ -20,12 +19,6 @@ PLINK_IN = config["plink_in"]
 CIS_REGIONS = config["cis_regions"]
 N_PERMS = config["n_perms"]
 PERMS = ["no_perm"] + [f"perm{i}" for i in range(1, N_PERMS + 1)]
-
-# retrieve batch columns
-df=pd.read_csv(PHENO_FILE, sep="\t", nrows=0)
-columns=list(df.columns)
-selected_columns = [col for col in columns if "batchID" in col]
-BATCHES=",".join(selected_columns)
 
 rule all:
     input:
@@ -71,9 +64,8 @@ rule step1:
         "saigeqtl_env"
     params:
         inv_norm="FALSE",
-        covars=lambda wildcards: f"age_Scale,{BATCHES},YRI_Scale,percent.mt,PC1,PC2,PC3,PC4",
-        sample_covars=lambda wildcards: f"age_Scale,YRI_Scale,{BATCHES}",
-        offset_col="log_total_counts",
+        covars="age_Scale,YRI_Scale,PC1,PC2,PC3,PC4",
+        sample_covars="age_Scale,YRI_Scale",
         sample_id_col="SOC_indiv_ID",
         cell_id_col="cell_ID"
     shell:
@@ -88,7 +80,6 @@ rule step1:
             --sampleCovarColList={params.sample_covars} \
             --sampleIDColinphenoFile={params.sample_id_col} \
             --cellIDColinphenoFile={params.cell_id_col} \
-            --offsetCol={params.offset_col} \
             --traitType=count \
             --outputPrefix=/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step1/outputs/{wildcards.celltype}/perms/no_perm/{wildcards.celltype}_{wildcards.gene} \
             --skipVarianceRatioEstimation=FALSE \

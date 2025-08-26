@@ -6,12 +6,12 @@ library(irlba)
 library(Matrix)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping')
+options(future.globals.maxSize=50*1024^3) 
 
 # read files, update metadata
 mdata <- readRDS('HALEYs/pseudobulks/all_metadata.rds')
 obj <- readRDS('HALEYs/pseudobulks/all_raw_counts.rds') %>% CreateSeuratObject()
 obj@meta.data <- mdata
-obj$log_total_counts <- log(obj$nCount_RNA)
 
 # keep only NI 
 obj <- obj %>% subset(subset = SOC_infection_status=='NI')
@@ -45,8 +45,13 @@ for (ctype in c('B','CD4_T','CD8_T','monocytes','NK')){
   # subset seurat object
   subset_obj <- obj %>% subset(subset = celltype == ctype)
   
+  # use sctransform v1 to normalize counts by total reads and account for batch and mt content
+  # and still return counts (unlike v2 of sctransform)
+  subset_obj <- SCTransform(subset_obj, vars.to.regress=c('batchID', 'percent.mt'),
+                     return.only.var.genes=FALSE, vst.flavor='v1', do.correct.umi=TRUE, verbose=F)
+
   # extract count 
-  count_mat <- subset_obj@assays$RNA$counts
+  count_mat <- GetAssayData(subset_obj, assay='SCT', layer='data')
   
   # keep only protein-coding genes with variance > 0
   keep_genes <- rownames(count_mat) %in% annotations$hgnc_symbol
@@ -70,16 +75,9 @@ for (ctype in c('B','CD4_T','CD8_T','monocytes','NK')){
   # join metadata, exp_pcs_df, and count_mat
   full_df <- inner_join(subset_obj@meta.data, exp_pcs, by=c('cell_ID')) %>% 
     inner_join(count_mat, by=c('cell_ID')) %>% arrange(SOC_indiv_ID) %>% 
-    select(-c(orig.ident, nCount_RNA, nFeature_RNA, SOC_status,
+    select(-c(orig.ident, nCount_RNA, nFeature_RNA, SOC_status, percent.mt, batchID,
                 SOC_infection_status, SOC_genetic_ancestry, CEU, YRI, nCount_SCT, nFeature_SCT,
                 integrated_snn_res.0.5, cluster_IDs, celltype, sample_condition))
-  
-  # expand batch column
-  full_df$batchID <- as.factor(full_df$batchID)
-  batch_dummies <- model.matrix(~batchID-1, data=full_df) %>% as.data.frame()
-  full_df <- full_df %>% cbind(batch_dummies) %>% select(cell_ID, SOC_indiv_ID, age_Scale, YRI_Scale, 
-               starts_with('batchID'), log_total_counts, percent.mt, starts_with('PC'), 
-               all_of(colnames(full_df))) %>% select(-batchID) 
   
   # save count file
   fwrite(full_df, 'Saige/step1/inputs/'%&%ctype%&%'_NI_counts.w.covs_upto10PCs.txt', sep='\t', col.names=TRUE)
