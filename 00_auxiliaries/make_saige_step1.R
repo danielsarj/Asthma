@@ -74,9 +74,13 @@ for (ctype in c('B','CD4_T','CD8_T','monocytes','NK')){
                 SOC_infection_status, SOC_genetic_ancestry, CEU, YRI, nCount_SCT, nFeature_SCT,
                 integrated_snn_res.0.5, cluster_IDs, celltype, sample_condition))
   
-  # change batch to numeric
-  full_df$batchID <- as.numeric(as.factor(full_df$batchID))
-    
+  # expand batch column
+  full_df$batchID <- as.factor(full_df$batchID)
+  batch_dummies <- model.matrix(~batchID-1, data=full_df) %>% as.data.frame()
+  full_df <- full_df %>% cbind(batch_dummies) %>% select(cell_ID, SOC_indiv_ID, age_Scale, YRI_Scale, 
+               starts_with('batchID'), log_total_counts, percent.mt, starts_with('PC'), 
+               all_of(colnames(full_df))) %>% select(-batchID) 
+  
   # save count file
   fwrite(full_df, 'Saige/step1/inputs/'%&%ctype%&%'_NI_counts.w.covs_upto10PCs.txt', sep='\t', col.names=TRUE)
 
