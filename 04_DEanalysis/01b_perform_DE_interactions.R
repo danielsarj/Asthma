@@ -69,7 +69,7 @@ for (i in 1:length(conditions)){
     tmp <- subset(objs, cells=matching_cells)
     rm(meta_df, filtered_meta, matching_cells)
     
-    # extract metadata and count matrices
+    # extract metadata
     mdata <- tmp@meta.data
     mdata$condition <- factor(mdata$condition, levels=c('NI', conditions[i]))
     mdata$gender <- factor(mdata$gender, levels=c('Male','Female'))
@@ -103,7 +103,7 @@ for (i in 1:length(conditions)){
             count <- calcNormFactors(count)
             
             # define design matrix
-            design <- model.matrix(~age+gender+n+avg_mt+condition+condition:asthma, data=mdata)
+            design <- model.matrix(~batch+age+gender+n+avg_mt+condition+condition:asthma, data=mdata)
             
             # voom
             voom <- voom(count, design, plot=F)
@@ -131,7 +131,7 @@ for (i in 1:length(conditions)){
             count <- calcNormFactors(count)
             
             # define design matrix
-            design <- model.matrix(~age+gender+n+avg_mt+albuterol+condition+condition:asthma, data=mdata)
+            design <- model.matrix(~batch+age+gender+n+avg_mt+albuterol+condition+condition:asthma, data=mdata)
             
             # voom
             voom <- voom(count, design, plot=F)
@@ -161,7 +161,7 @@ for (i in 1:length(conditions)){
         count <- calcNormFactors(count)
         
         # define design matrix
-        design <- model.matrix(~age+gender+n+avg_mt+condition+condition:income, data=mdata)
+        design <- model.matrix(~batch+age+gender+n+avg_mt+condition+condition:income, data=mdata)
         
         # voom
         voom <- voom(count, design, plot=F)
