@@ -2,7 +2,7 @@ library(tidyverse)
 library(data.table)
 library(fgsea)
 library(msigdbr)
-"%&%" <- function(a,b) paste(a,b, sep = "")
+'%&%' <- function(a,b) paste(a,b, sep = '')
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/DEanalysis')
 conditions <- c('RV', 'IVA')
 cells_seurat <- c('B','T-CD4','T-CD8','Mono','NK')
@@ -30,12 +30,6 @@ for (int in interactions){
       subset_DE_results <- subset_DE_results %>% arrange(desc(t)) %>% select(gene, t)
       subset_DE_results <- setNames(subset_DE_results$t, subset_DE_results$gene)
       
-      
-      length(subset_DE_results)
-      length(unique(subset_DE_results))
-      
-      
-      
       # run fGSEA
       fgseaRes <- fgseaMultilevel(pathways=human.path.list,
                         stats=subset_DE_results, 
@@ -50,6 +44,16 @@ for (int in interactions){
       topPathways <- c(topPathwaysUp, rev(topPathwaysDown))
       plotGseaTable(human.path.list[topPathways], subset_DE_results, fgseaRes, gseaParam=0.5)
       ggsave('NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_'%&%int%&%'_desc_topSigPathways.pdf', height=6, width=10)
+      
+      genes_in_pathway_a <- human.path.list[['HALLMARK_INTERFERON_ALPHA_RESPONSE']]
+      stats_ranked_a <- sort(subset_DE_results, decreasing=TRUE)
+      genes_in_pathway_y <- human.path.list[['HALLMARK_INTERFERON_GAMMA_RESPONSE']]
+      stats_ranked_y <- sort(subset_DE_results, decreasing=TRUE)     
+      plotEnrichment(genes_in_pathway_a, stats_ranked_a) + 
+        ggtitle('Enrichment Plot: HALLMARK_INTERFERON_ALPHA_RESPONSE') + 
+        plotEnrichment(genes_in_pathway_y, stats_ranked_y) + 
+        ggtitle('Enrichment Plot: HALLMARK_INTERFERON_GAMMA_RESPONSE')
+      ggsave('NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_'%&%int%&%'_INF_enrichmentplots.pdf', height=6, width=15)
       
       # compile results
       if (exists('compiled.fgseaRes')){
