@@ -3,6 +3,7 @@ library(msigdbr)
 library(data.table)
 library(tidyverse)
 library(ggpubr)
+library(patchwork)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/scRNAanalysis')
 conditions <- c('RV', 'IVA', 'NI')
@@ -31,7 +32,7 @@ sc_obj <- AddModuleScore(sc_obj, features=ifn_genes[2], name='IFNy_response')
 #DimPlot(sc_obj, reduction='rna.umap', group.by='celltype', split.by='condition', label=TRUE, label.size=5, repel=TRUE)
 FeaturePlot(sc_obj, features='IFNa_response1', label=TRUE, repel=TRUE, split.by='condition') /
 FeaturePlot(sc_obj, features='IFNy_response1', label=TRUE, repel=TRUE, split.by='condition')
-ggsave('UMAP_IFNresponse.pdf', height=6, width=8)
+ggsave('UMAP_IFNresponse.pdf', height=6, width=10)
 
 # retrieve scores per cell type 
 for (cond in conditions){
@@ -53,7 +54,23 @@ for (cond in conditions){
     } else {ifn.scores <- sub_mdata}
   }
 }
-  
+
+# viz
+sc_obj_w_asthma <- sc_obj
+merged_mdata <- left_join(sc_obj_w_asthma@meta.data, sample_m, by=c('IDs'='ID'))
+rownames(merged_mdata) <- rownames(sc_obj_w_asthma@meta.data)
+sc_obj_w_asthma@meta.data <- merged_mdata
+sc_obj_w_asthma$cond_asthma <- paste(sc_obj_w_asthma$condition, sc_obj_w_asthma$asthma, sep='_')
+sc_obj_w_asthma@meta.data$cond_asthma <- factor(sc_obj_w_asthma@meta.data$cond_asthma, levels=c('NI_No', 'IVA_No', 'RV_No', 'NI_Yes', 'IVA_Yes', 'RV_Yes'))
+
+FeaturePlot(sc_obj_w_asthma, features='IFNa_response1', label=TRUE, repel=TRUE, split.by='cond_asthma')  +
+  patchwork::plot_layout(ncol=3, nrow=2)
+ggsave('UMAP_IFNaresponse_byAsthma.pdf', height=6, width=10)
+FeaturePlot(sc_obj_w_asthma, features='IFNy_response1', label=TRUE, repel=TRUE, split.by='cond_asthma')  +
+  patchwork::plot_layout(ncol=3, nrow=2)
+ggsave('UMAP_IFNyresponse_byAsthma.pdf', height=6, width=10)
+rm(sc_obj_w_asthma)
+
 ifn.scores %>% ggplot(., aes(x=condition, y=IFNa_response1, fill=asthma)) + geom_boxplot() + 
   facet_wrap(~celltype, scale='free') + theme_bw() 
 ggsave('scGSEA_IFNascore_asthma_boxplots.pdf', height=4, width=6)
@@ -172,11 +189,11 @@ for (ctype in celltypes){
   
     # adjust for confounding things for asthma interaction
     subset_asthma_obj <- ScaleData(subset_asthma_obj, 
-                        vars.to.regress=c('batch','age','gender','n','albuterol'), 
+                        vars.to.regress=c('avg_mt','age','gender','n','albuterol'), 
                         features=rownames(subset_asthma_obj), verbose=FALSE)
 
     # create an assay using residuals
-    residual_assay <- CreateAssayObject(data=GetAssayData(subset_asthma_obj, slot='scale.data'))
+    residual_assay <- CreateAssayObject(data=GetAssayData(subset_asthma_obj, layer='scale.data'))
     subset_asthma_obj[['residuals']] <- residual_assay
 
     # run AddModuleScore on the new assay
@@ -217,7 +234,6 @@ for (ctype in celltypes){
 }
 # merge w metadata
 paired.bulk.ifn.scores <- paired.bulk.ifn.scores %>% full_join(sample_m, by=c('IDs'='ID'))
-
 asthma_ifn_scores <- paired.bulk.ifn.scores %>% select(celltype, condition, IFNa_score, IFNy_score, asthma, albuterol) %>%
   drop_na()
 
@@ -232,3 +248,65 @@ asthma_ifn_scores %>% ggplot(., aes(x=condition, y=IFNy_score, fill=asthma)) +
   stat_compare_means(aes(group = asthma), method='wilcox.test', label='p.format') +
   scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
 ggsave('scGSEA_IFNyscore_pairedID_adjusted.exp_asthma_boxplots.pdf', height=4, width=6)
+
+# not adjusted, but also on pseudobulk
+for (ctype in celltypes){
+  print(ctype)
+  for (cond in c('RV','IVA')){
+    print(cond)
+    # subset
+    subset_asthma_obj <- subset(bulk_obj, celltype==ctype & 
+                                  (condition=='NI' | condition==cond))
+    
+    # run AddModuleScore on the new assay
+    subset_asthma_obj <- AddModuleScore(subset_asthma_obj, features=ifn_genes[1], 
+                                        name='IFNa_response')
+    subset_asthma_obj <- AddModuleScore(subset_asthma_obj, features=ifn_genes[2], 
+                                        name='IFNy_response')
+    
+    # retrieve results
+    subset_asthma_results <- subset_asthma_obj@meta.data %>% 
+      select(IDs, condition, celltype, IFNa_response1, IFNy_response1)
+    
+    # remove unique indvs
+    subset_asthma_results <- subset_asthma_results %>% group_by(IDs) %>% mutate(is_unique = n() == 1)
+    subset_asthma_results <- subset_asthma_results %>% filter(is_unique==FALSE) %>% select(-is_unique) %>% as.data.frame()
+    
+    for (id in unique(subset_asthma_results$IDs)){
+      # select indv
+      subset_score <- subset_asthma_results %>% filter(IDs==id) 
+      
+      # confirm position of NI vs infection
+      NI_row <- which(subset_score$condition=='NI')
+      Inf_row <- which(subset_score$condition==cond)
+      
+      # compute inf score
+      subset_score$IFNa_score <- subset_score$IFNa_response1[Inf_row] - subset_score$IFNa_response1[NI_row]
+      subset_score$IFNy_score <- subset_score$IFNy_response1[Inf_row] - subset_score$IFNy_response1[NI_row]
+      
+      # edit df
+      subset_score <- subset_score %>% filter(condition==cond) %>% 
+        select(IDs, condition, celltype, IFNa_score, IFNy_score) 
+      
+      if (exists('paired.bulk.ifn.scores_unadj')){
+        paired.bulk.ifn.scores_unadj <- rbind(paired.bulk.ifn.scores_unadj, subset_score)
+      } else {paired.bulk.ifn.scores_unadj <- subset_score}
+    }
+  }
+}
+# merge w metadata
+paired.bulk.ifn.scores_unadj <- paired.bulk.ifn.scores_unadj %>% full_join(sample_m, by=c('IDs'='ID'))
+asthma_ifn_scores <- paired.bulk.ifn.scores_unadj %>% select(celltype, condition, IFNa_score, IFNy_score, asthma, albuterol) %>%
+  drop_na()
+
+# plot
+asthma_ifn_scores %>% ggplot(., aes(x=condition, y=IFNa_score, fill=asthma)) + 
+  geom_boxplot() + facet_wrap(~celltype, scale='free') + theme_bw() +
+  stat_compare_means(aes(group = asthma), method='wilcox.test', label='p.format') +
+  scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
+ggsave('scGSEA_IFNascore_pairedID_unadjusted.exp_asthma_boxplots.pdf', height=4, width=6)
+asthma_ifn_scores %>% ggplot(., aes(x=condition, y=IFNy_score, fill=asthma)) + 
+  geom_boxplot() + facet_wrap(~celltype, scale='free') + theme_bw() +
+  stat_compare_means(aes(group = asthma), method='wilcox.test', label='p.format') +
+  scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
+ggsave('scGSEA_IFNyscore_pairedID_unadjusted.exp_asthma_boxplots.pdf', height=4, width=6)
