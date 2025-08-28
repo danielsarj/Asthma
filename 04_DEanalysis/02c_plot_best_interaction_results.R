@@ -54,9 +54,9 @@ for (int in interactions){
       if (int=='none'){
         design <- model.matrix(~IDs+batch+age+gender+n+avg_mt, data=sub_mdata)
       } else if (int=='asthma_alb'){
-        design <- model.matrix(~age+gender+n+avg_mt+albuterol+condition, data=sub_mdata)
+        design <- model.matrix(~batch+age+gender+n+avg_mt+albuterol+condition, data=sub_mdata)
       } else {
-        design <- model.matrix(~age+gender+n+avg_mt+condition, data=sub_mdata)
+        design <- model.matrix(~batch+age+gender+n+avg_mt+condition, data=sub_mdata)
       }
       
       # normalize and compute precision weights
