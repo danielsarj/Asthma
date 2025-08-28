@@ -138,7 +138,7 @@ rm(full_results_w.avglogCPM, tmp)
 
 # volcano plot of all them together
 ggplot(full_results_avglogCPM.filtered) + geom_point(aes(logFC, -log10(adj.P.Val)), size=0.5, alpha=0.5) +
-  theme_bw() + ylab('-log10(FDR)') + facet_grid(cols=vars(celltype), rows=vars(condition)) +
+  theme_bw() + ylab('-log10(adjusted pvalues)') + facet_grid(cols=vars(celltype), rows=vars(condition)) +
   geom_hline(yintercept=1.30103, color='red')
 ggsave('NI_IVAxRV_limma_facetgrid_avglogCPM.filtered_volcanoplot.pdf', height=5, width=8)
 fwrite(full_results_avglogCPM.filtered, 'NI_IVAxRV_limma_results_avglogCPM.filtered.txt', sep=' ')
