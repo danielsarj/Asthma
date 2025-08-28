@@ -9,6 +9,15 @@ conditions <- c('RV', 'IVA')
 cells_seurat <- c('B','T-CD4','T-CD8','Mono','NK')
 interactions <- c('asthma','asthma_alb','income', 'none')
 
+# load gene annotation from ensembl
+annotations <- fread('ensembl_genes.txt')
+
+# keep only protein coding and non-MT genes
+annotations <- annotations$hgnc_symbol[
+  annotations$gene_biotype=='protein_coding' &
+    annotations$hgnc_symbol!='' &
+    !grepl('^MT-', annotations$hgnc_symbol)]
+
 # load pseudobulk object
 obj <- readRDS('../scRNAanalysis/NI_IVA_RV.integrated.pseudobulks.rds')
 
@@ -30,8 +39,8 @@ for (int in interactions){
   }
   
   # find top 5 genes
-  top_genes <- DE_results %>% group_by(celltype, condition) %>% slice_min(P.Value, n=5, with_ties=F) %>% 
-    select(gene, condition, celltype, logFC, P.Value) %>% ungroup()
+  top_genes <- DE_results %>% group_by(celltype, condition) %>% slice_min(adj.P.Val, n=5, with_ties=F) %>% 
+    select(gene, condition, celltype) %>% ungroup()
   
   # extract count matrix and keep only top genes
   count <- obj@assays$RNA$counts
@@ -40,6 +49,9 @@ for (int in interactions){
     for (ct in unique(top_genes$celltype)){
       # subset count object
       sub_count <- count[,(grepl(cond, colnames(count)) | grepl('NI', colnames(count))) & grepl(ct, colnames(count))] 
+      sub_count <- sub_count[rownames(sub_count) %in% annotations,]
+      zero_var_genes <- apply(sub_count, 1, var) == 0
+      sub_count <- sub_count[!zero_var_genes, ]
       genes_to_look <- top_genes %>% filter(celltype==ct, condition==cond) %>% pull(gene)
       
       # transform count into dge object
@@ -49,10 +61,12 @@ for (int in interactions){
       
       # subset metadata
       sub_mdata <- mdata %>% rownames_to_column() %>% filter(rowname %in% rownames(sub_count$samples))
+      sub_mdata$condition <- factor(sub_mdata$condition, levels=c('NI', cond))
+      sub_mdata$gender <- factor(sub_mdata$gender, levels=c('Male','Female'))
       
       # create design matrix (without effect of interest)
       if (int=='none'){
-        design <- model.matrix(~IDs+batch+age+gender+n+avg_mt, data=sub_mdata)
+        design <- model.matrix(~batch+age+gender+n+avg_mt, data=sub_mdata)
       } else if (int=='asthma_alb'){
         design <- model.matrix(~batch+age+gender+n+avg_mt+albuterol+condition, data=sub_mdata)
       } else {
