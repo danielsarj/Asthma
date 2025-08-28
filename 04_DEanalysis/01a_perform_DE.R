@@ -29,7 +29,20 @@ objs <- readRDS('NI_IVA_RV.integrated.pseudobulks.rds')
 # merge metadata
 mdata <- objs@meta.data
 mdata <- inner_join(mdata, sample_m, by=c('IDs'='ID')) %>% column_to_rownames('orig.ident')
+mdata$batch <- factor(mdata$batch, levels=c('B1','B2','B3','B4'))
 objs@meta.data <- mdata
+
+ggplot(mdata, aes(x=reorder(IDs, as.numeric(batch)), y=n, fill=batch)) + geom_col() + theme_bw() +
+  facet_grid(cols=vars(factor(condition, levels=c('NI','IVA','RV'))), 
+             rows=vars(celltype), scales='free') +
+  theme(axis.text.x=element_text(angle=45, hjust=1))
+ggsave('Pseudobulksizes_byCondition.pdf', height=6, width=12)
+
+ggplot(mdata, aes(x=reorder(IDs, as.numeric(batch)), y=n, fill=asthma)) + geom_col() + theme_bw() +
+  facet_grid(cols=vars(factor(condition, levels=c('NI','IVA','RV'))), 
+             rows=vars(celltype), scales='free') +
+  theme(axis.text.x=element_text(angle=45, hjust=1))
+ggsave('../DEanalysis/Pseudobulksizes_byCondition_Asthmastatus.pdf', height=6, width=12)
 
 for (i in 1:length(conditions)){
   print(c(conditions[i]))
