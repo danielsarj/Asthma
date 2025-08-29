@@ -30,7 +30,7 @@ for (int in interactions){
         pull(threshold)
     
       # read results per celltype/condition
-      results <- fread('NI_'%&%conditions[i]%&%'_'%&%int%&%'_limma_'%&%ctype%&%'_results.txt') %>% 
+      results <- fread('NI_'%&%conditions[i]%&%'_'%&%int%&%'_limma_'%&%ctype%&%'_results_v2design.txt') %>% 
         filter(condition!='NI')
       
       if (nrow(results)>0){
@@ -50,7 +50,7 @@ for (int in interactions){
           theme_bw() + ylab('-log10(pvalue)') + ggtitle(conditions[i]%&%' - '%&%ctype) +
           geom_text_repel(aes(logFC, -log10(P.Value), label=ifelse(P.Value<0.00001,gene, '')), 
                       colour='red', size=3) 
-        ggsave('NI_'%&%conditions[i]%&%'_'%&%int%&%'_limma_'%&%ctype%&%'_volcanoplot.pdf', height=3, width=4)
+        ggsave('NI_'%&%conditions[i]%&%'_'%&%int%&%'_limma_'%&%ctype%&%'_volcanoplot_v2design.pdf', height=3, width=4)
     
         # combine dataframes
         if (exists('full_results')){
@@ -59,18 +59,18 @@ for (int in interactions){
       }
       }
   }
-  fwrite(full_results, 'NI_IVAxRV_'%&%int%&%'_limma_results_avglogCPM.filtered.txt', sep=' ')
+  fwrite(full_results, 'NI_IVAxRV_'%&%int%&%'_limma_results_avglogCPM.filtered_v2design.txt', sep=' ')
   
   # histogram of pvalues
   ggplot(full_results, aes(x=P.Value)) + geom_histogram() + theme_bw() +
     facet_grid(rows=vars(condition), cols=vars(celltype), scales='free')
-  ggsave('NI_IVAxRV_'%&%int%&%'_pval_histogram.pdf', height=4, width=10)
+  ggsave('NI_IVAxRV_'%&%int%&%'_pval_histogram_v2design.pdf', height=4, width=10)
   
   # volcano plot
   ggplot(full_results) + geom_point(aes(logFC, -log10(adj.P.Val)), size=0.5, alpha=0.5) +
     theme_bw() + ylab('-log10(adjusted p-value)') + facet_grid(cols=vars(celltype), rows=vars(condition)) +
     geom_hline(yintercept=1.30103, color='red')
-  ggsave('NI_IVAxRV_'%&%int%&%'_limma_facetgrid_volcanoplot.pdf', height=5, width=8)
+  ggsave('NI_IVAxRV_'%&%int%&%'_limma_facetgrid_volcanoplot_v2design.pdf', height=5, width=8)
   
   # get summary
   summary_results <- full_results %>% filter(abs(logFC)>=1, adj.P.Val<0.05) %>% 
@@ -81,7 +81,7 @@ for (int in interactions){
     ggplot(summary_results) + geom_col(aes(x=celltype, y=n_genes, fill=direction), position='dodge') +
       geom_text(aes(x=celltype, y=n_genes, label=n_genes, group=direction), position=position_dodge(width=0.9),
                 vjust=-0.5, size=4) + theme_bw() + facet_wrap(~condition)
-    ggsave('NI_IVAxRV_'%&%int%&%'_NumOfDEgenes_barplot.pdf', height=4, width=6)
+    ggsave('NI_IVAxRV_'%&%int%&%'_NumOfDEgenes_barplot_v2design.pdf', height=4, width=6)
   }
   rm(full_results)
 }
