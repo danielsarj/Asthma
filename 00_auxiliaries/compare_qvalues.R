@@ -130,10 +130,12 @@ perms_NK_m <- perms_NK_m %>% filter(gene %in% nk_intersection)
 empP <- empPvals(stat=-log10(best_NK_s$top_pval), stat0=-log10(as.matrix(perms_NK_s[,2:6])), pool=TRUE)
 best_NK_s$qvals <- qvalue(empP)$qvalue
 fwrite(best_NK_s, 'Saige/step3/outputs/NK_NI_best_eQTLs_no_perm_withqvalues.txt', sep=' ')
+#best_NK_s <- fread('Saige/step3/outputs/NK_NI_best_eQTLs_no_perm_withqvalues.txt')
 
 empP <- empPvals(stat=-log10(best_NK_m$pvalue), stat0=-log10(as.matrix(perms_NK_m[,2:6])), pool=TRUE)
 best_NK_m$qvals <- qvalue(empP)$qvalue
 fwrite(best_NK_m, 'HALEYs/matrixEQTL_results/NI_NK_adj_3PCs_best_cisQTL_withqvalue_sumstats.txt', sep=' ')
+#best_NK_m <- fread('HALEYs/matrixEQTL_results/NI_NK_adj_3PCs_best_cisQTL_withqvalue_sumstats.txt')
 
 ### compute qvalues for CD4T
 cd4t_intersection <- intersect(best_CD4T_s$gene, best_CD4T_m$gene)
@@ -145,16 +147,20 @@ perms_CD4T_m <- perms_CD4T_m %>% filter(gene %in% cd4t_intersection)
 empP <- empPvals(stat=-log10(best_CD4T_s$top_pval), stat0=-log10(as.matrix(perms_CD4T_s[,2:6])), pool=TRUE)
 best_CD4T_s$qvals <- qvalue(empP)$qvalue
 fwrite(best_CD4T_s, 'Saige/step3/outputs/CD4T_NI_best_eQTLs_no_perm_withqvalues.txt', sep=' ')
+#best_CD4T_s <- fread('Saige/step3/outputs/CD4T_NI_best_eQTLs_no_perm_withqvalues.txt')
 
 empP <- empPvals(stat=-log10(best_CD4T_m$pvalue), stat0=-log10(as.matrix(perms_CD4T_m[,2:6])), pool=TRUE)
 best_CD4T_m$qvals <- qvalue(empP)$qvalue
 fwrite(best_CD4T_m, 'HALEYs/matrixEQTL_results/NI_CD4T_adj_4PCs_best_cisQTL_withqvalue_sumstats.txt', sep=' ')
+#best_CD4T_m <- fread('HALEYs/matrixEQTL_results/NI_CD4T_adj_4PCs_best_cisQTL_withqvalue_sumstats.txt')
 
 ### summarise and compare 
 NK_joint <- inner_join(best_NK_m, best_NK_s, by=c('gene'))
 NK_joint_summary <- data.frame('matrix'=sum(NK_joint$qvals.x<0.05),
                                'saigeqtl'=sum(NK_joint$qvals.y<0.05))
+NK_joint_summary
 
 CD4T_joint <- inner_join(best_CD4T_m, best_CD4T_s, by=c('gene'))
 CD4T_joint_summary <- data.frame('matrix'=sum(CD4T_joint$qvals.x<0.05),
                                  'saigeqtl'=sum(CD4T_joint$qvals.y<0.05))
+CD4T_joint_summary
