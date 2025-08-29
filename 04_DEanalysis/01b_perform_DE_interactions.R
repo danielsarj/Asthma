@@ -103,7 +103,7 @@ for (i in 1:length(conditions)){
             count <- calcNormFactors(count)
             
             # define design matrix
-            design <- model.matrix(~batch+age+gender+n+avg_mt+condition+condition:asthma, data=mdata)
+            design <- model.matrix(~batch+age+gender+n+avg_mt+condition*asthma, data=mdata)
             
             # voom
             voom <- voom(count, design, plot=F)
@@ -114,7 +114,7 @@ for (i in 1:length(conditions)){
             # get results
             results <- topTable(fit, coef='condition'%&%conditions[i]%&%':asthmaYes', number=Inf, adjust='BH') %>% 
               rownames_to_column('gene') %>% mutate(condition=conditions[i])
-            fwrite(results, 'NI_'%&%conditions[i]%&%'_asthma_limma_'%&%ctype%&%'_results.txt',
+            fwrite(results, 'NI_'%&%conditions[i]%&%'_asthma_limma_'%&%ctype%&%'_results_v2design.txt',
                    sep=' ', col.names=T, na='NA')
             
             # adjust for albuterol intake
@@ -131,7 +131,7 @@ for (i in 1:length(conditions)){
             count <- calcNormFactors(count)
             
             # define design matrix
-            design <- model.matrix(~batch+age+gender+n+avg_mt+albuterol+condition+condition:asthma, data=mdata)
+            design <- model.matrix(~batch+age+gender+n+avg_mt+albuterol+condition*asthma, data=mdata)
             
             # voom
             voom <- voom(count, design, plot=F)
@@ -142,7 +142,7 @@ for (i in 1:length(conditions)){
             # get results
             results <- topTable(fit, coef='condition'%&%conditions[i]%&%':asthmaYes', number=Inf, adjust='BH') %>% 
               rownames_to_column('gene') %>% mutate(condition=conditions[i])
-            fwrite(results, 'NI_'%&%conditions[i]%&%'_asthma_alb_limma_'%&%ctype%&%'_results.txt',
+            fwrite(results, 'NI_'%&%conditions[i]%&%'_asthma_alb_limma_'%&%ctype%&%'_results_v2design.txt',
                    sep=' ', col.names=T, na='NA')
           }
         }
@@ -161,7 +161,7 @@ for (i in 1:length(conditions)){
         count <- calcNormFactors(count)
         
         # define design matrix
-        design <- model.matrix(~batch+age+gender+n+avg_mt+condition+condition:income, data=mdata)
+        design <- model.matrix(~batch+age+gender+n+avg_mt+condition*income, data=mdata)
         
         # voom
         voom <- voom(count, design, plot=F)
@@ -172,7 +172,7 @@ for (i in 1:length(conditions)){
         # get results
         results <- topTable(fit, coef='condition'%&%conditions[i]%&%':income', number=Inf, adjust='BH') %>% 
           rownames_to_column('gene') %>% mutate(condition=conditions[i])
-        fwrite(results, 'NI_'%&%conditions[i]%&%'_income_limma_'%&%ctype%&%'_results.txt',
+        fwrite(results, 'NI_'%&%conditions[i]%&%'_income_limma_'%&%ctype%&%'_results_v2design.txt',
                sep=' ', col.names=T, na='NA')
       }
     }
