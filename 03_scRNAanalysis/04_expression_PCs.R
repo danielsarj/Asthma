@@ -42,11 +42,11 @@ for (ct in c(unique(obj@meta.data$celltype), 'PBMC')){
     subset_obj <- subset(obj, subset = celltype == ct)  
   }
   
-  # find cell number outliers and remove them
-  outliers <- subset_obj@meta.data %>% mutate(zscore_n=scale(n)) %>% 
-    filter(abs(zscore_n)>2) %>% pull(orig.ident)
-  cells_to_keep <- colnames(subset_obj)[!(subset_obj$orig.ident %in% outliers)]
-  subset_obj <- subset(subset_obj, cells = cells_to_keep)
+  ## find cell number outliers and remove them
+  #outliers <- subset_obj@meta.data %>% mutate(zscore_n=scale(n)) %>% 
+  #  filter(abs(zscore_n)>2) %>% pull(orig.ident)
+  #cells_to_keep <- colnames(subset_obj)[!(subset_obj$orig.ident %in% outliers)]
+  #subset_obj <- subset(subset_obj, cells = cells_to_keep)
   
   # extract count matrix
   count_mat <- subset_obj@assays$RNA$counts
