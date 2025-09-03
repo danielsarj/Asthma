@@ -231,4 +231,6 @@ if (args$mode == 'compile'){
   
   # summary table
   tmp_combined %>% group_by(celltype, method) %>% summarise(n_sigs=sum(pvalue<0.05), prop_sigs=sum(pvalue<0.05)/n())
+  tmp_combined %>% group_by(celltype, method) %>% summarise(n_sigs=sum(pvalue<1e-5), prop_sigs=sum(pvalue<1e-5)/n())
+  
 }
