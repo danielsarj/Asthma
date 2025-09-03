@@ -28,6 +28,13 @@ mdata <- objs@meta.data
 mdata <- inner_join(mdata, sample_m, by=c('IDs'='ID')) %>% column_to_rownames('orig.ident')
 objs@meta.data <- mdata
 
+# define minimum average logCPM thresholds
+logCPMfilter_table <- data.frame(celltype=c('B','T-CD4','T-CD8','Mono','NK',
+                                'B','T-CD4','T-CD8','Mono','NK'),
+                         threshold=c(4.9,1.9,1,3.4,5.6,
+                                 3.5,3.6,3.1,3.4,5.6),
+                         condition=c(rep('IVA',5),rep('RV',5)))
+
 # plots about the metadata
 summ <- mdata %>% group_by(condition, celltype, asthma) %>% summarise(n=n())
 summ %>% ggplot(.) + geom_col(aes(x=celltype, y=n, fill=asthma), position='dodge') + 
@@ -77,8 +84,9 @@ for (i in 1:length(conditions)){
     mdata$albuterol <- na_if(mdata$albuterol, '')
     mdata$albuterol <- factor(mdata$albuterol, levels=c('No', 'Yes'))
     mdata$asthma <- factor(mdata$asthma, levels=c('No', 'Yes'))
+    mdata$income <- na_if(mdata$income, '')
     mdata$income <- factor(mdata$income, levels=c('< $10,000', '$10,000-$29,999', '$30,000-$49,999', 
-                                                  '$50,000-$69,999', '$70,000-$89,999')) %>% as.numeric()
+                                  '$50,000-$69,999', '$70,000-$89,999')) %>% as.numeric()
     no_NA_income <- mdata %>% filter(!is.na(income)) %>% rownames(.)
     no_NA_albuterol <- mdata %>% filter(!is.na(albuterol)) %>% rownames(.)
     
@@ -86,82 +94,25 @@ for (i in 1:length(conditions)){
       print(interaction_term)
       
       if (interaction_term=='asthma'){
-        
-        # if interaction is asthma, run DE depending on albuterol intake as well
-        for (alb in c('no','yes')){
-          
-          # dont account for albuterol intake
-          if (alb=='no'){
-            # filter count matrix (only keep protein coding genes)
-            count <- tmp@assays$RNA$counts
-            count <- count[rownames(count) %in% annotations,]
-            zero_var_genes <- apply(count, 1, var) == 0
-            count <- count[!zero_var_genes, ]
-            
-            # transform count into dge object
-            count <- DGEList(counts=count)
-            count <- calcNormFactors(count)
-            
-            # define design matrix
-            design <- model.matrix(~batch+age+gender+n+avg_mt+condition*asthma, data=mdata)
-            
-            # voom
-            voom <- voom(count, design, plot=F)
-            
-            # fit linear model 
-            fit <- eBayes(lmFit(voom, design))
-            
-            # get results
-            results <- topTable(fit, coef='condition'%&%conditions[i]%&%':asthmaYes', number=Inf, adjust='BH') %>% 
-              rownames_to_column('gene') %>% mutate(condition=conditions[i])
-            fwrite(results, 'NI_'%&%conditions[i]%&%'_asthma_limma_'%&%ctype%&%'_results_v2design.txt',
-                   sep=' ', col.names=T, na='NA')
-            
-            # adjust for albuterol intake
-          } else {
-            # filter count matrix (only keep protein coding genes)
-            count <- tmp@assays$RNA$counts
-            count <- count[,colnames(count) %in% no_NA_albuterol]
-            count <- count[rownames(count) %in% annotations,]
-            zero_var_genes <- apply(count, 1, var) == 0
-            count <- count[!zero_var_genes, ]
-            
-            # transform count into dge object
-            count <- DGEList(counts=count)
-            count <- calcNormFactors(count)
-            
-            # define design matrix
-            design <- model.matrix(~batch+age+gender+n+avg_mt+albuterol+condition*asthma, data=mdata)
-            
-            # voom
-            voom <- voom(count, design, plot=F)
-            
-            # fit linear model 
-            fit <- eBayes(lmFit(voom, design))
-            
-            # get results
-            results <- topTable(fit, coef='condition'%&%conditions[i]%&%':asthmaYes', number=Inf, adjust='BH') %>% 
-              rownames_to_column('gene') %>% mutate(condition=conditions[i])
-            fwrite(results, 'NI_'%&%conditions[i]%&%'_asthma_alb_limma_'%&%ctype%&%'_results_v2design.txt',
-                   sep=' ', col.names=T, na='NA')
-          }
-        }
-        
-        
-      } else {
-        # filter count matrix (only keep protein coding genes)
+        # remove non protein coding genes from count matrix and genes with variance == 0
         count <- tmp@assays$RNA$counts
-        count <- count[,colnames(count) %in% no_NA_income]
+        count <- count[,colnames(count) %in% no_NA_albuterol]
         count <- count[rownames(count) %in% annotations,]
         zero_var_genes <- apply(count, 1, var) == 0
         count <- count[!zero_var_genes, ]
-        
-        # transform count into dge object
         count <- DGEList(counts=count)
+        
+        # remove lowly expressed genes based on logCPM threshold
+        logcpm_threshold <- logCPMfilter_table %>% filter(celltype==ctype, condition==conditions[i]) %>%
+          pull(threshold)
+        logCPM_pass <- cpm(count, log=TRUE) %>% rowMeans() %>% as.data.frame() %>% filter(.>=logcpm_threshold) %>%
+          rownames_to_column() %>% pull(rowname)
+        count <- count[logCPM_pass, , keep.lib.sizes=FALSE]
         count <- calcNormFactors(count)
         
         # define design matrix
-        design <- model.matrix(~batch+age+gender+n+avg_mt+condition*income, data=mdata)
+        asthma_mdata <- mdata %>% filter(rownames(mdata) %in% no_NA_albuterol)
+        design <- model.matrix(~batch+age+gender+n+avg_mt+albuterol+condition*asthma, data=asthma_mdata)
         
         # voom
         voom <- voom(count, design, plot=F)
@@ -170,11 +121,134 @@ for (i in 1:length(conditions)){
         fit <- eBayes(lmFit(voom, design))
         
         # get results
-        results <- topTable(fit, coef='condition'%&%conditions[i]%&%':income', number=Inf, adjust='BH') %>% 
-          rownames_to_column('gene') %>% mutate(condition=conditions[i])
-        fwrite(results, 'NI_'%&%conditions[i]%&%'_income_limma_'%&%ctype%&%'_results_v2design.txt',
+        og_results <- topTable(fit, coef='condition'%&%conditions[i]%&%':asthmaYes', number=Inf, adjust='BH') %>% 
+          rownames_to_column('Gene') %>% mutate(condition=conditions[i])
+        
+        # now do permutations where i shuffle asthma status in metadata
+        for (j in (1:10)){
+          
+          # shuffle asthma status preserving infection condition
+          permuted_mdata <- asthma_mdata
+          for (ind in unique(permuted_mdata$IDs)){
+            # flip coin to decide if asthma status will be reversed or not
+            if (runif(1)<0.5){
+              ix <- permuted_mdata$IDs == ind
+              if (permuted_mdata$asthma[ix][1]=='Yes'){
+                permuted_mdata$asthma[ix] <- 'No'
+              } else {
+                permuted_mdata$asthma[ix] <- 'Yes'
+              }
+            }
+          }
+          
+          # define design matrix
+          design <- model.matrix(~batch+age+gender+n+avg_mt+albuterol+condition*asthma, data=permuted_mdata)
+          
+          # voom
+          voom <- voom(count, design, plot=F)
+          
+          # fit linear model 
+          fit <- eBayes(lmFit(voom, design))
+          
+          # save pvalues from permutation
+          tmp_perm <- topTable(fit, coef=ncol(fit), number=Inf) %>% rownames_to_column('Gene') %>%
+            select(Gene, P.Value)
+          
+          if (exists('compiled_perms')){
+            compiled_perms <- inner_join(compiled_perms, tmp_perm, by='Gene')
+          } else {compiled_perms <- tmp_perm}
+        }
+        
+        # reorder compiled_perms df so gene order matches OG results
+        compiled_perms <- compiled_perms[match(og_results$Gene, compiled_perms$Gene), ]
+        
+        # compute qvalues
+        empP <- empPvals(stat=-log10(og_results$P.Value), stat0=-log10(as.matrix(compiled_perms[1:j+1])), pool=TRUE)
+        og_results$qvals <- qvalue(empP)$qvalue
+        
+        # save result
+        fwrite(og_results, 'NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_asthma_alb_limma_results_wqvals.txt',
                sep=' ', col.names=T, na='NA')
+        rm(compiled_perms)
+        
+      # now, income
+      } else {
+        # remove non protein coding genes from count matrix and genes with variance == 0
+        count <- tmp@assays$RNA$counts
+        count <- count[,colnames(count) %in% no_NA_income]
+        count <- count[rownames(count) %in% annotations,]
+        zero_var_genes <- apply(count, 1, var) == 0
+        count <- count[!zero_var_genes, ]
+        count <- DGEList(counts=count)
+        
+        # remove lowly expressed genes based on logCPM threshold
+        logcpm_threshold <- logCPMfilter_table %>% filter(celltype==ctype, condition==conditions[i]) %>%
+          pull(threshold)
+        logCPM_pass <- cpm(count, log=TRUE) %>% rowMeans() %>% as.data.frame() %>% filter(.>=logcpm_threshold) %>%
+          rownames_to_column() %>% pull(rowname)
+        count <- count[logCPM_pass, , keep.lib.sizes=FALSE]
+        count <- calcNormFactors(count)
+        
+        # define design matrix
+        income_mdata <- mdata %>% filter(rownames(mdata) %in% no_NA_income)
+        design <- model.matrix(~batch+age+gender+n+avg_mt+condition*income, data=income_mdata)
+        
+        # voom
+        voom <- voom(count, design, plot=F)
+        
+        # fit linear model 
+        fit <- eBayes(lmFit(voom, design))
+        
+        # get results
+        og_results <- topTable(fit, coef='condition'%&%conditions[i]%&%':income', number=Inf, adjust='BH') %>% 
+          rownames_to_column('Gene') %>% mutate(condition=conditions[i])
+
+        # now do permutations where i shuffle income status in metadata
+        for (j in (1:10)){
+          
+          # copy metadata
+          permuted_mdata <- income_mdata
+          
+          # shuffle income status preserving infection condition
+          income_map <- permuted_mdata %>% select(IDs, income) %>% distinct()
+          shuffled_income <- sample(income_map$income)
+          income_map$income_perm <- shuffled_income
+          
+          # join back to permuted metadata
+          permuted_mdata <- permuted_mdata %>% 
+            left_join(income_map %>% select(IDs, income_perm), by=c('IDs'))
+          
+          # define design matrix
+          design <- model.matrix(~batch+age+gender+n+avg_mt+condition*income_perm, data=permuted_mdata)
+          
+          # voom
+          voom <- voom(count, design, plot=F)
+          
+          # fit linear model 
+          fit <- eBayes(lmFit(voom, design))
+          
+          # save pvalues from permutation
+          tmp_perm <- topTable(fit, coef=ncol(fit), number=Inf) %>% rownames_to_column('Gene') %>%
+            select(Gene, P.Value)
+          
+          if (exists('compiled_perms')){
+            compiled_perms <- inner_join(compiled_perms, tmp_perm, by='Gene')
+          } else {compiled_perms <- tmp_perm}
+        }
+        
+        # reorder compiled_perms df so gene order matches OG results
+        compiled_perms <- compiled_perms[match(og_results$Gene, compiled_perms$Gene), ]
+        
+        # compute qvalues
+        empP <- empPvals(stat=-log10(og_results$P.Value), stat0=-log10(as.matrix(compiled_perms[1:j+1])), pool=TRUE)
+        og_results$qvals <- qvalue(empP)$qvalue
+        
+        # save result
+        fwrite(og_results, 'NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_income_limma_results_wqvals.txt',
+               sep=' ', col.names=T, na='NA')
+        rm(compiled_perms)
       }
     }
   }
 }
+
