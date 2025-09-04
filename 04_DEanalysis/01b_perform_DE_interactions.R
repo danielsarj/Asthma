@@ -147,6 +147,11 @@ for (i in 1:length(conditions)){
           # voom
           voom <- voom(count, design, plot=F)
           
+          # save voom-adjusted expression table
+          exp <- voom$E %>% as.data.frame() %>% rownames_to_column('Gene')
+          fwrite(exp, '../scRNAanalysis/NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_asthma_alb_voom_expression.txt', sep=' ')
+          rm(exp)
+          
           # fit linear model 
           fit <- eBayes(lmFit(voom, design))
           
@@ -203,6 +208,11 @@ for (i in 1:length(conditions)){
         
         # voom
         voom <- voom(count, design, plot=F)
+        
+        # save voom-adjusted expression table
+        exp <- voom$E %>% as.data.frame() %>% rownames_to_column('Gene')
+        fwrite(exp, '../scRNAanalysis/NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_income_voom_expression.txt', sep=' ')
+        rm(exp)
         
         # fit linear model 
         fit <- eBayes(lmFit(voom, design))
@@ -267,4 +277,3 @@ for (i in 1:length(conditions)){
     }
   }
 }
-
