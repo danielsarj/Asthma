@@ -127,10 +127,18 @@ for (i in 1:length(conditions)){
     
     # reorder compiled_perms df so gene order matches OG results
     compiled_perms <- compiled_perms[match(og_results$Gene, compiled_perms$Gene), ]
+    compiled_perms <- compiled_perms %>% select(-Gene)
     
     # compute qvalues
-    empP <- empPvals(stat=-log10(og_results$P.Value), stat0=-log10(as.matrix(compiled_perms[1:j+1])), pool=TRUE)
+    empP <- empPvals(stat=-log10(og_results$P.Value), stat0=-log10(as.matrix(compiled_perms[1:j])), pool=TRUE)
     og_results$qvals <- qvalue(empP)$qvalue
+    
+    # qqplot 
+    pdf('../DEanalysis/NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_limma_results_qqplot.pdf', width=4, height=4)
+    qqplot(x=-log10(compiled_perms[,1]), y=-log10(og_results$P.Value), main=conditions[i]%&%' '%&%ctype, 
+           xlab='-log10(permuted p-values)', ylab='-log10(true p-values)')
+    abline(c(0,1), col='red')
+    dev.off()
     
     # save result
     fwrite(og_results, '../DEanalysis/NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_limma_results_wqvals.txt',
@@ -138,3 +146,6 @@ for (i in 1:length(conditions)){
     rm(compiled_perms)
   }
 }
+
+
+
