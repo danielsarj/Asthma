@@ -173,15 +173,15 @@ for (i in 1:length(conditions)){
         og_results$qvals <- qvalue(empP)$qvalue
         
         # qqplot 
-        #pdf('NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_asthma_alb_limma_results_qqplot.pdf', width=4, height=4)
-        #qqplot(x=-log10(compiled_perms[,1]), y=-log10(og_results$P.Value), main=conditions[i]%&%' '%&%ctype%&%' asthma', 
-        #       xlab='-log10(permuted p-values)', ylab='-log10(true p-values)')
-        #abline(c(0,1), col='red')
-        #dev.off()
+        pdf('NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_asthma_alb_limma_results_qqplot.pdf', width=4, height=4)
+        qqplot(x=-log10(compiled_perms[,1]), y=-log10(og_results$P.Value), main=conditions[i]%&%' '%&%ctype%&%' asthma', 
+               xlab='-log10(permuted p-values)', ylab='-log10(true p-values)')
+        abline(c(0,1), col='red')
+        dev.off()
         
         # save result
-        #fwrite(og_results, 'NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_asthma_alb_limma_results_wqvals.txt',
-        #       sep=' ', col.names=T, na='NA')
+        fwrite(og_results, 'NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_asthma_alb_limma_results_wqvals.txt',
+               sep=' ', col.names=T, na='NA')
         rm(compiled_perms)
         
       # now, income
@@ -263,15 +263,15 @@ for (i in 1:length(conditions)){
         og_results$qvals <- qvalue(empP)$qvalue
         
         # qqplot 
-        #pdf('NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_income_limma_results_qqplot.pdf', width=4, height=4)
-        #qqplot(x=-log10(compiled_perms[,1]), y=-log10(og_results$P.Value), main=conditions[i]%&%' '%&%ctype%&%' income', 
-        #       xlab='-log10(permuted p-values)', ylab='-log10(true p-values)')
-        #abline(c(0,1), col='red')
-        #dev.off()
+        pdf('NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_income_limma_results_qqplot.pdf', width=4, height=4)
+        qqplot(x=-log10(compiled_perms[,1]), y=-log10(og_results$P.Value), main=conditions[i]%&%' '%&%ctype%&%' income', 
+               xlab='-log10(permuted p-values)', ylab='-log10(true p-values)')
+        abline(c(0,1), col='red')
+        dev.off()
         
         # save result
-        #fwrite(og_results, 'NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_income_limma_results_wqvals.txt',
-        #       sep=' ', col.names=T, na='NA')
+        fwrite(og_results, 'NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_income_limma_results_wqvals.txt',
+               sep=' ', col.names=T, na='NA')
         rm(compiled_perms)
       }
     }
