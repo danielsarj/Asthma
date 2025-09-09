@@ -271,8 +271,8 @@ for (ctype in celltypes){
     count <- count[,colnames(count) %in% v_samples]
     count <- DGEList(counts=count) %>% calcNormFactors()
     
-    # define design matrix (without interaction term)
-    design <- model.matrix(~batch+age+gender+n+avg_mt+albuterol+condition+asthma, data=sub_mdata)
+    # define design matrix (without asthma+interaction term)
+    design <- model.matrix(~batch+age+gender+n+avg_mt+albuterol+condition, data=sub_mdata)
     
     # voom
     voom <- voom(count, design, plot=F)
@@ -283,9 +283,9 @@ for (ctype in celltypes){
     sub_mdata$albuterol <- as.numeric(sub_mdata$albuterol) 
     sub_mdata$asthma <- as.numeric(sub_mdata$asthma)
     adj_expr <- removeBatchEffect(voom$E,
-                                  covariates = as.matrix(sub_mdata[, c('age','n','avg_mt','gender','albuterol','condition','asthma')]),
+                                  covariates = as.matrix(sub_mdata[, c('age','n','avg_mt','gender','albuterol','condition')]),
                                   batch = sub_mdata$batch,
-                                  design = model.matrix(~condition:asthma, data=sub_mdata))
+                                  design = model.matrix(~asthma+condition:asthma, data=sub_mdata))
     
     ## first, IFNa
     # subset to IFNa genes
@@ -348,7 +348,7 @@ ggplot(paired.bulk.ifn.scores, aes(x=condition, y=score, fill=asthma)) +
              alpha=0.4, size=1) + facet_grid(cols=vars(celltype), rows=vars(IFN), scale='free') + theme_bw() +
   stat_compare_means(aes(group = asthma), method='t.test', label='p.format') +
   scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
-ggsave('IFNscores_asthma_paired_adjusted_boxplots.pdf', height=4, width=10)
+ggsave('IFNscores_asthma_paired_adjusted_noasthma_boxplots.pdf', height=4, width=10)
 rm(paired.bulk.ifn.scores)
 
 # paired-level, leading edge genes, asthma vs infection interaction
@@ -377,8 +377,8 @@ for (ctype in celltypes){
     count <- count[,colnames(count) %in% v_samples]
     count <- DGEList(counts=count) %>% calcNormFactors()
     
-    # define design matrix (without interaction term)
-    design <- model.matrix(~batch+age+gender+n+avg_mt+albuterol+condition+asthma, data=sub_mdata)
+    # define design matrix (without asthma+interaction term)
+    design <- model.matrix(~batch+age+gender+n+avg_mt+albuterol+condition, data=sub_mdata)
     
     # voom
     voom <- voom(count, design, plot=F)
@@ -389,9 +389,9 @@ for (ctype in celltypes){
     sub_mdata$albuterol <- as.numeric(sub_mdata$albuterol) 
     sub_mdata$asthma <- as.numeric(sub_mdata$asthma)
     adj_expr <- removeBatchEffect(voom$E,
-                                  covariates = as.matrix(sub_mdata[, c('age','n','avg_mt','gender','albuterol','condition','asthma')]),
+                                  covariates = as.matrix(sub_mdata[, c('age','n','avg_mt','gender','albuterol','condition')]),
                                   batch = sub_mdata$batch,
-                                  design = model.matrix(~condition:asthma, data=sub_mdata))
+                                  design = model.matrix(~asthma+condition:asthma, data=sub_mdata))
     
     # extract ifn leading edge genes
     ifn_a_edge <- fgsea_full %>% filter(celltype==ctype, condition==cond, interaction=='none', 
@@ -464,5 +464,5 @@ ggplot(paired.bulk.ifn.scores, aes(x=condition, y=score, fill=asthma)) +
              alpha=0.4, size=1) + facet_grid(cols=vars(celltype), rows=vars(IFN), scale='free') + theme_bw() +
   stat_compare_means(aes(group = asthma), method='t.test', label='p.format') +
   scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
-ggsave('IFNscores_asthma_paired_adjusted_leadingedge_boxplots.pdf', height=4, width=10)
+ggsave('IFNscores_asthma_paired_adjusted_leadingedge_noasthma_boxplots.pdf', height=4, width=10)
 rm(paired.bulk.ifn.scores)
