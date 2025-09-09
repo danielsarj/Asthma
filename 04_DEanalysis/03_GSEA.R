@@ -39,17 +39,17 @@ for (int in interactions){
       topPathwaysDown <- fgseaRes[NES<0][head(order(pval), n=5), pathway]
       topPathways <- c(topPathwaysUp, rev(topPathwaysDown))
       plotGseaTable(human.path.list[topPathways], subset_DE_results, fgseaRes, gseaParam=0.5)
-      ggsave('NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_'%&%int%&%'_desc_topSigPathways_v2design.pdf', height=6, width=10)
+      ggsave('NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_'%&%int%&%'_desc_topSigPathways.pdf', height=6, width=10)
       
-      #genes_in_pathway_a <- human.path.list[['HALLMARK_INTERFERON_ALPHA_RESPONSE']]
-      #stats_ranked_a <- sort(subset_DE_results, decreasing=TRUE)
-      #genes_in_pathway_y <- human.path.list[['HALLMARK_INTERFERON_GAMMA_RESPONSE']]
-      #stats_ranked_y <- sort(subset_DE_results, decreasing=TRUE)     
-      #plotEnrichment(genes_in_pathway_a, stats_ranked_a) + 
-      #  ggtitle('Enrichment Plot: HALLMARK_INTERFERON_ALPHA_RESPONSE') + 
-      #  plotEnrichment(genes_in_pathway_y, stats_ranked_y) + 
-      #  ggtitle('Enrichment Plot: HALLMARK_INTERFERON_GAMMA_RESPONSE')
-      #ggsave('NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_'%&%int%&%'_INF_enrichmentplots_v2design.pdf', height=6, width=15)
+      genes_in_pathway_a <- human.path.list[['HALLMARK_INTERFERON_ALPHA_RESPONSE']]
+      stats_ranked_a <- sort(subset_DE_results, decreasing=TRUE)
+      genes_in_pathway_y <- human.path.list[['HALLMARK_INTERFERON_GAMMA_RESPONSE']]
+      stats_ranked_y <- sort(subset_DE_results, decreasing=TRUE)     
+      plotEnrichment(genes_in_pathway_a, stats_ranked_a) + 
+        ggtitle('Enrichment Plot: HALLMARK_INTERFERON_ALPHA_RESPONSE') + 
+        plotEnrichment(genes_in_pathway_y, stats_ranked_y) + 
+        ggtitle('Enrichment Plot: HALLMARK_INTERFERON_GAMMA_RESPONSE')
+      ggsave('NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_'%&%int%&%'_INF_enrichmentplots.pdf', height=6, width=15)
       
       # compile results
       if (exists('compiled.fgseaRes')){
