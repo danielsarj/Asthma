@@ -164,26 +164,34 @@ best_CD4T_m <- fread('HALEYs/matrixEQTL_results/NI_CD4T_adj_4PCs_best_cisQTL_wit
 ### summarise and compare 
 NK_joint <- inner_join(best_NK_m, best_NK_s, by=c('gene'))
 CD4T_joint <- inner_join(best_CD4T_m, best_CD4T_s, by=c('gene'))
-thresholds <- 10^seq(log10(1e-6), log10(0.1), length.out = 200)
+thresholds <- 10^seq(log10(1e-6), log10(0.1), length.out = 50)
 for (t in thresholds){
 
-    tmp_NK_joint_summary <- data.frame('matrixeqtl'=sum(NK_joint$qvals.x<t),
-                                 'saigeqtl'=sum(NK_joint$qvals.y<t),
-                                 threshold=t, celltype='NK')
-    
-    if (exists('joint_summary')){
-      joint_summary <- rbind(joint_summary, tmp_NK_joint_summary)
-    } else {joint_summary <- tmp_NK_joint_summary}
+  saige_genes <- NK_joint %>% filter(qvals.y<t) %>% pull(gene)
+  matrix_genes <- NK_joint %>% filter(qvals.x<t) %>% pull(gene)
   
-    tmp_CD4T_joint_summary <- data.frame('matrixeqtl'=sum(CD4T_joint$qvals.x<t),
-                                       'saigeqtl'=sum(CD4T_joint$qvals.y<t),
-                                       threshold=t, celltype='CD4T')
-    joint_summary <- rbind(joint_summary, tmp_CD4T_joint_summary)
+  tmp_NK_joint_summary <- data.frame('matrixeqtl'=sum(NK_joint$qvals.x<t),
+                              'saigeqtl'=sum(NK_joint$qvals.y<t),
+                              threshold=t, celltype='NK', intersection=length(intersect(matrix_genes, saige_genes)))
+    
+  if (exists('joint_summary')){
+    joint_summary <- rbind(joint_summary, tmp_NK_joint_summary)
+  } else {joint_summary <- tmp_NK_joint_summary}
+  
+  saige_genes <- CD4T_joint %>% filter(qvals.y<t) %>% pull(gene)
+  matrix_genes <- CD4T_joint %>% filter(qvals.x<t) %>% pull(gene)
+  
+  tmp_CD4T_joint_summary <- data.frame('matrixeqtl'=sum(CD4T_joint$qvals.x<t),
+                                      'saigeqtl'=sum(CD4T_joint$qvals.y<t),
+                                      threshold=t, celltype='CD4T', intersection=length(intersect(matrix_genes, saige_genes)))
+  joint_summary <- rbind(joint_summary, tmp_CD4T_joint_summary)
 }
-joint_summary <- joint_summary %>% pivot_longer(cols=c(matrixeqtl, saigeqtl),
+
+joint_summary <- joint_summary %>% pivot_longer(cols=c(matrixeqtl, saigeqtl, intersection),
                                                 names_to='method', values_to='n_genes') %>%
   group_by(celltype, threshold) %>% filter(sum(n_genes)>0) %>% ungroup()
 
 ggplot(joint_summary, aes(x=threshold, y=n_genes, color=method, group=method)) + geom_point() + geom_line() + theme_bw() +
   facet_wrap(~celltype, scales='free') + scale_x_continuous(breaks = seq(0, 0.1, 0.01), limits = c(0, 0.1))
+
 ggsave('Saige/n_eGenes_different_qvalues.pdf', height=3, width=9)
