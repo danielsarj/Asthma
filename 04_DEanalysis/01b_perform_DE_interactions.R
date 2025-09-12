@@ -4,6 +4,7 @@ library(limma)
 library(edgeR)
 library(data.table)
 library(tidyverse)
+library(qvalue)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/DEanalysis')
 conditions <- c('RV', 'IVA')
@@ -80,13 +81,13 @@ for (i in 1:length(conditions)){
     mdata <- tmp@meta.data
     mdata$condition <- factor(mdata$condition, levels=c('NI', conditions[i]))
     mdata$gender <- factor(mdata$gender, levels=c('Male','Female'))
-    mdata$IDs <- as.factor(mdata$IDs)
     mdata$albuterol <- na_if(mdata$albuterol, '')
     mdata$albuterol <- factor(mdata$albuterol, levels=c('No', 'Yes'))
     mdata$asthma <- factor(mdata$asthma, levels=c('No', 'Yes'))
     mdata$income <- na_if(mdata$income, '')
-    mdata$income <- factor(mdata$income, levels=c('< $10,000', '$10,000-$29,999', '$30,000-$49,999', 
-                                  '$50,000-$69,999', '$70,000-$89,999')) %>% as.numeric()
+    mdata$income <- ifelse(mdata$income %in% c('< $10,000', '$10,000-$29,999', '$30,000-$49,999'),
+                                         'Low', 'High')
+    mdata$income <- factor(mdata$income, levels=c('Low','High'))
     no_NA_income <- mdata %>% filter(!is.na(income)) %>% rownames(.)
     no_NA_albuterol <- mdata %>% filter(!is.na(albuterol)) %>% rownames(.)
     
@@ -218,26 +219,28 @@ for (i in 1:length(conditions)){
         fit <- eBayes(lmFit(voom, design))
         
         # get results
-        og_results <- topTable(fit, coef='condition'%&%conditions[i]%&%':income', number=Inf, adjust='BH') %>% 
+        og_results <- topTable(fit, coef='condition'%&%conditions[i]%&%':incomeHigh', number=Inf, adjust='BH') %>% 
           rownames_to_column('Gene') %>% mutate(condition=conditions[i])
 
         # now do permutations where i shuffle income status in metadata
         for (j in (1:10)){
           
-          # copy metadata
-          permuted_mdata <- income_mdata
-          
           # shuffle income status preserving infection condition
-          income_map <- permuted_mdata %>% select(IDs, income) %>% distinct()
-          shuffled_income <- sample(income_map$income)
-          income_map$income_perm <- shuffled_income
-          
-          # join back to permuted metadata
-          permuted_mdata <- permuted_mdata %>% 
-            left_join(income_map %>% select(IDs, income_perm), by=c('IDs'))
+          permuted_mdata <- income_mdata
+          for (ind in unique(permuted_mdata$IDs)){
+            # flip coin to decide if income status will be reversed or not
+            if (runif(1)<0.5){
+              ix <- permuted_mdata$IDs == ind
+              if (permuted_mdata$income[ix][1]=='Low'){
+                permuted_mdata$income[ix] <- 'High'
+              } else {
+                permuted_mdata$income[ix] <- 'Low'
+              }
+            }
+          }
           
           # define design matrix
-          design <- model.matrix(~batch+age+gender+n+avg_mt+condition*income_perm, data=permuted_mdata)
+          design <- model.matrix(~batch+age+gender+n+avg_mt+condition*income, data=permuted_mdata)
           
           # voom
           voom <- voom(count, design, plot=F)
