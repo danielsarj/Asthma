@@ -394,10 +394,10 @@ for (ctype in celltypes){
                                   design = model.matrix(~asthma+condition:asthma, data=sub_mdata))
     
     # extract ifn leading edge genes
-    ifn_a_edge <- fgsea_full %>% filter(celltype==ctype, condition==cond, interaction=='none', 
+    ifn_a_edge <- fgsea_full %>% filter(celltype==ctype, condition==cond, interaction=='asthma', 
                                         pathway=='INTERFERON_ALPHA_RESPONSE') %>% pull(leadingEdge) %>%
       unlist() %>% strsplit('\\|') %>% unlist() %>% gsub('"', '', .) %>% trimws()
-    ifn_y_edge <- fgsea_full %>% filter(celltype==ctype, condition==cond, interaction=='none', 
+    ifn_y_edge <- fgsea_full %>% filter(celltype==ctype, condition==cond, interaction=='asthma', 
                                         pathway=='INTERFERON_GAMMA_RESPONSE') %>% pull(leadingEdge) %>%
       unlist() %>% strsplit('\\|') %>% unlist() %>% gsub('"', '', .) %>% trimws()
     
@@ -465,4 +465,232 @@ ggplot(paired.bulk.ifn.scores, aes(x=condition, y=score, fill=asthma)) +
   stat_compare_means(aes(group = asthma), method='t.test', label='p.format') +
   scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
 ggsave('IFNscores_asthma_paired_adjusted_leadingedge_noasthma_boxplots.pdf', height=4, width=10)
+rm(paired.bulk.ifn.scores)
+
+# paired-level, all pathway genes, income vs infection interaction
+for (ctype in celltypes){
+  print(ctype)
+  for (cond in c('RV','IVA')){
+    print(cond)
+    
+    # subset
+    tmp <- subset(bulk_obj, celltype==ctype & (condition=='NI' | condition==cond))
+    sub_mdata <- tmp@meta.data
+    sub_mdata$gender <- factor(sub_mdata$gender, levels=c('Male','Female'))
+    sub_mdata$condition <- factor(sub_mdata$condition, levels=c('NI', cond))
+    sub_mdata$income <- ifelse(sub_mdata$income %in% c('< $10,000', '$10,000-$29,999', '$30,000-$49,999'),
+                           'Low', 'High')
+    sub_mdata$income <- factor(sub_mdata$income, levels=c('Low','High'))
+    
+    # get samples/genes from voom expression dataframe (easier to filter stuff)
+    v <- fread('../scRNAanalysis/NI_'%&%cond%&%'_'%&%ctype%&%'_income_voom_expression.txt') %>% column_to_rownames('Gene')
+    v_samples <- colnames(v)
+    v_genes <- rownames(v)
+    
+    # extract and subset count matrix
+    sub_mdata <- sub_mdata %>% filter(rownames(.) %in% v_samples)
+    count <- tmp@assays$RNA$counts
+    count <- count[rownames(count) %in% v_genes,]
+    count <- count[,colnames(count) %in% v_samples]
+    count <- DGEList(counts=count) %>% calcNormFactors()
+    
+    # define design matrix (without income+interaction term)
+    design <- model.matrix(~batch+age+gender+n+avg_mt+condition, data=sub_mdata)
+    
+    # voom
+    voom <- voom(count, design, plot=F)
+    
+    # remove confounding effects
+    sub_mdata$condition <- as.numeric(sub_mdata$condition)
+    sub_mdata$gender <- as.numeric(sub_mdata$gender)
+    sub_mdata$income <- as.numeric(sub_mdata$income)
+    adj_expr <- removeBatchEffect(voom$E,
+                                  covariates = as.matrix(sub_mdata[, c('age','n','avg_mt','gender','condition')]),
+                                  batch = sub_mdata$batch,
+                                  design = model.matrix(~income+condition:income, data=sub_mdata))
+    
+    ## first, IFNa
+    # subset to IFNa genes
+    ifn_a <- adj_expr %>% as.data.frame() %>% filter(rownames(.) %in% ifn_genes[[1]]) %>% as.matrix()
+    
+    # scale per gene and compute score
+    ifn_a <- ifn_a %>% t() %>% scale(center=TRUE, scale=TRUE) %>% t() %>% colMeans(na.rm=TRUE) %>% 
+      as.data.frame() %>% rownames_to_column('ID')
+    colnames(ifn_a)[2] <- 'IFNa_tmp_score'
+    
+    # second, IFNy
+    # subset to IFNa genes
+    ifn_y <- adj_expr %>% as.data.frame() %>% filter(rownames(.) %in% ifn_genes[[2]]) %>% as.matrix()
+    
+    # scale per gene and compute score
+    ifn_y <- ifn_y %>% t() %>% scale(center=TRUE, scale=TRUE) %>% t() %>% colMeans(na.rm=TRUE) %>% 
+      as.data.frame() %>% rownames_to_column('ID')
+    colnames(ifn_y)[2] <- 'IFNy_tmp_score'
+    
+    # join and reshape dfs
+    ifn_scores <- inner_join(ifn_a, ifn_y, by=c('ID')) %>% 
+      separate(col=ID, into=c('donor', 'condition', 'celltype'), sep='_', remove=TRUE)
+    
+    # remove unique indvs
+    ifn_scores <- ifn_scores %>% group_by(donor) %>% mutate(is_unique = n() == 1)
+    ifn_scores <- ifn_scores %>% filter(is_unique==FALSE) %>% select(-is_unique) %>% as.data.frame()
+    
+    for (id in unique(ifn_scores$donor)){
+      # select indv
+      sub_ifn_scores <- ifn_scores %>% filter(donor==id) 
+      
+      # confirm position of NI vs ifnection
+      NI_row <- which(sub_ifn_scores$condition=='NI')
+      Inf_row <- which(sub_ifn_scores$condition==cond)
+      
+      # compute ifn score
+      sub_ifn_scores$IFNa_score <- sub_ifn_scores$IFNa_tmp_score[Inf_row] - sub_ifn_scores$IFNa_tmp_score[NI_row]
+      sub_ifn_scores$IFNy_score <- sub_ifn_scores$IFNy_tmp_score[Inf_row] - sub_ifn_scores$IFNy_tmp_score[NI_row]
+      
+      # edit df
+      sub_ifn_scores <- sub_ifn_scores %>% filter(condition==cond) %>% 
+        select(donor, condition, celltype, IFNa_score, IFNy_score) 
+      
+      if (exists('paired.bulk.ifn.scores')){
+        paired.bulk.ifn.scores <- rbind(paired.bulk.ifn.scores, sub_ifn_scores)
+      } else {paired.bulk.ifn.scores <- sub_ifn_scores}
+    }
+  }
+}
+# merge w metadata to retrieve income status
+paired.bulk.ifn.scores <- paired.bulk.ifn.scores %>% inner_join(sample_m, by=c('donor'='ID'))
+paired.bulk.ifn.scores <- paired.bulk.ifn.scores %>% select(celltype, condition, IFNa_score, IFNy_score, income) %>% 
+  pivot_longer(cols=c(IFNa_score, IFNy_score), names_to='IFN', values_to='score')
+paired.bulk.ifn.scores$IFN <- gsub('_score','',paired.bulk.ifn.scores$IFN)
+paired.bulk.ifn.scores$income <- ifelse(paired.bulk.ifn.scores$income %in% 
+                                          c('< $10,000', '$10,000-$29,999', '$30,000-$49,999'), 'Low', 'High')
+paired.bulk.ifn.scores$income <- factor(paired.bulk.ifn.scores$income, levels=c('Low','High'))
+
+# plot splitting by income status
+ggplot(paired.bulk.ifn.scores, aes(x=condition, y=score, fill=income)) + 
+  geom_boxplot(outlier.shape=NA, position=position_dodge(width=0.8)) + 
+  geom_point(position=position_jitterdodge(jitter.width=0.2, dodge.width=0.8),
+             alpha=0.4, size=1) + facet_grid(cols=vars(celltype), rows=vars(IFN), scale='free') + theme_bw() +
+  stat_compare_means(aes(group = income), method='t.test', label='p.format') +
+  scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
+ggsave('IFNscores_income_paired_adjusted_noincome_boxplots.pdf', height=4, width=10)
+rm(paired.bulk.ifn.scores)
+
+# paired-level, leading edge genes, income vs infection interaction
+for (ctype in celltypes){
+  print(ctype)
+  for (cond in c('RV','IVA')){
+    print(cond)
+    
+    # subset
+    tmp <- subset(bulk_obj, celltype==ctype & (condition=='NI' | condition==cond))
+    sub_mdata <- tmp@meta.data
+    sub_mdata$gender <- factor(sub_mdata$gender, levels=c('Male','Female'))
+    sub_mdata$condition <- factor(sub_mdata$condition, levels=c('NI', cond))
+    sub_mdata$income <- ifelse(sub_mdata$income %in% c('< $10,000', '$10,000-$29,999', '$30,000-$49,999'),
+                               'Low', 'High')
+    sub_mdata$income <- factor(sub_mdata$income, levels=c('Low','High'))
+    
+    # get samples/genes from voom expression dataframe (easier to filter stuff)
+    v <- fread('../scRNAanalysis/NI_'%&%cond%&%'_'%&%ctype%&%'_income_voom_expression.txt') %>% column_to_rownames('Gene')
+    v_samples <- colnames(v)
+    v_genes <- rownames(v)
+    
+    # extract and subset count matrix
+    sub_mdata <- sub_mdata %>% filter(rownames(.) %in% v_samples)
+    count <- tmp@assays$RNA$counts
+    count <- count[rownames(count) %in% v_genes,]
+    count <- count[,colnames(count) %in% v_samples]
+    count <- DGEList(counts=count) %>% calcNormFactors()
+    
+    # define design matrix (without income+interaction term)
+    design <- model.matrix(~batch+age+gender+n+avg_mt+condition, data=sub_mdata)
+    
+    # voom
+    voom <- voom(count, design, plot=F)
+    
+    # remove confounding effects
+    sub_mdata$condition <- as.numeric(sub_mdata$condition)
+    sub_mdata$gender <- as.numeric(sub_mdata$gender)
+    sub_mdata$income <- as.numeric(sub_mdata$income)
+    adj_expr <- removeBatchEffect(voom$E,
+                                  covariates = as.matrix(sub_mdata[, c('age','n','avg_mt','gender','condition')]),
+                                  batch = sub_mdata$batch,
+                                  design = model.matrix(~income+condition:income, data=sub_mdata))
+    
+    # extract ifn leading edge genes
+    ifn_a_edge <- fgsea_full %>% filter(celltype==ctype, condition==cond, interaction=='income', 
+                                        pathway=='INTERFERON_ALPHA_RESPONSE') %>% pull(leadingEdge) %>%
+      unlist() %>% strsplit('\\|') %>% unlist() %>% gsub('"', '', .) %>% trimws()
+    ifn_y_edge <- fgsea_full %>% filter(celltype==ctype, condition==cond, interaction=='income', 
+                                        pathway=='INTERFERON_GAMMA_RESPONSE') %>% pull(leadingEdge) %>%
+      unlist() %>% strsplit('\\|') %>% unlist() %>% gsub('"', '', .) %>% trimws()
+    
+    ## first, IFNa
+    # subset to IFNa genes
+    ifn_a <- adj_expr %>% as.data.frame() %>% filter(rownames(.) %in% ifn_genes[[1]]) %>% as.matrix()
+    
+    # scale per gene and compute score
+    ifn_a <- ifn_a %>% t() %>% scale(center=TRUE, scale=TRUE) %>% t() %>% as.data.frame() %>% 
+      filter(rownames(.) %in% ifn_a_edge) %>% colMeans(na.rm=TRUE) %>% 
+      as.data.frame() %>% rownames_to_column('ID')
+    colnames(ifn_a)[2] <- 'IFNa_tmp_score'
+    
+    # second, IFNy
+    # subset to IFNa genes
+    ifn_y <- adj_expr %>% as.data.frame() %>% filter(rownames(.) %in% ifn_genes[[2]]) %>% as.matrix()
+    
+    # scale per gene and compute score
+    ifn_y <- ifn_y %>% t() %>% scale(center=TRUE, scale=TRUE) %>% t() %>% as.data.frame() %>% 
+      filter(rownames(.) %in% ifn_y_edge) %>% colMeans(na.rm=TRUE) %>% 
+      as.data.frame() %>% rownames_to_column('ID')
+    colnames(ifn_y)[2] <- 'IFNy_tmp_score'
+    
+    # join and reshape dfs
+    ifn_scores <- inner_join(ifn_a, ifn_y, by=c('ID')) %>% 
+      separate(col=ID, into=c('donor', 'condition', 'celltype'), sep='_', remove=TRUE)
+    
+    # remove unique indvs
+    ifn_scores <- ifn_scores %>% group_by(donor) %>% mutate(is_unique = n() == 1)
+    ifn_scores <- ifn_scores %>% filter(is_unique==FALSE) %>% select(-is_unique) %>% as.data.frame()
+    
+    for (id in unique(ifn_scores$donor)){
+      # select indv
+      sub_ifn_scores <- ifn_scores %>% filter(donor==id) 
+      
+      # confirm position of NI vs ifnection
+      NI_row <- which(sub_ifn_scores$condition=='NI')
+      Inf_row <- which(sub_ifn_scores$condition==cond)
+      
+      # compute ifn score
+      sub_ifn_scores$IFNa_score <- sub_ifn_scores$IFNa_tmp_score[Inf_row] - sub_ifn_scores$IFNa_tmp_score[NI_row]
+      sub_ifn_scores$IFNy_score <- sub_ifn_scores$IFNy_tmp_score[Inf_row] - sub_ifn_scores$IFNy_tmp_score[NI_row]
+      
+      # edit df
+      sub_ifn_scores <- sub_ifn_scores %>% filter(condition==cond) %>% 
+        select(donor, condition, celltype, IFNa_score, IFNy_score) 
+      
+      if (exists('paired.bulk.ifn.scores')){
+        paired.bulk.ifn.scores <- rbind(paired.bulk.ifn.scores, sub_ifn_scores)
+      } else {paired.bulk.ifn.scores <- sub_ifn_scores}
+    }
+  }
+}
+# merge w metadata to retrieve income status
+paired.bulk.ifn.scores <- paired.bulk.ifn.scores %>% inner_join(sample_m, by=c('donor'='ID'))
+paired.bulk.ifn.scores <- paired.bulk.ifn.scores %>% select(celltype, condition, IFNa_score, IFNy_score, income) %>% 
+  pivot_longer(cols=c(IFNa_score, IFNy_score), names_to='IFN', values_to='score')
+paired.bulk.ifn.scores$IFN <- gsub('_score','',paired.bulk.ifn.scores$IFN)
+paired.bulk.ifn.scores$income <- ifelse(paired.bulk.ifn.scores$income %in% 
+                                          c('< $10,000', '$10,000-$29,999', '$30,000-$49,999'), 'Low', 'High')
+paired.bulk.ifn.scores$income <- factor(paired.bulk.ifn.scores$income, levels=c('Low','High'))
+
+# plot splitting by income status
+ggplot(paired.bulk.ifn.scores, aes(x=condition, y=score, fill=income)) + 
+  geom_boxplot(outlier.shape=NA, position=position_dodge(width=0.8)) + 
+  geom_point(position=position_jitterdodge(jitter.width=0.2, dodge.width=0.8),
+             alpha=0.4, size=1) + facet_grid(cols=vars(celltype), rows=vars(IFN), scale='free') + theme_bw() +
+  stat_compare_means(aes(group = income), method='t.test', label='p.format') +
+  scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
+ggsave('IFNscores_income_paired_adjusted_leadingedge_noincome_boxplots.pdf', height=4, width=10)
 rm(paired.bulk.ifn.scores)
