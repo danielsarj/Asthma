@@ -187,7 +187,7 @@ for (i in 1:length(conditions)){
     })
     aic_5 <- median(AIC_all)
     
-    # design 6: income as binary variable (< $10,000, $10,000-$29,999, $30,000-$49,999 vs everything else)
+    # design 6: income as binary variable (< $10,000, $10,000-$29,999, $30,000-$49,999, $50,000-$69,999 vs everything else)
     print('design 6')
     income_mdata$income_binary <- ifelse(income_mdata$income %in% c('< $10,000', '$10,000-$29,999', '$30,000-$49,999', '$50,000-$69,999'),
                                          'LOW', 'HIGH')
@@ -224,23 +224,7 @@ colnames(mean_sigma_df) <- c('condition', 'celltype', 'residualsd_1', 'residuals
 rownames(mean_sigma_df) <- NULL
 mean_sigma_df[,3:14] <- lapply(mean_sigma_df[,3:14], as.numeric)
 
-# change coefficients that were not estimated to NA
-mean_sigma_df$residualsd_1[which(mean_sigma_df$condition=='RV' & mean_sigma_df$celltype=='B')] <- NA
-mean_sigma_df$residualsd_6[which(mean_sigma_df$condition=='RV' & mean_sigma_df$celltype=='B')] <- NA
-mean_sigma_df$residualsd_1[which(mean_sigma_df$condition=='RV' & mean_sigma_df$celltype=='Mono')] <- NA
-mean_sigma_df$residualsd_6[which(mean_sigma_df$condition=='RV' & mean_sigma_df$celltype=='Mono')] <- NA
-mean_sigma_df$residualsd_1[which(mean_sigma_df$condition=='IVA' & mean_sigma_df$celltype=='B')] <- NA
-mean_sigma_df$residualsd_6[which(mean_sigma_df$condition=='IVA' & mean_sigma_df$celltype=='B')] <- NA
-
-mean_sigma_df$aic_1[which(mean_sigma_df$condition=='RV' & mean_sigma_df$celltype=='B')] <- NA
-mean_sigma_df$aic_6[which(mean_sigma_df$condition=='RV' & mean_sigma_df$celltype=='B')] <- NA
-mean_sigma_df$aic_1[which(mean_sigma_df$condition=='RV' & mean_sigma_df$celltype=='Mono')] <- NA
-mean_sigma_df$aic_6[which(mean_sigma_df$condition=='RV' & mean_sigma_df$celltype=='Mono')] <- NA
-mean_sigma_df$aic_1[which(mean_sigma_df$condition=='IVA' & mean_sigma_df$celltype=='B')] <- NA
-mean_sigma_df$aic_6[which(mean_sigma_df$condition=='IVA' & mean_sigma_df$celltype=='B')] <- NA
-
 # find best design (lowest mean sigma)
 colMeans(mean_sigma_df[,3:14])
 colMeans(mean_sigma_df[,3:8]) %>% which.min() # lowest residual sd
 colMeans(mean_sigma_df[,9:14]) %>% which.min() # lowest aic
-
