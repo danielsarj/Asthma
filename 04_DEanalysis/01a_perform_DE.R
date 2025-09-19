@@ -62,10 +62,8 @@ for (i in 1:length(conditions)){
     # extract metadata and count matrices
     mdata <- tmp@meta.data
     mdata$condition <- factor(mdata$condition, levels=c('NI', conditions[i]))
-    mdata$IDs <- as.factor(mdata$IDs)
     mdata$gender <- factor(mdata$gender, levels=c('Male','Female'))
-    count <- tmp@assays$RNA$counts
-    
+
     # remove non protein coding genes from count matrix and genes with variance == 0
     count <- tmp@assays$RNA$counts
     count <- count[rownames(count) %in% annotations,]
