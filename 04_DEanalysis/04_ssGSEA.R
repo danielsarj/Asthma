@@ -114,7 +114,6 @@ for (cond in conditions){
     v <- v$E
     eighth_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
     
-    
     # ninth try: doing whatever it is when adding back batch effects from the design above?
     v <- voom(count, design, plot=F)
     fit <- lmFit(v, design)
@@ -126,17 +125,13 @@ for (cond in conditions){
     
     # tenth try: doing whatever it is when adding back effects from the design above, but now with everything but asthma
     design <- model.matrix(~0+age+gender+n+avg_mt+albuterol+condition, data=sub_mdata)
+    v <- voom(count, design, plot=F)
     fit <- lmFit(v, design)
     fit <- eBayes(fit)
     residuals <- residuals.MArrayLM(fit, v)
     avg_batch_effect <- rowMeans(fit$coefficients)
     corrected_expression <- apply(residuals,2,function(x){x+avg_batch_effect})
     tenth_ssgsea_scores <- gsva(ssgseaParam(corrected_expression, ifn_genes))
-    
-    
-    
-    
-    
     
     # compute paired deltas
     first_ssgsea_scores <- first_ssgsea_scores %>% t() %>% as.data.frame() %>% rownames_to_column('temp') %>% 
@@ -224,27 +219,11 @@ ggplot(ssgsea_scores.wasthma, aes(x=condition, y=score, fill=asthma)) +
   scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
 
 
-
-results <- ssgsea_scores.wasthma %>%
+# linear model?
+lm_results <- ssgsea_scores.wasthma %>% 
   group_by(IFN, method) %>%
-  summarise(
-    t_pval = t.test(score ~ asthma)$p.value,
-    mean_asthma = mean(score[asthma == "Yes"], na.rm = TRUE),
-    mean_control = mean(score[asthma == "No"], na.rm = TRUE),
-    .groups = "drop"
-  )
-
-
-lm_results <- ssgsea_scores.wasthma %>%
-  group_by(celltype, IFN, method) %>%
   do({
-    fit <- lm(score ~ asthma + age + gender + batch + n + avg_mt + albuterol, data = .)
-    broom::tidy(fit)   # gives coef, p-value, etc.
+    fit <- lm(score ~ asthma, data = .)
+    broom::tidy(fit)  
   }) %>%
-  ungroup()
-
-
-
-
-
-
+  ungroup() %>% filter(term=='asthmaYes')
