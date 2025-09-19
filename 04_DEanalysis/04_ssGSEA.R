@@ -63,17 +63,13 @@ for (cond in conditions){
     design <- model.matrix(~1, data=count$samples)
     v <- voom(count, design, plot=F)
     v <- v$E
-    fit <- lmFit(v, design)
-    v_resid <- residuals(fit, v)
-    first_ssgsea_scores <- gsva(ssgseaParam(v_resid, ifn_genes))
+    first_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
 
     # second try: scores with design matrix containing all terms but asthma
     design <- model.matrix(~batch+age+gender+n+avg_mt+albuterol+condition, data=sub_mdata)
     v <- voom(count, design, plot=F)
     v <- v$E
-    fit <- lmFit(v, design)
-    v_resid <- residuals(fit, v)
-    second_ssgsea_scores <- gsva(ssgseaParam(v_resid, ifn_genes))
+    second_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
     
     # third try: same design, but now using removeBatchEffect function
     sub_mdata$condition_num <- as.numeric(sub_mdata$condition)
@@ -84,43 +80,63 @@ for (cond in conditions){
                            covariates = as.matrix(sub_mdata[, c('age','n','avg_mt','gender_num','albuterol_num','condition_num')]),
                            batch = sub_mdata$batch,
                            design = model.matrix(~asthma_num+condition_num:asthma_num, data=sub_mdata))
-    fit <- lmFit(v, design)
-    v_resid <- residuals(fit, v)
-    third_ssgsea_scores <- gsva(ssgseaParam(v_resid, ifn_genes))
+    third_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
     
     # fourth try: include asthma, but not the interaction, in the design
     design <- model.matrix(~batch+age+gender+n+avg_mt+albuterol+condition+asthma, data=sub_mdata)
     v <- voom(count, design, plot=F)
     v <- v$E
-    fit <- lmFit(v, design)
-    v_resid <- residuals(fit, v)
-    fourth_ssgsea_scores <- gsva(ssgseaParam(v_resid, ifn_genes))
+    fourth_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
     
     # fifth try: same design, but now using removeBatchEffect function
     v <- removeBatchEffect(v,
                            covariates = as.matrix(sub_mdata[, c('age','n','avg_mt','gender_num','albuterol_num','condition_num','asthma_num')]),
                            batch = sub_mdata$batch,
                            design = model.matrix(~condition_num:asthma_num, data=sub_mdata))
-    fit <- lmFit(v, design)
-    v_resid <- residuals(fit, v)
-    fifth_ssgsea_scores <- gsva(ssgseaParam(v_resid, ifn_genes))
+    fifth_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
     
     # sixth try: include everything including the interaction in the design
     design <- model.matrix(~batch+age+gender+n+avg_mt+albuterol+condition*asthma, data=sub_mdata)
     v <- voom(count, design, plot=F)
     v <- v$E
-    fit <- lmFit(v, design)
-    v_resid <- residuals(fit, v)
-    sixth_ssgsea_scores <- gsva(ssgseaParam(v_resid, ifn_genes))
+    sixth_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
     
     # seventh try: same design, but now using removeBatchEffect function
     v <- removeBatchEffect(v,
                            covariates = as.matrix(sub_mdata[, c('age','n','avg_mt','gender_num','albuterol_num','condition_num','asthma_num')]),
                            batch = sub_mdata$batch,
                            design = model.matrix(~condition_num:asthma_num, data=sub_mdata))
+    seventh_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
+    
+    # eighth try: a simpler design model
+    design <- model.matrix(~0+batch, data=sub_mdata)
+    v <- voom(count, design, plot=F)
+    v <- v$E
+    eighth_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
+    
+    
+    # ninth try: doing whatever it is when adding back batch effects from the design above?
+    v <- voom(count, design, plot=F)
     fit <- lmFit(v, design)
-    v_resid <- residuals(fit, v)
-    seventh_ssgsea_scores <- gsva(ssgseaParam(v_resid, ifn_genes))
+    fit <- eBayes(fit)
+    residuals <- residuals.MArrayLM(fit, v)
+    avg_batch_effect <- rowMeans(fit$coefficients)
+    corrected_expression <- apply(residuals,2,function(x){x+avg_batch_effect})
+    ninth_ssgsea_scores <- gsva(ssgseaParam(corrected_expression, ifn_genes))
+    
+    # tenth try: doing whatever it is when adding back effects from the design above, but now with everything but asthma
+    design <- model.matrix(~0+age+gender+n+avg_mt+albuterol+condition, data=sub_mdata)
+    fit <- lmFit(v, design)
+    fit <- eBayes(fit)
+    residuals <- residuals.MArrayLM(fit, v)
+    avg_batch_effect <- rowMeans(fit$coefficients)
+    corrected_expression <- apply(residuals,2,function(x){x+avg_batch_effect})
+    tenth_ssgsea_scores <- gsva(ssgseaParam(corrected_expression, ifn_genes))
+    
+    
+    
+    
+    
     
     # compute paired deltas
     first_ssgsea_scores <- first_ssgsea_scores %>% t() %>% as.data.frame() %>% rownames_to_column('temp') %>% 
@@ -165,9 +181,28 @@ for (cond in conditions){
                 deltaIFNy = IFNy[which(condition==cond)] - IFNy[which(condition=='NI')]) %>% ungroup() %>%
       mutate(method='seventh')
     
+    eighth_ssgsea_scores <- eighth_ssgsea_scores %>% t() %>% as.data.frame() %>% rownames_to_column('temp') %>% 
+      separate(temp, c('ID', 'condition', 'celltype'), '_') %>% group_by(ID, celltype) %>%
+      summarise(deltaIFNa = IFNa[which(condition==cond)] - IFNa[which(condition=='NI')],
+                deltaIFNy = IFNy[which(condition==cond)] - IFNy[which(condition=='NI')]) %>% ungroup() %>%
+      mutate(method='eighth')
+    
+    ninth_ssgsea_scores <- ninth_ssgsea_scores %>% t() %>% as.data.frame() %>% rownames_to_column('temp') %>% 
+      separate(temp, c('ID', 'condition', 'celltype'), '_') %>% group_by(ID, celltype) %>%
+      summarise(deltaIFNa = IFNa[which(condition==cond)] - IFNa[which(condition=='NI')],
+                deltaIFNy = IFNy[which(condition==cond)] - IFNy[which(condition=='NI')]) %>% ungroup() %>%
+      mutate(method='ninth')
+    
+    tenth_ssgsea_scores <- tenth_ssgsea_scores %>% t() %>% as.data.frame() %>% rownames_to_column('temp') %>% 
+      separate(temp, c('ID', 'condition', 'celltype'), '_') %>% group_by(ID, celltype) %>%
+      summarise(deltaIFNa = IFNa[which(condition==cond)] - IFNa[which(condition=='NI')],
+                deltaIFNy = IFNy[which(condition==cond)] - IFNy[which(condition=='NI')]) %>% ungroup() %>%
+      mutate(method='tenth')
+    
     # concatenate
     ssgsea_scores <- rbind(first_ssgsea_scores, second_ssgsea_scores, third_ssgsea_scores, fourth_ssgsea_scores, 
-                           fifth_ssgsea_scores, sixth_ssgsea_scores, seventh_ssgsea_scores) %>% mutate(condition=cond)
+                           fifth_ssgsea_scores, sixth_ssgsea_scores, seventh_ssgsea_scores, eighth_ssgsea_scores,
+                           ninth_ssgsea_scores, tenth_ssgsea_scores) %>% mutate(condition=cond)
   }
 }
 
@@ -177,7 +212,9 @@ ssgsea_scores.wasthma <- ssgsea_scores %>% inner_join(sample_m, by=c('ID')) %>%
   pivot_longer(c(deltaIFNa, deltaIFNy), names_to='IFN', values_to='score') %>% 
   inner_join(mdata, by=c('ID'='IDs', 'celltype', 'condition', 'asthma'))
 ssgsea_scores.wasthma$method <- factor(ssgsea_scores.wasthma$method, levels=c('first', 'second', 'third',
-                                                                              'fourth', 'fifth', 'sixth', 'seventh'))
+                                                                              'fourth', 'fifth', 'sixth', 
+                                                                              'seventh', 'eighth', 'ninth',
+                                                                              'tenth'))
 
 ggplot(ssgsea_scores.wasthma, aes(x=condition, y=score, fill=asthma)) + 
   geom_boxplot(outlier.shape=NA, position=position_dodge(width=0.8)) + 
