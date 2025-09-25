@@ -80,49 +80,49 @@ for (cond in c('RV')){
                            design = model.matrix(~asthma_num+condition_num:asthma_num, data=sub_mdata))
     third_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
     
-    # fourth try: include asthma, but not the interaction, in the design
+    # fourth try: pull from the second try, but add the residuals back
+    v <- voom(count, design, plot=F)
+    v <- v$E
+    fit <- lmFit(v, design)
+    fit <- eBayes(fit)
+    residuals <- residuals.MArrayLM(fit, v)
+    avg_batch_effect <- rowMeans(fit$coefficients)
+    corrected_expression <- apply(residuals,2,function(x){x+avg_batch_effect})
+    fourth_ssgsea_scores <- gsva(ssgseaParam(corrected_expression, ifn_genes))
+    
+    # fifth try: include asthma, but not the interaction, in the design
     design <- model.matrix(~batch+age+gender+n+avg_mt+albuterol+condition+asthma, data=sub_mdata)
     v <- voom(count, design, plot=F)
     v <- v$E
-    fourth_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
+    fifth_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
     
     # fifth try: same design, but now using removeBatchEffect function
     v <- removeBatchEffect(v,
                            covariates = as.matrix(sub_mdata[, c('age','n','avg_mt','gender_num','albuterol_num','condition_num','asthma_num')]),
                            batch = sub_mdata$batch,
                            design = model.matrix(~condition_num:asthma_num, data=sub_mdata))
-    fifth_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
+    sixth_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
     
-    # sixth try: include everything including the interaction in the design
+    # seventh try: include everything including the interaction in the design
     design <- model.matrix(~batch+age+gender+n+avg_mt+albuterol+condition*asthma, data=sub_mdata)
     v <- voom(count, design, plot=F)
     v <- v$E
-    sixth_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
+    seventh_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
     
-    # seventh try: same design, but now using removeBatchEffect function
+    # eighth try: same design, but now using removeBatchEffect function
     v <- removeBatchEffect(v,
                            covariates = as.matrix(sub_mdata[, c('age','n','avg_mt','gender_num','albuterol_num','condition_num','asthma_num')]),
                            batch = sub_mdata$batch,
                            design = model.matrix(~condition_num:asthma_num, data=sub_mdata))
-    seventh_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
-    
-    # eighth try: a simpler design model
-    design <- model.matrix(~0+batch, data=sub_mdata)
-    v <- voom(count, design, plot=F)
-    v <- v$E
     eighth_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
     
-    # ninth try: doing whatever it is when adding back batch effects from the design above?
+    # ninth try: a simpler design model
+    ninth <- model.matrix(~0+batch, data=sub_mdata)
     v <- voom(count, design, plot=F)
-    fit <- lmFit(v, design)
-    fit <- eBayes(fit)
-    residuals <- residuals.MArrayLM(fit, v)
-    avg_batch_effect <- rowMeans(fit$coefficients)
-    corrected_expression <- apply(residuals,2,function(x){x+avg_batch_effect})
-    ninth_ssgsea_scores <- gsva(ssgseaParam(corrected_expression, ifn_genes))
+    v <- v$E
+    ninth_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
     
-    # tenth try: doing whatever it is when adding back effects from the design above, but now with everything but asthma
-    design <- model.matrix(~0+age+gender+n+avg_mt+albuterol+condition, data=sub_mdata)
+    # tenth try: doing whatever it is when adding back batch effects from the design above?
     v <- voom(count, design, plot=F)
     fit <- lmFit(v, design)
     fit <- eBayes(fit)
@@ -131,8 +131,8 @@ for (cond in c('RV')){
     corrected_expression <- apply(residuals,2,function(x){x+avg_batch_effect})
     tenth_ssgsea_scores <- gsva(ssgseaParam(corrected_expression, ifn_genes))
     
-    # eleventh try: doing whatever it is when adding back effects from the design above, but now with everything
-    design <- model.matrix(~0+age+gender+n+avg_mt+albuterol+condition+asthma, data=sub_mdata)
+    # eleventh try: doing whatever it is when adding back effects from the design above, but now with everything but asthma
+    design <- model.matrix(~0+age+gender+n+avg_mt+albuterol+condition, data=sub_mdata)
     v <- voom(count, design, plot=F)
     fit <- lmFit(v, design)
     fit <- eBayes(fit)
@@ -141,88 +141,105 @@ for (cond in c('RV')){
     corrected_expression <- apply(residuals,2,function(x){x+avg_batch_effect})
     eleventh_ssgsea_scores <- gsva(ssgseaParam(corrected_expression, ifn_genes))
     
-    # twelfth: the simplest model ever
+    # twelfth try: doing whatever it is when adding back effects from the design above, but now with everything
+    design <- model.matrix(~0+age+gender+n+avg_mt+albuterol+condition+asthma, data=sub_mdata)
+    v <- voom(count, design, plot=F)
+    fit <- lmFit(v, design)
+    fit <- eBayes(fit)
+    residuals <- residuals.MArrayLM(fit, v)
+    avg_batch_effect <- rowMeans(fit$coefficients)
+    corrected_expression <- apply(residuals,2,function(x){x+avg_batch_effect})
+    twelfth_ssgsea_scores <- gsva(ssgseaParam(corrected_expression, ifn_genes))
+    
+    # thirteenth: the simplest model ever
     v <- voom(count, plot=F)
     v <- v$E
-    twelfth_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
+    thirteenth_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
     
     # compute paired deltas
     first_ssgsea_scores <- first_ssgsea_scores %>% t() %>% as.data.frame() %>% rownames_to_column('temp') %>% 
       separate(temp, c('ID', 'condition', 'celltype'), '_') %>% group_by(ID, celltype) %>%
       summarise(deltaIFNa = IFNa[which(condition==cond)] - IFNa[which(condition=='NI')],
                 deltaIFNy = IFNy[which(condition==cond)] - IFNy[which(condition=='NI')]) %>% ungroup() %>%
-      mutate(method='first')
+      mutate(method='1')
     
     second_ssgsea_scores <- second_ssgsea_scores %>% t() %>% as.data.frame() %>% rownames_to_column('temp') %>% 
       separate(temp, c('ID', 'condition', 'celltype'), '_') %>% group_by(ID, celltype) %>%
       summarise(deltaIFNa = IFNa[which(condition==cond)] - IFNa[which(condition=='NI')],
                 deltaIFNy = IFNy[which(condition==cond)] - IFNy[which(condition=='NI')]) %>% ungroup() %>%
-      mutate(method='second')
+      mutate(method='2')
     
     third_ssgsea_scores <- third_ssgsea_scores %>% t() %>% as.data.frame() %>% rownames_to_column('temp') %>% 
       separate(temp, c('ID', 'condition', 'celltype'), '_') %>% group_by(ID, celltype) %>%
       summarise(deltaIFNa = IFNa[which(condition==cond)] - IFNa[which(condition=='NI')],
                 deltaIFNy = IFNy[which(condition==cond)] - IFNy[which(condition=='NI')]) %>% ungroup() %>%
-      mutate(method='third')
+      mutate(method='3')
     
     fourth_ssgsea_scores <- fourth_ssgsea_scores %>% t() %>% as.data.frame() %>% rownames_to_column('temp') %>% 
       separate(temp, c('ID', 'condition', 'celltype'), '_') %>% group_by(ID, celltype) %>%
       summarise(deltaIFNa = IFNa[which(condition==cond)] - IFNa[which(condition=='NI')],
                 deltaIFNy = IFNy[which(condition==cond)] - IFNy[which(condition=='NI')]) %>% ungroup() %>%
-      mutate(method='fourth')
+      mutate(method='4')
     
     fifth_ssgsea_scores <- fifth_ssgsea_scores %>% t() %>% as.data.frame() %>% rownames_to_column('temp') %>% 
       separate(temp, c('ID', 'condition', 'celltype'), '_') %>% group_by(ID, celltype) %>%
       summarise(deltaIFNa = IFNa[which(condition==cond)] - IFNa[which(condition=='NI')],
                 deltaIFNy = IFNy[which(condition==cond)] - IFNy[which(condition=='NI')]) %>% ungroup() %>%
-      mutate(method='fifth')
+      mutate(method='5')
     
     sixth_ssgsea_scores <- sixth_ssgsea_scores %>% t() %>% as.data.frame() %>% rownames_to_column('temp') %>% 
       separate(temp, c('ID', 'condition', 'celltype'), '_') %>% group_by(ID, celltype) %>%
       summarise(deltaIFNa = IFNa[which(condition==cond)] - IFNa[which(condition=='NI')],
                 deltaIFNy = IFNy[which(condition==cond)] - IFNy[which(condition=='NI')]) %>% ungroup() %>%
-      mutate(method='sixth')
+      mutate(method='6')
     
     seventh_ssgsea_scores <- seventh_ssgsea_scores %>% t() %>% as.data.frame() %>% rownames_to_column('temp') %>% 
       separate(temp, c('ID', 'condition', 'celltype'), '_') %>% group_by(ID, celltype) %>%
       summarise(deltaIFNa = IFNa[which(condition==cond)] - IFNa[which(condition=='NI')],
                 deltaIFNy = IFNy[which(condition==cond)] - IFNy[which(condition=='NI')]) %>% ungroup() %>%
-      mutate(method='seventh')
+      mutate(method='7')
     
     eighth_ssgsea_scores <- eighth_ssgsea_scores %>% t() %>% as.data.frame() %>% rownames_to_column('temp') %>% 
       separate(temp, c('ID', 'condition', 'celltype'), '_') %>% group_by(ID, celltype) %>%
       summarise(deltaIFNa = IFNa[which(condition==cond)] - IFNa[which(condition=='NI')],
                 deltaIFNy = IFNy[which(condition==cond)] - IFNy[which(condition=='NI')]) %>% ungroup() %>%
-      mutate(method='eighth')
+      mutate(method='8')
     
     ninth_ssgsea_scores <- ninth_ssgsea_scores %>% t() %>% as.data.frame() %>% rownames_to_column('temp') %>% 
       separate(temp, c('ID', 'condition', 'celltype'), '_') %>% group_by(ID, celltype) %>%
       summarise(deltaIFNa = IFNa[which(condition==cond)] - IFNa[which(condition=='NI')],
                 deltaIFNy = IFNy[which(condition==cond)] - IFNy[which(condition=='NI')]) %>% ungroup() %>%
-      mutate(method='ninth')
+      mutate(method='9')
     
     tenth_ssgsea_scores <- tenth_ssgsea_scores %>% t() %>% as.data.frame() %>% rownames_to_column('temp') %>% 
       separate(temp, c('ID', 'condition', 'celltype'), '_') %>% group_by(ID, celltype) %>%
       summarise(deltaIFNa = IFNa[which(condition==cond)] - IFNa[which(condition=='NI')],
                 deltaIFNy = IFNy[which(condition==cond)] - IFNy[which(condition=='NI')]) %>% ungroup() %>%
-      mutate(method='tenth')
+      mutate(method='10')
     
     eleventh_ssgsea_scores <- eleventh_ssgsea_scores %>% t() %>% as.data.frame() %>% rownames_to_column('temp') %>% 
       separate(temp, c('ID', 'condition', 'celltype'), '_') %>% group_by(ID, celltype) %>%
       summarise(deltaIFNa = IFNa[which(condition==cond)] - IFNa[which(condition=='NI')],
                 deltaIFNy = IFNy[which(condition==cond)] - IFNy[which(condition=='NI')]) %>% ungroup() %>%
-      mutate(method='eleventh')
+      mutate(method='11')
     
     twelfth_ssgsea_scores <- twelfth_ssgsea_scores %>% t() %>% as.data.frame() %>% rownames_to_column('temp') %>% 
       separate(temp, c('ID', 'condition', 'celltype'), '_') %>% group_by(ID, celltype) %>%
       summarise(deltaIFNa = IFNa[which(condition==cond)] - IFNa[which(condition=='NI')],
                 deltaIFNy = IFNy[which(condition==cond)] - IFNy[which(condition=='NI')]) %>% ungroup() %>%
-      mutate(method='twelfth')
+      mutate(method='12')
+    
+    thirteenth_ssgsea_scores <- thirteenth_ssgsea_scores %>% t() %>% as.data.frame() %>% rownames_to_column('temp') %>% 
+      separate(temp, c('ID', 'condition', 'celltype'), '_') %>% group_by(ID, celltype) %>%
+      summarise(deltaIFNa = IFNa[which(condition==cond)] - IFNa[which(condition=='NI')],
+                deltaIFNy = IFNy[which(condition==cond)] - IFNy[which(condition=='NI')]) %>% ungroup() %>%
+      mutate(method='13')
     
     # concatenate
     ssgsea_scores <- rbind(first_ssgsea_scores, second_ssgsea_scores, third_ssgsea_scores, fourth_ssgsea_scores, 
                            fifth_ssgsea_scores, sixth_ssgsea_scores, seventh_ssgsea_scores, eighth_ssgsea_scores,
-                           ninth_ssgsea_scores, tenth_ssgsea_scores, eleventh_ssgsea_scores, twelfth_ssgsea_scores) %>% mutate(condition=cond)
+                           ninth_ssgsea_scores, tenth_ssgsea_scores, eleventh_ssgsea_scores, twelfth_ssgsea_scores,
+                           thirteenth_ssgsea_scores) %>% mutate(condition=cond)
   }
 }
 
@@ -231,10 +248,8 @@ ssgsea_scores.wasthma <- ssgsea_scores %>% inner_join(sample_m, by=c('ID')) %>%
   select(ID, celltype, condition, deltaIFNa, deltaIFNy, asthma, method) %>% 
   pivot_longer(c(deltaIFNa, deltaIFNy), names_to='IFN', values_to='score') %>% 
   inner_join(mdata, by=c('ID'='IDs', 'celltype', 'condition', 'asthma'))
-ssgsea_scores.wasthma$method <- factor(ssgsea_scores.wasthma$method, levels=c('first', 'second', 'third',
-                                                                              'fourth', 'fifth', 'sixth', 
-                                                                              'seventh', 'eighth', 'ninth',
-                                                                              'tenth', 'eleventh', 'twelfth'))
+ssgsea_scores.wasthma$method <- factor(ssgsea_scores.wasthma$method, levels=c('1', '2', '3', '4', '5', '6', '7','8', '9',
+                                                                              '10', '11', '12', '13'))
 
 ggplot(ssgsea_scores.wasthma, aes(x=condition, y=score, fill=asthma)) + 
   geom_boxplot(outlier.shape=NA, position=position_dodge(width=0.8)) + 
@@ -242,18 +257,7 @@ ggplot(ssgsea_scores.wasthma, aes(x=condition, y=score, fill=asthma)) +
              alpha=0.4, size=1) + facet_grid(cols=vars(method), rows=vars(IFN), scale='free') + theme_bw() +
   stat_compare_means(aes(group = asthma), method='t.test', label='p.format') +
   scale_y_continuous(expand = expansion(mult = c(0.05, 0.15))) + ggtitle('RV - T-CD8')
-
-
-# linear model?
-lm_results <- ssgsea_scores.wasthma %>% 
-  group_by(IFN, method) %>%
-  do({
-    fit <- lm(score ~ asthma, data = .)
-    broom::tidy(fit)  
-  }) %>%
-  ungroup() %>% filter(term=='asthmaYes')
-
-
+rm(ssgsea_scores)
 #### INCOME ####
 
 for (cond in c('IVA')){
@@ -305,49 +309,49 @@ for (cond in c('IVA')){
                            design = model.matrix(~income_num+condition_num:income_num, data=sub_mdata))
     third_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
     
-    # fourth try: include asthma, but not the interaction, in the design
-    design <- model.matrix(~batch+age+gender+n+avg_mt+condition+income, data=sub_mdata)
+    # fourth try: pull from the second try, but add the residuals back
     v <- voom(count, design, plot=F)
     v <- v$E
-    fourth_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
-    
-    # fifth try: same design, but now using removeBatchEffect function
-    v <- removeBatchEffect(v,
-                           covariates = as.matrix(sub_mdata[, c('age','n','avg_mt','gender_num','condition_num','income_num')]),
-                           batch = sub_mdata$batch,
-                           design = model.matrix(~condition_num:income_num, data=sub_mdata))
-    fifth_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
-    
-    # sixth try: include everything including the interaction in the design
-    design <- model.matrix(~batch+age+gender+n+avg_mt+albuterol+condition*income, data=sub_mdata)
-    v <- voom(count, design, plot=F)
-    v <- v$E
-    sixth_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
-    
-    # seventh try: same design, but now using removeBatchEffect function
-    v <- removeBatchEffect(v,
-                           covariates = as.matrix(sub_mdata[, c('age','n','avg_mt','gender_num','condition_num','income_num')]),
-                           batch = sub_mdata$batch,
-                           design = model.matrix(~condition_num:income_num, data=sub_mdata))
-    seventh_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
-    
-    # eighth try: a simpler design model
-    design <- model.matrix(~0+batch, data=sub_mdata)
-    v <- voom(count, design, plot=F)
-    v <- v$E
-    eighth_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
-    
-    # ninth try: doing whatever it is when adding back batch effects from the design above?
-    v <- voom(count, design, plot=F)
     fit <- lmFit(v, design)
     fit <- eBayes(fit)
     residuals <- residuals.MArrayLM(fit, v)
     avg_batch_effect <- rowMeans(fit$coefficients)
     corrected_expression <- apply(residuals,2,function(x){x+avg_batch_effect})
-    ninth_ssgsea_scores <- gsva(ssgseaParam(corrected_expression, ifn_genes))
+    fourth_ssgsea_scores <- gsva(ssgseaParam(corrected_expression, ifn_genes))
     
-    # tenth try: doing whatever it is when adding back effects from the design above, but now with everything but income
-    design <- model.matrix(~0+age+gender+n+avg_mt+condition, data=sub_mdata)
+    # fifth try: include asthma, but not the interaction, in the design
+    design <- model.matrix(~batch+age+gender+n+avg_mt+condition+income, data=sub_mdata)
+    v <- voom(count, design, plot=F)
+    v <- v$E
+    fifth_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
+    
+    # sixth try: same design, but now using removeBatchEffect function
+    v <- removeBatchEffect(v,
+                           covariates = as.matrix(sub_mdata[, c('age','n','avg_mt','gender_num','condition_num','income_num')]),
+                           batch = sub_mdata$batch,
+                           design = model.matrix(~condition_num:income_num, data=sub_mdata))
+    sixth_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
+    
+    # seventh try: include everything including the interaction in the design
+    design <- model.matrix(~batch+age+gender+n+avg_mt+albuterol+condition*income, data=sub_mdata)
+    v <- voom(count, design, plot=F)
+    v <- v$E
+    seventh_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
+    
+    # eighth try: same design, but now using removeBatchEffect function
+    v <- removeBatchEffect(v,
+                           covariates = as.matrix(sub_mdata[, c('age','n','avg_mt','gender_num','condition_num','income_num')]),
+                           batch = sub_mdata$batch,
+                           design = model.matrix(~condition_num:income_num, data=sub_mdata))
+    eighth_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
+    
+    # ninth try: a simpler design model
+    design <- model.matrix(~0+batch, data=sub_mdata)
+    v <- voom(count, design, plot=F)
+    v <- v$E
+    ninth_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
+    
+    # tenth try: doing whatever it is when adding back batch effects from the design above?
     v <- voom(count, design, plot=F)
     fit <- lmFit(v, design)
     fit <- eBayes(fit)
@@ -356,8 +360,8 @@ for (cond in c('IVA')){
     corrected_expression <- apply(residuals,2,function(x){x+avg_batch_effect})
     tenth_ssgsea_scores <- gsva(ssgseaParam(corrected_expression, ifn_genes))
     
-    # eleventh try: doing whatever it is when adding back effects from the design above, but now with everything
-    design <- model.matrix(~0+age+gender+n+avg_mt+condition+income, data=sub_mdata)
+    # eleventh try: doing whatever it is when adding back effects from the design above, but now with everything but income
+    design <- model.matrix(~0+age+gender+n+avg_mt+condition, data=sub_mdata)
     v <- voom(count, design, plot=F)
     fit <- lmFit(v, design)
     fit <- eBayes(fit)
@@ -366,94 +370,112 @@ for (cond in c('IVA')){
     corrected_expression <- apply(residuals,2,function(x){x+avg_batch_effect})
     eleventh_ssgsea_scores <- gsva(ssgseaParam(corrected_expression, ifn_genes))
     
-    # twelfth: the simplest model ever
+    # twelfth try: doing whatever it is when adding back effects from the design above, but now with everything
+    design <- model.matrix(~0+age+gender+n+avg_mt+condition+income, data=sub_mdata)
+    v <- voom(count, design, plot=F)
+    fit <- lmFit(v, design)
+    fit <- eBayes(fit)
+    residuals <- residuals.MArrayLM(fit, v)
+    avg_batch_effect <- rowMeans(fit$coefficients)
+    corrected_expression <- apply(residuals,2,function(x){x+avg_batch_effect})
+    twelfth_ssgsea_scores <- gsva(ssgseaParam(corrected_expression, ifn_genes))
+    
+    # thirteenth: the simplest model ever
     v <- voom(count, plot=F)
     v <- v$E
-    twelfth_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
+    thirteenth_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
     
     # compute paired deltas
     first_ssgsea_scores <- first_ssgsea_scores %>% t() %>% as.data.frame() %>% rownames_to_column('temp') %>% 
       separate(temp, c('ID', 'condition', 'celltype'), '_') %>% group_by(ID, celltype) %>%
       summarise(deltaIFNa = IFNa[which(condition==cond)] - IFNa[which(condition=='NI')],
                 deltaIFNy = IFNy[which(condition==cond)] - IFNy[which(condition=='NI')]) %>% ungroup() %>%
-      mutate(method='first')
+      mutate(method='1')
     
     second_ssgsea_scores <- second_ssgsea_scores %>% t() %>% as.data.frame() %>% rownames_to_column('temp') %>% 
       separate(temp, c('ID', 'condition', 'celltype'), '_') %>% group_by(ID, celltype) %>%
       summarise(deltaIFNa = IFNa[which(condition==cond)] - IFNa[which(condition=='NI')],
                 deltaIFNy = IFNy[which(condition==cond)] - IFNy[which(condition=='NI')]) %>% ungroup() %>%
-      mutate(method='second')
+      mutate(method='2')
     
     third_ssgsea_scores <- third_ssgsea_scores %>% t() %>% as.data.frame() %>% rownames_to_column('temp') %>% 
       separate(temp, c('ID', 'condition', 'celltype'), '_') %>% group_by(ID, celltype) %>%
       summarise(deltaIFNa = IFNa[which(condition==cond)] - IFNa[which(condition=='NI')],
                 deltaIFNy = IFNy[which(condition==cond)] - IFNy[which(condition=='NI')]) %>% ungroup() %>%
-      mutate(method='third')
+      mutate(method='3')
     
     fourth_ssgsea_scores <- fourth_ssgsea_scores %>% t() %>% as.data.frame() %>% rownames_to_column('temp') %>% 
       separate(temp, c('ID', 'condition', 'celltype'), '_') %>% group_by(ID, celltype) %>%
       summarise(deltaIFNa = IFNa[which(condition==cond)] - IFNa[which(condition=='NI')],
                 deltaIFNy = IFNy[which(condition==cond)] - IFNy[which(condition=='NI')]) %>% ungroup() %>%
-      mutate(method='fourth')
+      mutate(method='4')
     
     fifth_ssgsea_scores <- fifth_ssgsea_scores %>% t() %>% as.data.frame() %>% rownames_to_column('temp') %>% 
       separate(temp, c('ID', 'condition', 'celltype'), '_') %>% group_by(ID, celltype) %>%
       summarise(deltaIFNa = IFNa[which(condition==cond)] - IFNa[which(condition=='NI')],
                 deltaIFNy = IFNy[which(condition==cond)] - IFNy[which(condition=='NI')]) %>% ungroup() %>%
-      mutate(method='fifth')
+      mutate(method='5')
     
     sixth_ssgsea_scores <- sixth_ssgsea_scores %>% t() %>% as.data.frame() %>% rownames_to_column('temp') %>% 
       separate(temp, c('ID', 'condition', 'celltype'), '_') %>% group_by(ID, celltype) %>%
       summarise(deltaIFNa = IFNa[which(condition==cond)] - IFNa[which(condition=='NI')],
                 deltaIFNy = IFNy[which(condition==cond)] - IFNy[which(condition=='NI')]) %>% ungroup() %>%
-      mutate(method='sixth')
+      mutate(method='6')
     
     seventh_ssgsea_scores <- seventh_ssgsea_scores %>% t() %>% as.data.frame() %>% rownames_to_column('temp') %>% 
       separate(temp, c('ID', 'condition', 'celltype'), '_') %>% group_by(ID, celltype) %>%
       summarise(deltaIFNa = IFNa[which(condition==cond)] - IFNa[which(condition=='NI')],
                 deltaIFNy = IFNy[which(condition==cond)] - IFNy[which(condition=='NI')]) %>% ungroup() %>%
-      mutate(method='seventh')
+      mutate(method='7')
     
     eighth_ssgsea_scores <- eighth_ssgsea_scores %>% t() %>% as.data.frame() %>% rownames_to_column('temp') %>% 
       separate(temp, c('ID', 'condition', 'celltype'), '_') %>% group_by(ID, celltype) %>%
       summarise(deltaIFNa = IFNa[which(condition==cond)] - IFNa[which(condition=='NI')],
                 deltaIFNy = IFNy[which(condition==cond)] - IFNy[which(condition=='NI')]) %>% ungroup() %>%
-      mutate(method='eighth')
+      mutate(method='8')
     
     ninth_ssgsea_scores <- ninth_ssgsea_scores %>% t() %>% as.data.frame() %>% rownames_to_column('temp') %>% 
       separate(temp, c('ID', 'condition', 'celltype'), '_') %>% group_by(ID, celltype) %>%
       summarise(deltaIFNa = IFNa[which(condition==cond)] - IFNa[which(condition=='NI')],
                 deltaIFNy = IFNy[which(condition==cond)] - IFNy[which(condition=='NI')]) %>% ungroup() %>%
-      mutate(method='ninth')
+      mutate(method='9')
     
     tenth_ssgsea_scores <- tenth_ssgsea_scores %>% t() %>% as.data.frame() %>% rownames_to_column('temp') %>% 
       separate(temp, c('ID', 'condition', 'celltype'), '_') %>% group_by(ID, celltype) %>%
       summarise(deltaIFNa = IFNa[which(condition==cond)] - IFNa[which(condition=='NI')],
                 deltaIFNy = IFNy[which(condition==cond)] - IFNy[which(condition=='NI')]) %>% ungroup() %>%
-      mutate(method='tenth')
+      mutate(method='10')
     
     eleventh_ssgsea_scores <- eleventh_ssgsea_scores %>% t() %>% as.data.frame() %>% rownames_to_column('temp') %>% 
       separate(temp, c('ID', 'condition', 'celltype'), '_') %>% group_by(ID, celltype) %>%
       summarise(deltaIFNa = IFNa[which(condition==cond)] - IFNa[which(condition=='NI')],
                 deltaIFNy = IFNy[which(condition==cond)] - IFNy[which(condition=='NI')]) %>% ungroup() %>%
-      mutate(method='eleventh')
+      mutate(method='11')
     
     twelfth_ssgsea_scores <- twelfth_ssgsea_scores %>% t() %>% as.data.frame() %>% rownames_to_column('temp') %>% 
       separate(temp, c('ID', 'condition', 'celltype'), '_') %>% group_by(ID, celltype) %>%
       summarise(deltaIFNa = IFNa[which(condition==cond)] - IFNa[which(condition=='NI')],
                 deltaIFNy = IFNy[which(condition==cond)] - IFNy[which(condition=='NI')]) %>% ungroup() %>%
-      mutate(method='twelfth')
+      mutate(method='12')
+    
+    thirteenth_ssgsea_scores <- thirteenth_ssgsea_scores %>% t() %>% as.data.frame() %>% rownames_to_column('temp') %>% 
+      separate(temp, c('ID', 'condition', 'celltype'), '_') %>% group_by(ID, celltype) %>%
+      summarise(deltaIFNa = IFNa[which(condition==cond)] - IFNa[which(condition=='NI')],
+                deltaIFNy = IFNy[which(condition==cond)] - IFNy[which(condition=='NI')]) %>% ungroup() %>%
+      mutate(method='13')
     
     # concatenate
     if (exists('ssgsea_scores')){
     tmp <- rbind(first_ssgsea_scores, second_ssgsea_scores, third_ssgsea_scores, fourth_ssgsea_scores, 
                            fifth_ssgsea_scores, sixth_ssgsea_scores, seventh_ssgsea_scores, eighth_ssgsea_scores,
-                           ninth_ssgsea_scores, tenth_ssgsea_scores, eleventh_ssgsea_scores, twelfth_ssgsea_scores) %>% mutate(condition=cond)
+                           ninth_ssgsea_scores, tenth_ssgsea_scores, eleventh_ssgsea_scores, twelfth_ssgsea_scores,
+                 thirteenth_ssgsea_scores) %>% mutate(condition=cond)
     ssgsea_scores <- rbind(ssgsea_scores, tmp)
     } else {
       ssgsea_scores <- rbind(first_ssgsea_scores, second_ssgsea_scores, third_ssgsea_scores, fourth_ssgsea_scores, 
                              fifth_ssgsea_scores, sixth_ssgsea_scores, seventh_ssgsea_scores, eighth_ssgsea_scores,
-                             ninth_ssgsea_scores, tenth_ssgsea_scores, eleventh_ssgsea_scores, twelfth_ssgsea_scores) %>% mutate(condition=cond)
+                             ninth_ssgsea_scores, tenth_ssgsea_scores, eleventh_ssgsea_scores, twelfth_ssgsea_scores,
+                             thirteenth_ssgsea_scores) %>% mutate(condition=cond)
     }
   }
 }
@@ -463,10 +485,8 @@ ssgsea_scores.wincome <- ssgsea_scores %>% inner_join(sample_m, by=c('ID')) %>%
   select(ID, celltype, condition, deltaIFNa, deltaIFNy, income, method) %>% 
   pivot_longer(c(deltaIFNa, deltaIFNy), names_to='IFN', values_to='score') %>% 
   inner_join(mdata, by=c('ID'='IDs', 'celltype', 'condition', 'income'))
-ssgsea_scores.wincome$method <- factor(ssgsea_scores.wincome$method, levels=c('first', 'second', 'third',
-                                                                              'fourth', 'fifth', 'sixth', 
-                                                                              'seventh', 'eighth', 'ninth',
-                                                                              'tenth', 'eleventh','twelfth'))
+ssgsea_scores.wincome$method <- factor(ssgsea_scores.wincome$method, levels=c('1', '2', '3', '4', '5', '6', '7','8', '9',
+                                                                              '10', '11', '12', '13'))
 ssgsea_scores.wincome$income <- na_if(ssgsea_scores.wincome$income, '')
 ssgsea_scores.wincome$income <- ifelse(ssgsea_scores.wincome$income %in% c('< $10,000', '$10,000-$29,999', '$30,000-$49,999'),
                            'Lower', 'Higher')
@@ -487,11 +507,64 @@ ssgsea_scores.wincome %>% filter(celltype=='T-CD4') %>% ggplot(., aes(x=conditio
   stat_compare_means(aes(group = income), method='t.test', label='p.format') +
   scale_y_continuous(expand = expansion(mult = c(0.05, 0.15))) + ggtitle('IVA - T-CD4')
 
-# linear model?
-lm_results <- ssgsea_scores.wincome %>% 
-  group_by(IFN, method, celltype) %>%
-  do({
-    fit <- lm(score ~ income, data = .)
-    broom::tidy(fit)  
-  }) %>%
-  ungroup() %>% filter(term=='incomeHigher')
+## compare ssGSEA and manual scores
+# read asthma manual scores
+ssgsea_scores.wasthma <- ssgsea_scores.wasthma %>% select(ID, celltype, condition, method, IFN, score)
+manual_asthma_scores <- fread('IFNscores_asthma_manual.txt') %>% rename(ID=donor) %>% mutate(method='manual') %>% 
+  select(ID, celltype, condition, method, IFN, score)
+manual_asthma_scores$IFN <- gsub('IFNa', 'deltaIFNa', manual_asthma_scores$IFN)
+manual_asthma_scores$IFN <- gsub('IFNy', 'deltaIFNy', manual_asthma_scores$IFN)
+manual_asthma_scores <- manual_asthma_scores %>% filter(celltype=='T-CD8', condition=='RV')
+joint_asthma <- rbind(ssgsea_scores.wasthma, manual_asthma_scores) %>% pivot_wider(names_from=method, values_from=score)
+fwrite(joint_asthma, 'joint_asthma_scores.txt', sep=' ')
+
+for (i in (5:ncol(joint_asthma))) {
+  for (j in (5:ncol(joint_asthma))) {
+    
+    corr <- joint_asthma %>% group_by(IFN) %>% do({
+      test <- cor.test(as.matrix(joint_asthma[,i]), as.matrix(joint_asthma[,j]), method='spearman') 
+      test <- broom::tidy(test) %>% mutate(method1=colnames(joint_asthma)[i], method2=colnames(joint_asthma)[j])
+    })
+    
+    if (exists('final.cor')){
+      final.cor <- rbind(final.cor, corr)
+    } else (final.cor <- corr)
+  }
+}
+final.cor$method1 <- factor(final.cor$method1, levels=c('1', '2', '3', '4', '5', '6', '7','8', '9',
+                                                        '10', '11', '12', '13', 'manual'))
+final.cor$method2 <- factor(final.cor$method2, levels=c('1', '2', '3', '4', '5', '6', '7','8', '9',
+                                                        '10', '11', '12', '13', 'manual'))
+ggplot(final.cor, aes(x=method1, y=method2, fill=estimate)) + geom_tile() + facet_wrap(~IFN) +
+  theme_bw()
+ggsave('IFNscores_asthma_corr_bwtnmethods_heatmap.pdf', height=5, width=10)
+
+## income
+ssgsea_scores.wincome <- ssgsea_scores.wincome %>% select(ID, celltype, condition, method, IFN, score)
+manual_income_scores <- fread('IFNscores_income_manual.txt') %>% rename(ID=donor) %>% mutate(method='manual') %>% 
+  select(ID, celltype, condition, method, IFN, score) %>% filter(celltype %in% c('T-CD4', 'Mono'), condition=='IVA')
+manual_income_scores$IFN <- gsub('IFNa', 'deltaIFNa', manual_income_scores$IFN)
+manual_income_scores$IFN <- gsub('IFNy', 'deltaIFNy', manual_income_scores$IFN)
+joint_income <- rbind(ssgsea_scores.wincome, manual_income_scores) %>% pivot_wider(names_from=method, values_from=score)
+fwrite(joint_income, 'joint_income_scores.txt', sep=' ')
+
+for (i in (5:ncol(joint_income))) {
+  for (j in (5:ncol(joint_income))) {
+    
+    corr <- joint_income %>% group_by(IFN, celltype) %>% do({
+      test <- cor.test(as.matrix(joint_income[,i]), as.matrix(joint_income[,j]), method='spearman') 
+      test <- broom::tidy(test) %>% mutate(method1=colnames(joint_income)[i], method2=colnames(joint_income)[j])
+    })
+    
+    if (exists('final.cor.in')){
+      final.cor.in <- rbind(final.cor.in, corr)
+    } else (final.cor.in <- corr)
+  }
+}
+final.cor.in$method1 <- factor(final.cor.in$method1, levels=c('1', '2', '3', '4', '5', '6', '7','8', '9',
+                                                             '10', '11', '12', '13', 'manual'))
+final.cor.in$method2 <- factor(final.cor.in$method2, levels=c('1', '2', '3', '4', '5', '6', '7','8', '9',
+                                                              '10', '11', '12', '13', 'manual'))
+ggplot(final.cor.in, aes(x=method1, y=method2, fill=estimate)) + geom_tile() + facet_grid(cols=vars(IFN), rows=vars(celltype)) +
+  theme_bw()
+ggsave('IFNscores_income_corr_bwtnmethods_heatmap.pdf', height=10, width=10)
