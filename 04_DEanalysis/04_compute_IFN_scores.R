@@ -150,6 +150,7 @@ for (ctype in celltypes){
      geom_point(position=position_jitterdodge(jitter.width=0.2, dodge.width=0.8),
                 alpha=0.4, size=1) + theme_bw())
 ggsave('IFNscores_paired_adjusted_boxplots.pdf', height=6, width=10)
+fwrite(paired.bulk.ifn.scores, 'IFNscores_default_manual.txt')
 rm(paired.bulk.ifn.scores)
 
 # paired-level, leading edge genes, no interaction yet
@@ -344,9 +345,10 @@ for (ctype in celltypes){
 }
 # merge w metadata to retrieve asthma status
 paired.bulk.ifn.scores <- paired.bulk.ifn.scores %>% inner_join(sample_m, by=c('donor'='ID'))
-paired.bulk.ifn.scores <- paired.bulk.ifn.scores %>% select(celltype, condition, IFNa_score, IFNy_score, asthma) %>% 
+paired.bulk.ifn.scores <- paired.bulk.ifn.scores %>% select(donor, celltype, condition, IFNa_score, IFNy_score, asthma) %>% 
   pivot_longer(cols=c(IFNa_score, IFNy_score), names_to='IFN', values_to='score')
 paired.bulk.ifn.scores$IFN <- gsub('_score','',paired.bulk.ifn.scores$IFN)
+fwrite(paired.bulk.ifn.scores, 'IFNscores_asthma_manual.txt')
 
 # plot splitting by asthma status
 ggplot(paired.bulk.ifn.scores, aes(x=condition, y=score, fill=asthma)) + 
@@ -582,12 +584,13 @@ for (ctype in celltypes){
 }
 # merge w metadata to retrieve income status
 paired.bulk.ifn.scores <- paired.bulk.ifn.scores %>% inner_join(sample_m, by=c('donor'='ID'))
-paired.bulk.ifn.scores <- paired.bulk.ifn.scores %>% select(celltype, condition, IFNa_score, IFNy_score, income) %>% 
+paired.bulk.ifn.scores <- paired.bulk.ifn.scores %>% select(donor, celltype, condition, IFNa_score, IFNy_score, income) %>% 
   pivot_longer(cols=c(IFNa_score, IFNy_score), names_to='IFN', values_to='score')
 paired.bulk.ifn.scores$IFN <- gsub('_score','',paired.bulk.ifn.scores$IFN)
 paired.bulk.ifn.scores$income <- ifelse(paired.bulk.ifn.scores$income %in% 
-                                          c('< $10,000', '$10,000-$29,999', '$30,000-$49,999'), 'Low', 'High')
-paired.bulk.ifn.scores$income <- factor(paired.bulk.ifn.scores$income, levels=c('Low','High'))
+                                          c('< $10,000', '$10,000-$29,999', '$30,000-$49,999'), 'Lower', 'Higher')
+paired.bulk.ifn.scores$income <- factor(paired.bulk.ifn.scores$income, levels=c('Lower','Higher'))
+fwrite(paired.bulk.ifn.scores, 'IFNscores_income_manual.txt')
 
 # plot splitting by income status
 ggplot(paired.bulk.ifn.scores, aes(x=condition, y=score, fill=income)) + 
