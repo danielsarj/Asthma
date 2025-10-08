@@ -30,47 +30,60 @@ for (int in interactions){
     }
   }
 }
-full_results <- full_results %>% mutate(direction=ifelse(logFC>0, 'UP', 'DOWN'))
+full_results <- full_results %>% mutate(direction=ifelse(logFC>0, 'UP', 'DOWN'),
+                                        sig=ifelse(qvals<0.05, TRUE, FALSE))
 full_results$interaction <- gsub('asthma_alb', 'asthma', full_results$interaction)
 fwrite(full_results, 'NI_IVAxRV_integrated_limma_results.txt', sep=' ')
 
-# volcano plots of qvalues
+# volcano plots of qvalues and histograms of [unadjusted] pvalues
 for (int in unique(full_results$interaction)){
   tmp <- full_results %>% filter(interaction==int)
   
-  ggplot(tmp) + geom_point(aes(logFC, -log10(qvals)), size=0.5, alpha=0.5) +
+  # volcano plots of qvalues
+  ggplot(tmp) + geom_point(aes(logFC, -log10(qvals), color=sig), size=0.5, alpha=0.5) +
     theme_bw() + ylab('-log10(qvalue)') + facet_grid(cols=vars(celltype), rows=vars(condition)) +
-    geom_hline(yintercept=1.30103, color='red') + ggtitle(int)
+    ggtitle(int) + scale_color_manual(values=c('TRUE'='red', 'FALSE'='black')) +
+    theme(legend.position='none')
   
   ggsave('NI_IVAxRV_'%&%int%&%'_limma_facetgrid_volcanoplot.pdf', height=4, width=8)
-}
-
-# histograms of [unadjusted] pvalues
-for (int in unique(full_results$interaction)){
-  tmp <- full_results %>% filter(interaction==int)
   
-  ggplot(tmp, aes(x=P.Value)) + geom_histogram(binwidth=0.01, boundary=0) +
+  # histograms of unadjusted pvalues
+  ggplot(tmp, aes(x=P.Value)) + geom_histogram(binwidth=0.05, boundary=0) +
     facet_wrap(~condition+celltype, scales='free_y', ncol=length(unique(tmp$celltype))) +
     theme_bw() + ggtitle(int) + xlab('Unadjusted p-values')
   
   ggsave('NI_IVAxRV_'%&%int%&%'_limma_pval_histogram.pdf', height=4, width=8)
+  
+  # compare logFCs of significant DE genes
+  tmp <- tmp %>% filter(sig==TRUE) 
+  if (nrow(tmp)>0){
+    tmp <- tmp %>% select(Gene, logFC, condition, interaction, celltype, sig) %>%
+      pivot_wider(names_from=condition, values_from=logFC) %>% drop_na()
+    
+    ggplot(tmp, aes(x=IVA, y=RV)) + geom_point() + theme_bw() + facet_wrap(~celltype) +
+      ylab('RV LogFC') + xlab('IVA LogFC') + geom_abline(slope=1, color='red')
+    
+    ggsave('NI_IVAxRV_'%&%int%&%'_ComparelogFCs_barplot.pdf', height=3, width=5)
+  }
 }
 
-# filter significant results based on arbitrary thresholds
-filtered_results <- full_results %>% filter(abs(logFC)>0.5, qvals<0.05)
+# filter significant results
+filtered_results <- full_results %>% filter(sig==TRUE)
 
 # get summary across interactions, conditions, and celltypes
 summary_results <- filtered_results %>% group_by(interaction, celltype, condition, direction) %>%
-  summarise(n_genes=n())
+  summarise(n_genes=n(), .groups='drop') %>% mutate(n_genes_signed=ifelse(direction=='DOWN', -n_genes, n_genes))
 
 # bar plots of significant DE genes
 for (int in unique(full_results$interaction)){
   tmp <- summary_results %>% filter(interaction==int)
   
   if (nrow(tmp)>0){
-    ggplot(summary_results) + geom_col(aes(x=celltype, y=n_genes, fill=direction), position='dodge') +
-      geom_text(aes(x=celltype, y=n_genes, label=n_genes, group=direction), position=position_dodge(width=0.9),
-                vjust=-0.5, size=4) + theme_bw() + facet_wrap(~condition) + ggtitle(int)
+    ggplot(tmp, aes(x=celltype, y=n_genes_signed, fill=direction)) + geom_col() +
+      geom_text(aes(label=abs(n_genes), group=direction), 
+                vjust=ifelse(summary_results$n_genes_signed>0, -0.5, 1.2), size=4) + 
+      theme_bw() + facet_wrap(~condition) + ggtitle(int) + geom_hline(yintercept=0, color='black') +
+      labs(y='Number of DE genes (Up vs Down)') + theme(legend.position='none')
     
     ggsave('NI_IVAxRV_'%&%int%&%'_NumOfDEgenes_barplot.pdf', height=4, width=7)
   }
