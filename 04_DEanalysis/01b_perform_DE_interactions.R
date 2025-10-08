@@ -121,7 +121,11 @@ for (i in 1:length(conditions)){
         # save voom-adjusted expression table
         exp <- voom$E %>% as.data.frame() %>% rownames_to_column('Gene')
         fwrite(exp, '../scRNAanalysis/NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_asthma_alb_voom_expression.txt', sep=' ')
-        rm(exp)
+        wgts <- voom$weights %>% as.data.frame() %>% rownames_to_column('Gene')
+        wgts$Gene <- exp$Gene
+        colnames(wgts) <- colnames(exp)
+        fwrite(wgts, '../scRNAanalysis/NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_asthma_alb_voom_weights.txt', sep=' ')
+        rm(exp, wgts)
         
         # fit linear model 
         fit <- eBayes(lmFit(voom, design))
@@ -213,7 +217,11 @@ for (i in 1:length(conditions)){
         # save voom-adjusted expression table
         exp <- voom$E %>% as.data.frame() %>% rownames_to_column('Gene')
         fwrite(exp, '../scRNAanalysis/NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_income_voom_expression.txt', sep=' ')
-        rm(exp)
+        wgts <- voom$weights %>% as.data.frame() %>% rownames_to_column('Gene')
+        wgts$Gene <- exp$Gene
+        colnames(wgts) <- colnames(exp)
+        fwrite(wgts, '../scRNAanalysis/NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_income_voom_weights.txt', sep=' ')
+        rm(exp, wgts)
         
         # fit linear model 
         fit <- eBayes(lmFit(voom, design))
