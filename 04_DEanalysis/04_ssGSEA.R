@@ -63,27 +63,21 @@ for (cond in c('RV')){
 
     # second try: scores with voom-adjusted counts adjusted for covariates using removeBatchEffect()
     v <- voom(count, plot=F)
-    sub_mdata$condition_num <- as.numeric(sub_mdata$condition)
     sub_mdata$gender_num <- as.numeric(sub_mdata$gender)
     sub_mdata$albuterol_num <- as.numeric(sub_mdata$albuterol) 
-    sub_mdata$asthma_num <- as.numeric(sub_mdata$asthma)
     v <- removeBatchEffect(v,
-                           covariates = as.matrix(sub_mdata[, c('age','n','avg_mt','gender_num','albuterol_num','condition_num')]),
+                           covariates = as.matrix(sub_mdata[, c('age','n','avg_mt','gender_num','albuterol_num')]),
                            batch = sub_mdata$batch,
-                           design = model.matrix(~asthma_num+condition_num:asthma_num, data=sub_mdata))
+                           design = model.matrix(~condition+asthma+condition:asthma, data=sub_mdata))
     second_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
     
     # third try: same thing as before, but now voom takes a design matrix to compute the weights
-    design <- model.matrix(~batch+age+gender+n+avg_mt+albuterol+condition, data=sub_mdata)
+    design <- model.matrix(~batch+age+gender+n+avg_mt+albuterol, data=sub_mdata)
     v <- voom(count, design, plot=F)
-    sub_mdata$condition_num <- as.numeric(sub_mdata$condition)
-    sub_mdata$gender_num <- as.numeric(sub_mdata$gender)
-    sub_mdata$albuterol_num <- as.numeric(sub_mdata$albuterol) 
-    sub_mdata$asthma_num <- as.numeric(sub_mdata$asthma)
     v <- removeBatchEffect(v,
-                           covariates = as.matrix(sub_mdata[, c('age','n','avg_mt','gender_num','albuterol_num','condition_num')]),
+                           covariates = as.matrix(sub_mdata[, c('age','n','avg_mt','gender_num','albuterol_num')]),
                            batch = sub_mdata$batch,
-                           design = model.matrix(~asthma_num+condition_num:asthma_num, data=sub_mdata))
+                           design = model.matrix(~condition+asthma+condition:asthma, data=sub_mdata))
     third_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))  
     
     # fourth try: fit a linear model on voom-adjusted reads, extract residuals and add the intercept back
@@ -152,10 +146,12 @@ ggsave('IFNscores_asthma_boxplots.pdf', height=4, width=9)
 joint_asthma <- joint_asthma %>% pivot_wider(names_from=method, values_from=score)
 for (i in (6:ncol(joint_asthma))) {
   for (j in (6:ncol(joint_asthma))) {
+    
     corr <- joint_asthma %>% group_by(IFN) %>% do({
-      test <- cor.test(as.matrix(joint_asthma[,i]), as.matrix(joint_asthma[,j]), method='spearman') 
+      test <- cor.test(as.matrix(.data[,i]), as.matrix(.data[,j]), method='spearman') 
       test <- broom::tidy(test) %>% mutate(method1=colnames(joint_asthma)[i], method2=colnames(joint_asthma)[j])
     })
+    
     if (exists('final.cor')){
       final.cor <- rbind(final.cor, corr)
     } else (final.cor <- corr)
@@ -202,25 +198,21 @@ for (cond in c('IVA')){
     
     # second try: scores with voom-adjusted counts adjusted for covariates using removeBatchEffect()
     v <- voom(count, plot=F)
-    sub_mdata$condition_num <- as.numeric(sub_mdata$condition)
     sub_mdata$gender_num <- as.numeric(sub_mdata$gender)
-    sub_mdata$income_num <- as.numeric(sub_mdata$income) 
     v <- removeBatchEffect(v,
-                           covariates = as.matrix(sub_mdata[, c('age','n','avg_mt','gender_num','condition_num')]),
+                           covariates = as.matrix(sub_mdata[, c('age','n','avg_mt','gender_num')]),
                            batch = sub_mdata$batch,
-                           design = model.matrix(~income_num+condition_num:income_num, data=sub_mdata))
+                           design = model.matrix(~condition+income+condition:income, data=sub_mdata))
     second_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))
     
     # third try: same thing as before, but now voom takes a design matrix to compute the weights
-    design <- model.matrix(~batch+age+gender+n+avg_mt+condition, data=sub_mdata)
+    design <- model.matrix(~batch+age+gender+n+avg_mt, data=sub_mdata)
     v <- voom(count, design, plot=F)
-    sub_mdata$condition_num <- as.numeric(sub_mdata$condition)
     sub_mdata$gender_num <- as.numeric(sub_mdata$gender)
-    sub_mdata$income_num <- as.numeric(sub_mdata$income) 
     v <- removeBatchEffect(v,
-                           covariates = as.matrix(sub_mdata[, c('age','n','avg_mt','gender_num','condition_num')]),
+                           covariates = as.matrix(sub_mdata[, c('age','n','avg_mt','gender_num')]),
                            batch = sub_mdata$batch,
-                           design = model.matrix(~income_num+condition_num:income_num, data=sub_mdata))
+                           design = model.matrix(~condition+income+condition:income, data=sub_mdata))
     third_ssgsea_scores <- gsva(ssgseaParam(v, ifn_genes))  
 
     # fourth try: fit a linear model on voom-adjusted reads, extract residuals and add the intercept back
@@ -262,7 +254,6 @@ for (cond in c('IVA')){
     }
   }
 }
-
 # merge w metadata to retrieve income status
 ssgsea_scores.wincome <- ssgsea_scores %>% inner_join(sample_m, by=c('ID')) %>% 
   select(ID, celltype, condition, deltaIFNa, deltaIFNy, income, method) %>% 
@@ -304,20 +295,10 @@ joint_income <- joint_income %>% pivot_wider(names_from=method, values_from=scor
 for (i in (6:ncol(joint_income))) {
   for (j in (6:ncol(joint_income))) {
     
-    
-    mono_joint_income <- joint_income %>% filter(celltype=='Mono')
-    corr_mono <- mono_joint_income %>% group_by(IFN) %>% do({
-      test <- cor.test(as.matrix(mono_joint_income[,i]), as.matrix(mono_joint_income[,j]), method='spearman') 
-      test <- broom::tidy(test) %>% mutate(method1=colnames(mono_joint_income)[i], method2=colnames(mono_joint_income)[j])
-    }) %>% mutate(celltype='Mono')
-    
-    tcd4_joint_income <- joint_income %>% filter(celltype=='T-CD4')
-    corr_tcd4 <- tcd4_joint_income %>% group_by(IFN) %>% do({
-      test <- cor.test(as.matrix(tcd4_joint_income[,i]), as.matrix(tcd4_joint_income[,j]), method='spearman') 
-      test <- broom::tidy(test) %>% mutate(method1=colnames(tcd4_joint_income)[i], method2=colnames(tcd4_joint_income)[j])
-    }) %>% mutate(celltype='T-CD4')
-    
-    corr <- rbind(corr_mono, corr_tcd4)
+    corr <- joint_income %>% group_by(celltype, IFN) %>% do({
+      test <- cor.test(as.matrix(.data[,i]), as.matrix(.data[,j]), method='spearman') 
+      test <- broom::tidy(test) %>% mutate(method1=colnames(joint_income)[i], method2=colnames(joint_income)[j])
+    })
     
     if (exists('final.cor.in')){
       final.cor.in <- rbind(final.cor.in, corr)

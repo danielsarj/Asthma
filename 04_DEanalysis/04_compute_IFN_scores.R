@@ -275,29 +275,24 @@ for (ctype in celltypes){
     count <- DGEList(counts=count) %>% calcNormFactors()
     
     # define design matrix (without asthma+interaction term)
-    design <- model.matrix(~batch+age+gender+n+avg_mt+albuterol+condition, data=sub_mdata)
+    design <- model.matrix(~batch+age+gender+n+avg_mt+albuterol, data=sub_mdata)
     
     # voom
     voom <- voom(count, design, plot=F)
     
     # remove confounding effects
-    sub_mdata$condition <- as.numeric(sub_mdata$condition)
     sub_mdata$gender <- as.numeric(sub_mdata$gender)
     sub_mdata$albuterol <- as.numeric(sub_mdata$albuterol) 
     sub_mdata$asthma <- as.numeric(sub_mdata$asthma)
     adj_expr <- removeBatchEffect(voom$E,
-                                  covariates = as.matrix(sub_mdata[, c('age','n','avg_mt','gender','albuterol','condition')]),
+                                  covariates = as.matrix(sub_mdata[, c('age','n','avg_mt','gender','albuterol')]),
                                   batch = sub_mdata$batch,
-                                  design = model.matrix(~asthma+condition:asthma, data=sub_mdata))
+                                  design = model.matrix(~condition+asthma+condition:asthma, data=sub_mdata))
     
     ## first, IFNa
     # subset to IFNa genes
     ifn_a <- adj_expr %>% as.data.frame() %>% filter(rownames(.) %in% ifn_genes[[1]]) %>% as.matrix()
-    
-    if (exists('ifn_sizes')){
-      ifn_sizes <- rbind(ifn_sizes, c(ctype, cond, 'asthma', 'IFNa', nrow(ifn_a)))
-    } else {ifn_sizes <- c(ctype, cond, 'asthma', 'IFNa', nrow(ifn_a))}
-    
+
     # scale per gene and compute score
     ifn_a <- ifn_a %>% t() %>% scale(center=TRUE, scale=TRUE) %>% t() %>% colMeans(na.rm=TRUE) %>% 
       as.data.frame() %>% rownames_to_column('ID')
@@ -306,7 +301,6 @@ for (ctype in celltypes){
     # second, IFNy
     # subset to IFNa genes
     ifn_y <- adj_expr %>% as.data.frame() %>% filter(rownames(.) %in% ifn_genes[[2]]) %>% as.matrix()
-    ifn_sizes <- rbind(ifn_sizes, c(ctype, cond, 'asthma', 'IFNy', nrow(ifn_y)))
 
     # scale per gene and compute score
     ifn_y <- ifn_y %>% t() %>% scale(center=TRUE, scale=TRUE) %>% t() %>% colMeans(na.rm=TRUE) %>% 
@@ -357,7 +351,7 @@ ggplot(paired.bulk.ifn.scores, aes(x=condition, y=score, fill=asthma)) +
              alpha=0.4, size=1) + facet_grid(cols=vars(celltype), rows=vars(IFN), scale='free') + theme_bw() +
   stat_compare_means(aes(group = asthma), method='t.test', label='p.format') +
   scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
-ggsave('IFNscores_asthma_paired_adjusted_noasthma_boxplots.pdf', height=4, width=10)
+ggsave('IFNscores_asthma_paired_adjusted_noasthmaandcondition_boxplots.pdf', height=4, width=10)
 
 paired.bulk.ifn.scores <- paired.bulk.ifn.scores %>%
   group_by(IFN, condition, celltype) %>%
@@ -394,7 +388,7 @@ for (ctype in celltypes){
     count <- DGEList(counts=count) %>% calcNormFactors()
     
     # define design matrix (without asthma+interaction term)
-    design <- model.matrix(~batch+age+gender+n+avg_mt+albuterol+condition, data=sub_mdata)
+    design <- model.matrix(~batch+age+gender+n+avg_mt+albuterol, data=sub_mdata)
     
     # voom
     voom <- voom(count, design, plot=F)
@@ -405,9 +399,9 @@ for (ctype in celltypes){
     sub_mdata$albuterol <- as.numeric(sub_mdata$albuterol) 
     sub_mdata$asthma <- as.numeric(sub_mdata$asthma)
     adj_expr <- removeBatchEffect(voom$E,
-                                  covariates = as.matrix(sub_mdata[, c('age','n','avg_mt','gender','albuterol','condition')]),
+                                  covariates = as.matrix(sub_mdata[, c('age','n','avg_mt','gender','albuterol')]),
                                   batch = sub_mdata$batch,
-                                  design = model.matrix(~asthma+condition:asthma, data=sub_mdata))
+                                  design = model.matrix(~condition+asthma+condition:asthma, data=sub_mdata))
     
     # extract ifn leading edge genes
     ifn_a_edge <- fgsea_full %>% filter(celltype==ctype, condition==cond, interaction=='asthma', 
@@ -480,7 +474,7 @@ ggplot(paired.bulk.ifn.scores, aes(x=condition, y=score, fill=asthma)) +
              alpha=0.4, size=1) + facet_grid(cols=vars(celltype), rows=vars(IFN), scale='free') + theme_bw() +
   stat_compare_means(aes(group = asthma), method='t.test', label='p.format') +
   scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
-ggsave('IFNscores_asthma_paired_adjusted_leadingedge_noasthma_boxplots.pdf', height=4, width=10)
+ggsave('IFNscores_asthma_paired_adjusted_leadingedge_noasthmaandcondition_boxplots.pdf', height=4, width=10)
 
 paired.bulk.ifn.scores <- paired.bulk.ifn.scores %>%
   group_by(IFN, condition, celltype) %>%
@@ -518,7 +512,7 @@ for (ctype in celltypes){
     count <- DGEList(counts=count) %>% calcNormFactors()
     
     # define design matrix (without income+interaction term)
-    design <- model.matrix(~batch+age+gender+n+avg_mt+condition, data=sub_mdata)
+    design <- model.matrix(~batch+age+gender+n+avg_mt, data=sub_mdata)
     
     # voom
     voom <- voom(count, design, plot=F)
@@ -528,14 +522,13 @@ for (ctype in celltypes){
     sub_mdata$gender <- as.numeric(sub_mdata$gender)
     sub_mdata$income <- as.numeric(sub_mdata$income)
     adj_expr <- removeBatchEffect(voom$E,
-                                  covariates = as.matrix(sub_mdata[, c('age','n','avg_mt','gender','condition')]),
+                                  covariates = as.matrix(sub_mdata[, c('age','n','avg_mt','gender')]),
                                   batch = sub_mdata$batch,
-                                  design = model.matrix(~income+condition:income, data=sub_mdata))
+                                  design = model.matrix(~condition+income+condition:income, data=sub_mdata))
     
     ## first, IFNa
     # subset to IFNa genes
     ifn_a <- adj_expr %>% as.data.frame() %>% filter(rownames(.) %in% ifn_genes[[1]]) %>% as.matrix()
-    ifn_sizes <- rbind(ifn_sizes, c(ctype, cond, 'income', 'IFNa', nrow(ifn_a)))
 
     # scale per gene and compute score
     ifn_a <- ifn_a %>% t() %>% scale(center=TRUE, scale=TRUE) %>% t() %>% colMeans(na.rm=TRUE) %>% 
@@ -545,8 +538,7 @@ for (ctype in celltypes){
     # second, IFNy
     # subset to IFNa genes
     ifn_y <- adj_expr %>% as.data.frame() %>% filter(rownames(.) %in% ifn_genes[[2]]) %>% as.matrix()
-    ifn_sizes <- rbind(ifn_sizes, c(ctype, cond, 'income', 'IFNy', nrow(ifn_y)))
-    
+
     # scale per gene and compute score
     ifn_y <- ifn_y %>% t() %>% scale(center=TRUE, scale=TRUE) %>% t() %>% colMeans(na.rm=TRUE) %>% 
       as.data.frame() %>% rownames_to_column('ID')
@@ -599,7 +591,7 @@ ggplot(paired.bulk.ifn.scores, aes(x=condition, y=score, fill=income)) +
              alpha=0.4, size=1) + facet_grid(cols=vars(celltype), rows=vars(IFN), scale='free') + theme_bw() +
   stat_compare_means(aes(group = income), method='t.test', label='p.format') +
   scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
-ggsave('IFNscores_income_paired_adjusted_noincome_boxplots.pdf', height=4, width=10)
+ggsave('IFNscores_income_paired_adjusted_noincomeandcondition_boxplots.pdf', height=4, width=10)
 
 paired.bulk.ifn.scores <- paired.bulk.ifn.scores %>%
   group_by(IFN, condition, celltype) %>%
@@ -637,7 +629,7 @@ for (ctype in celltypes){
     count <- DGEList(counts=count) %>% calcNormFactors()
     
     # define design matrix (without income+interaction term)
-    design <- model.matrix(~batch+age+gender+n+avg_mt+condition, data=sub_mdata)
+    design <- model.matrix(~batch+age+gender+n+avg_mt, data=sub_mdata)
     
     # voom
     voom <- voom(count, design, plot=F)
@@ -647,9 +639,9 @@ for (ctype in celltypes){
     sub_mdata$gender <- as.numeric(sub_mdata$gender)
     sub_mdata$income <- as.numeric(sub_mdata$income)
     adj_expr <- removeBatchEffect(voom$E,
-                                  covariates = as.matrix(sub_mdata[, c('age','n','avg_mt','gender','condition')]),
+                                  covariates = as.matrix(sub_mdata[, c('age','n','avg_mt','gender')]),
                                   batch = sub_mdata$batch,
-                                  design = model.matrix(~income+condition:income, data=sub_mdata))
+                                  design = model.matrix(~condition+income+condition:income, data=sub_mdata))
     
     # extract ifn leading edge genes
     ifn_a_edge <- fgsea_full %>% filter(celltype==ctype, condition==cond, interaction=='income', 
@@ -715,8 +707,8 @@ paired.bulk.ifn.scores <- paired.bulk.ifn.scores %>% select(celltype, condition,
   pivot_longer(cols=c(IFNa_score, IFNy_score), names_to='IFN', values_to='score')
 paired.bulk.ifn.scores$IFN <- gsub('_score','',paired.bulk.ifn.scores$IFN)
 paired.bulk.ifn.scores$income <- ifelse(paired.bulk.ifn.scores$income %in% 
-                                          c('< $10,000', '$10,000-$29,999', '$30,000-$49,999'), 'Low', 'High')
-paired.bulk.ifn.scores$income <- factor(paired.bulk.ifn.scores$income, levels=c('Low','High'))
+                                          c('< $10,000', '$10,000-$29,999', '$30,000-$49,999'), 'Lower', 'Higher')
+paired.bulk.ifn.scores$income <- factor(paired.bulk.ifn.scores$income, levels=c('Lower','Higher'))
 
 # plot splitting by income status
 ggplot(paired.bulk.ifn.scores, aes(x=condition, y=score, fill=income)) + 
@@ -725,7 +717,7 @@ ggplot(paired.bulk.ifn.scores, aes(x=condition, y=score, fill=income)) +
              alpha=0.4, size=1) + facet_grid(cols=vars(celltype), rows=vars(IFN), scale='free') + theme_bw() +
   stat_compare_means(aes(group = income), method='t.test', label='p.format') +
   scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
-ggsave('IFNscores_income_paired_adjusted_leadingedge_noincome_boxplots.pdf', height=4, width=10)
+ggsave('IFNscores_income_paired_adjusted_leadingedge_noincomeandcondition_boxplots.pdf', height=4, width=10)
 
 paired.bulk.ifn.scores <- paired.bulk.ifn.scores %>%
   group_by(IFN, condition, celltype) %>%
@@ -734,86 +726,3 @@ paired.bulk.ifn.scores <- paired.bulk.ifn.scores %>%
   select(IFN, condition, celltype, p.value) %>% mutate(interaction='income', is_leading_edge=TRUE)
 full_df <- rbind(full_df, paired.bulk.ifn.scores)
 rm(paired.bulk.ifn.scores)
-
-### analyze leading edge sets
-ifn_fgsea <- fgsea_full %>% filter(pathway %in% c('INTERFERON_ALPHA_RESPONSE', 'INTERFERON_GAMMA_RESPONSE')) %>% 
-  select(pathway, celltype, condition, interaction, padj, NES, leadingEdge) %>% filter(interaction!='none')
-ifn_fgsea$pathway <- gsub('_RESPONSE', '', ifn_fgsea$pathway)
-
-# split leading edge column and append its size to full df
-leading_edge_list <- lapply(ifn_fgsea$leadingEdge, function(x) {
-  gsub("\"", "", unlist(strsplit(x, "\"\\|\"")))})
-ifn_fgsea <- ifn_fgsea %>% mutate(leadingEdge_size=sapply(leading_edge_list, length), is_sig=ifelse(padj<0.05, 1, 0.5))
-ggplot(ifn_fgsea) + geom_col(aes(x=celltype, y=leadingEdge_size, fill=interaction, alpha=is_sig), position='dodge') + 
-  facet_grid(rows=vars(pathway), cols=vars(condition)) + theme_bw()
-ggsave('LeadingEdgeSizes_IFNpathways_barplot.pdf', height=4, width=7)
-
-# add number of genes to ifn fsega df
-ifn_sizes <- as.data.frame(ifn_sizes)
-rownames(ifn_sizes) <- NULL
-colnames(ifn_sizes) <- c('celltype', 'condition', 'interaction', 'IFN', 'size')
-ifn_sizes$IFN <- gsub('IFNa', 'INTERFERON_ALPHA', ifn_sizes$IFN)
-ifn_sizes$IFN <- gsub('IFNy', 'INTERFERON_GAMMA', ifn_sizes$IFN)
-ifn_sizes$size <- as.numeric(ifn_sizes$size)
-
-ifn_fgsea <- left_join(ifn_fgsea, ifn_sizes, by=c('celltype', 'condition', 'interaction', 'pathway'='IFN'))
-ifn_fgsea <- ifn_fgsea %>% mutate(prop_size=(leadingEdge_size/size))
-ggplot(ifn_fgsea) + geom_col(aes(x=celltype, y=prop_size, fill=interaction, alpha=is_sig), position='dodge') + 
-  facet_grid(rows=vars(pathway), cols=vars(condition)) + theme_bw()
-ggsave('LeadingEdgeSizes_proportion_IFNpathways_barplot.pdf', height=4, width=7)
-
-# add size to ful_df as well
-full_df$IFN <- gsub('IFNa', 'INTERFERON_ALPHA', full_df$IFN)
-full_df$IFN <- gsub('IFNy', 'INTERFERON_GAMMA', full_df$IFN)
-full_df <- left_join(full_df, ifn_fgsea, by=c('IFN'='pathway', 'condition', 'celltype', 'interaction'))
-
-# correlatin bwwn leadingEdge_size and scores pvalues
-correlations_ifn <- full_df %>% filter(is_leading_edge==TRUE) %>%
-  group_by(IFN, interaction) %>%
-  summarise(
-    cor_size=cor.test(leadingEdge_size, p.value, method='spearman')$estimate,
-    pval_size=cor.test(leadingEdge_size, p.value, method='spearman')$p.value,
-    cor_prop=cor.test(prop_size, p.value,  method='spearman')$estimate,
-    pval_prop=cor.test(prop_size, p.value,  method='spearman')$p.value,
-    .groups='drop')
-
-
-de_results <- fread('NI_IVAxRV_integrated_limma_results.txt') %>% filter(interaction!='none')
-
-for (i in 1:nrow(ifn_fgsea)){
-  int <- ifn_fgsea$interaction[i]
-  cond <- ifn_fgsea$condition[i]
-  ctype <- ifn_fgsea$celltype[i]
-  path <- ifn_fgsea$pathway[i]
-  leading_edge <- lapply(ifn_fgsea$leadingEdge[i], function(x) {gsub("\"", "", unlist(strsplit(x, "\"\\|\"")))}) %>% unlist()
-  
-  sub_logfc_edge <- de_results %>% filter(condition==cond, interaction==int, celltype==ctype, Gene %in% leading_edge) %>%
-    select(Gene, logFC, qvals, condition, interaction, celltype) %>% mutate(pathway=path)
-  
-  if (path=='INTERFERON_ALPHA'){
-  sub_logfc <- de_results %>% filter(condition==cond, interaction==int, celltype==ctype, Gene %in% ifn_genes[[1]]) %>%
-    select(Gene, logFC, qvals, condition, interaction, celltype) %>% mutate(pathway=path)
-  } else {
-    sub_logfc <- de_results %>% filter(condition==cond, interaction==int, celltype==ctype, Gene %in% ifn_genes[[2]]) %>%
-      select(Gene, logFC, qvals, condition, interaction, celltype) %>% mutate(pathway=path)
-  }
-  
-  if (exists('leadingEdge_logFC')){
-    leadingEdge_logFC <- rbind(leadingEdge_logFC, sub_logfc_edge)
-  } else {leadingEdge_logFC <- sub_logfc_edge}
-  
-  if (exists('all_logFC')){
-    all_logFC <- rbind(all_logFC, sub_logfc)
-  } else {all_logFC <- sub_logfc}
-}
-
-(ggplot(all_logFC, aes(x=celltype, y=logFC, fill=interaction)) + 
-    facet_grid(rows=vars(pathway), cols=vars(condition)) + theme_bw() +
-    geom_violin(position=position_dodge(width=0.8)) + 
-    geom_boxplot(outlier.shape=NA, position=position_dodge(width=0.8), width=0.1, color='white') + theme_bw() ) /
-(ggplot(leadingEdge_logFC, aes(x=celltype, y=logFC, fill=interaction)) + 
-  facet_grid(rows=vars(pathway), cols=vars(condition)) + theme_bw() +
-  geom_violin(position=position_dodge(width=0.8)) + 
-  geom_boxplot(outlier.shape=NA, position=position_dodge(width=0.8), width=0.1, color='white') + theme_bw()) 
-ggsave('IFNpathways_interactions_logFCs_violinplot.pdf', height=8, width=10)
-
