@@ -82,17 +82,31 @@ for (int in c('none','asthma','income')){
         arrange(desc(mean_value), .by_group=T) %>% mutate(rank=row_number()) %>% ungroup()
 
       # see how rank changes
-      inf_y <-  exp_long %>% filter(condition==cond) %>% select(Gene, rank) %>%
+      inf_y <-  exp_long %>% filter(condition==cond) %>% select(Gene, rank, mean_value) %>%
         mutate(type=cond)
-      inf_n <-  exp_long %>% filter(condition=='NI') %>% select(Gene, rank) %>%
+      inf_n <-  exp_long %>% filter(condition=='NI') %>% select(Gene, rank, mean_value) %>%
         mutate(type='NI')
       rank_genes <- rbind(inf_y, inf_n)
+      rank_genes$type <- factor(rank_genes$type, levels=c('NI', cond))
       
       (rank_genes %>% filter(Gene %in% ifn_genes[[1]]) %>% ggplot(., aes(x=rank, fill=type, color=type)) + 
           geom_density(aes(y=after_stat(count)), alpha=.4) + geom_rug() + theme_bw() + ggtitle('IFNa - ' %&% cond %&% ' - ' %&% ctype)) + 
         (rank_genes %>% filter(Gene %in% ifn_genes[[2]]) %>% ggplot(., aes(x=rank, fill=type, color=type)) + 
            geom_density(aes(y=after_stat(count)), alpha=.4) + geom_rug() + theme_bw() + ggtitle('IFNy - ' %&% cond %&% ' - ' %&% ctype))
       ggsave('IFN_gene_ranks_'%&%cond%&%'_infection_'%&%ctype%&%'_densityplots.pdf', height=4, width=9)
+      
+      (rank_genes %>% filter(Gene %in% ifn_genes[[1]]) %>% select(-rank) %>% ggplot(., aes(x=type, y=mean_value, fill=type)) + 
+          geom_violin(alpha=0.5) + geom_boxplot(alpha=0.5, width=0.3) + stat_compare_means(aes(group=Gene), method='t.test', 
+                                                                                           label='p.format', paired=T, 
+                                                                                           comparisons=list(c('NI', cond))) + 
+          theme_bw() + ggtitle('IFNa - ' %&% cond %&% ' - ' %&% ctype) + guides(fill='none')) +
+        (rank_genes %>% filter(Gene %in% ifn_genes[[2]]) %>% select(-rank) %>% ggplot(., aes(x=type, y=mean_value, fill=type)) + 
+           geom_violin(alpha=0.5) + geom_boxplot(alpha=0.5, width=0.3) + stat_compare_means(aes(group=Gene), method='t.test', 
+                                                                                            label='p.format', paired=T, 
+                                                                                            comparisons=list(c('NI', cond))) + 
+           theme_bw() + ggtitle('IFNy - ' %&% cond %&% ' - ' %&% ctype) + guides(fill='none'))
+      ggsave('IFN_gene_ranks_'%&%cond%&%'_infection_'%&%ctype%&%'_violinplots.pdf', height=4, width=9)
+      
     }
   } else if (int == 'asthma'){
     cond <- 'RV'
@@ -143,17 +157,29 @@ for (int in c('none','asthma','income')){
       arrange(desc(delta_value), .by_group=T) %>% mutate(rank=row_number()) %>% ungroup()
       
     # see how rank changes
-    asthma_y <-  exp_long %>% filter(asthma=='Yes') %>% select(Gene, rank) %>%
+    asthma_y <-  exp_long %>% filter(asthma=='Yes') %>% select(Gene, rank, delta_value) %>%
       mutate(type='asthmaYes')
-    asthma_n <-  exp_long %>% filter(asthma=='No') %>% select(Gene, rank) %>%
+    asthma_n <-  exp_long %>% filter(asthma=='No') %>% select(Gene, rank, delta_value) %>%
       mutate(type='asthmaNo')
     rank_genes <- rbind(asthma_y, asthma_n)
-        
+    rank_genes$type <- factor(rank_genes$type, levels=c('asthmaNo', 'asthmaYes'))
+    
     (rank_genes %>% filter(Gene %in% ifn_genes[[1]]) %>% ggplot(., aes(x=rank, fill=type, color=type)) + 
       geom_density(aes(y=after_stat(count)), alpha=.4) + geom_rug() + theme_bw() + ggtitle('IFNa - ' %&% cond %&% ' - ' %&% ctype)) + 
       (rank_genes %>% filter(Gene %in% ifn_genes[[2]]) %>% ggplot(., aes(x=rank, fill=type, color=type)) + 
       geom_density(aes(y=after_stat(count)), alpha=.4) + geom_rug() + theme_bw() + ggtitle('IFNy - ' %&% cond %&% ' - ' %&% ctype))
     ggsave('IFN_gene_ranks_'%&%cond%&%'_asthma_'%&%ctype%&%'_densityplots.pdf', height=4, width=9)
+    
+    (rank_genes %>% filter(Gene %in% ifn_genes[[1]]) %>% ggplot(., aes(x=type, y=delta_value, fill=type)) + 
+        geom_violin(alpha=0.5) + geom_boxplot(alpha=0.5, width=0.3) + stat_compare_means(method='t.test', label='p.format', 
+                                                                                         comparisons=list(c('asthmaNo', 'asthmaYes'))) + 
+        theme_bw() + ggtitle('IFNa - ' %&% cond %&% ' - ' %&% ctype) + guides(fill='none')) +
+      (rank_genes %>% filter(Gene %in% ifn_genes[[2]])  %>% ggplot(., aes(x=type, y=delta_value, fill=type)) + 
+         geom_violin(alpha=0.5) + geom_boxplot(alpha=0.5, width=0.3) + stat_compare_means(method='t.test', label='p.format', 
+                                                                                          comparisons=list(c('asthmaNo', 'asthmaYes'))) + 
+         theme_bw() + ggtitle('IFNy - ' %&% cond %&% ' - ' %&% ctype) + guides(fill='none'))
+    ggsave('IFN_gene_ranks_'%&%cond%&%'_asthma_'%&%ctype%&%'_violinplots.pdf', height=4, width=9)
+    
   } else {
     for (ctype in c('Mono', 'T-CD4')){
       cond <- 'IVA'
@@ -205,19 +231,30 @@ for (int in c('none','asthma','income')){
         arrange(desc(delta_value), .by_group=T) %>% mutate(rank=row_number()) %>% ungroup()
       
       # see how rank changes
-      income_l <-  exp_long %>% filter(income=='Lower') %>% select(Gene, rank) %>%
+      income_l <-  exp_long %>% filter(income=='Lower') %>% select(Gene, rank, delta_value) %>%
         mutate(type='incomeLower')
-      income_h <-  exp_long %>% filter(income=='Higher') %>% select(Gene, rank) %>%
+      income_h <-  exp_long %>% filter(income=='Higher') %>% select(Gene, rank, delta_value) %>%
         mutate(type='incomeHigher')
       rank_genes <- rbind(income_l, income_h)
+      rank_genes$type <- factor(rank_genes$type, levels=c('incomeLower', 'incomeHigher'))
       
       (rank_genes %>% filter(Gene %in% ifn_genes[[1]]) %>% ggplot(., aes(x=rank, fill=type, color=type)) + 
           geom_density(aes(y=after_stat(count)), alpha=.4) + geom_rug() + theme_bw() + ggtitle('IFNa - ' %&% cond %&% ' - ' %&% ctype)) + 
         (rank_genes %>% filter(Gene %in% ifn_genes[[2]]) %>% ggplot(., aes(x=rank, fill=type, color=type)) + 
            geom_density(aes(y=after_stat(count)), alpha=.4) + geom_rug() + theme_bw() + ggtitle('IFNy - ' %&% cond %&% ' - ' %&% ctype))
       ggsave('IFN_gene_ranks_'%&%cond%&%'_income_'%&%ctype%&%'_densityplots.pdf', height=4, width=9)
+      
+      (rank_genes %>% filter(Gene %in% ifn_genes[[1]]) %>% ggplot(., aes(x=type, y=delta_value, fill=type)) + 
+          geom_violin(alpha=0.5) + geom_boxplot(alpha=0.5, width=0.3) + stat_compare_means(method='t.test', label='p.format', 
+                                                                       comparisons=list(c('incomeLower', 'incomeHigher'))) + 
+          theme_bw() + ggtitle('IFNa - ' %&% cond %&% ' - ' %&% ctype) + guides(fill='none')) +
+        (rank_genes %>% filter(Gene %in% ifn_genes[[2]])  %>% ggplot(., aes(x=type, y=delta_value, fill=type)) + 
+           geom_violin(alpha=0.5) + geom_boxplot(alpha=0.5, width=0.3) + stat_compare_means(method='t.test', label='p.format', 
+                                                                        comparisons=list(c('incomeLower', 'incomeHigher'))) + 
+           theme_bw() + ggtitle('IFNy - ' %&% cond %&% ' - ' %&% ctype) + guides(fill='none'))
+      ggsave('IFN_gene_ranks_'%&%cond%&%'_income_'%&%ctype%&%'_violinplots.pdf', height=4, width=9)
+      
     }
   }
 }
-      
       
