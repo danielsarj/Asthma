@@ -4,7 +4,6 @@ library(limma)
 library(edgeR)
 library(tidyverse)
 library(data.table)
-library(PCAForQTL)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping')
 conditions <- c('NI', 'RV', 'IVA')
@@ -71,11 +70,6 @@ for (i in 1:length(conditions)){
     count_df <- count_df[rownames(count_df) %in% annotations,]
     zero_var_genes <- apply(count_df, 1, var) == 0
     count_df <- count_df[!zero_var_genes, ]
-    exp_pcs <- prcomp(count_df, scale.=TRUE, center=TRUE)
-    
-    # find best K 
-    K_elbow <- runElbow(prcompResult=exp_pcs)
-    pc_set <- c(1:K_elbow)
 
     # normalize and remove genes with low expression (min. of 2 CPM across 5 samples)
     dge <- DGEList(counts=count_df)
@@ -86,17 +80,21 @@ for (i in 1:length(conditions)){
     keep <- rowSums(cpm_values > threshold) >= min_samples
     dge <- dge[keep, ]
     
-    # adjust for age, gender, number of cells, and expression PCs
-    design <- model.matrix(~age+gender+n, data=filtered_meta)
-    expression <- voom(dge, design, plot=FALSE)$E
-    expression <- quantile_norm(expression)
-    expression <- pca_rm(expression, pc_set)
+    for (k in seq(20)){
+      print(k)
+      
+      # adjust for age, gender, number of cells, and k expression PCs
+      design <- model.matrix(~age+gender+n, data=filtered_meta)
+      expression <- voom(dge, design, plot=FALSE)$E
+      expression <- quantile_norm(expression)
+      expression <- pca_rm(expression, c(1:k))
 
-    # edit matrix and save results
-    expression <- expression %>% as.data.frame() %>% rownames_to_column(var='GENES')
-    tmp_colnames <- colnames(expression)
-    tmp_colnames <- gsub('_'%&%conditions[i]%&%'_'%&%celltypes[j], '', tmp_colnames)
-    colnames(expression) <- tmp_colnames
-    fwrite(expression, conditions[i]%&%'_'%&%celltypes[j]%&%'_elbowPCs.txt', col.names=T, sep='\t')
+      # edit matrix and save results
+      expression <- expression %>% as.data.frame() %>% rownames_to_column(var='GENES')
+      tmp_colnames <- colnames(expression)
+      tmp_colnames <- gsub('_'%&%conditions[i]%&%'_'%&%celltypes[j], '', tmp_colnames)
+      colnames(expression) <- tmp_colnames
+      fwrite(expression, conditions[i]%&%'_'%&%celltypes[j]%&%'_'%&%k%&%'PCs.txt', col.names=T, sep='\t')
+    }
   }
 }

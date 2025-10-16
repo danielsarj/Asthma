@@ -4,9 +4,10 @@ setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/jobs')
 # arguments
 conditions <- c('NI', 'RV', 'IVA')
 celltypes <- c('B', 'T-CD4', 'T-CD8', 'Mono', 'NK')
+pcs <- c(1:20)
 
 # sbtach file topper
-sbatch_topper <- '#!/bin/sh\n' %&% '#SBATCH --time=1:30:00\n' %&%
+sbatch_topper <- '#!/bin/sh\n' %&% '#SBATCH --time=3:00:00\n' %&%
   '#SBATCH --mem=50G\n' %&% '#SBATCH --partition=caslake\n' %&%
   '#SBATCH --account=pi-lbarreiro\n\n' %&% 'conda init\n' %&%
   'conda activate seurat_env\n\n' %&%
@@ -16,15 +17,17 @@ sbatch_topper <- '#!/bin/sh\n' %&% '#SBATCH --time=1:30:00\n' %&%
 
 for (cond in conditions){
   for (ctype in celltypes){
-    # command line
-    command_line <- 'Rscript /project/lbarreiro/USERS/daniel/Asthma/05_QTL_mapping/03a_runMatrixEQTL.R ' %&%
-      '--cond ' %&% cond %&% ' --ctype ' %&% ctype
+    for (pc in pcs){
+      # command line
+        command_line <- 'Rscript /project/lbarreiro/USERS/daniel/Asthma/05_QTL_mapping/03a_runMatrixEQTL.R ' %&%
+      '--cond ' %&% cond %&% ' --ctype ' %&% ctype %&% ' --pcs ' %&% pc
     
-    # create sbatch file
-    cat(sbatch_topper%&%'\n\n'%&%command_line,
-        file=cond%&%'_'%&%ctype%&%'_MatrixEQTL.sbatch', append=F)
+      # create sbatch file
+      cat(sbatch_topper%&%'\n\n'%&%command_line,
+          file=cond%&%'_'%&%ctype%&%'_'%&%pc%&%'_MatrixEQTL.sbatch', append=F)
     
-    #submit job
-    system('sbatch '%&%cond%&%'_'%&%ctype%&%'_MatrixEQTL.sbatch')
+      #submit job
+      system('sbatch '%&%cond%&%'_'%&%ctype%&%'_'%&%pc%&%'_MatrixEQTL.sbatch')
+    }
   }
 }
