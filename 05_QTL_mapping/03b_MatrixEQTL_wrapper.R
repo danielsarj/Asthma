@@ -7,7 +7,7 @@ celltypes <- c('B', 'T-CD4', 'T-CD8', 'Mono', 'NK')
 pcs <- c(1:20)
 
 # sbtach file topper
-sbatch_topper <- '#!/bin/sh\n' %&% '#SBATCH --time=3:00:00\n' %&%
+sbatch_topper <- '#!/bin/sh\n' %&% '#SBATCH --time=2:00:00\n' %&%
   '#SBATCH --mem=50G\n' %&% '#SBATCH --partition=caslake\n' %&%
   '#SBATCH --account=pi-lbarreiro\n\n' %&% 'conda init\n' %&%
   'conda activate seurat_env\n\n' %&%
