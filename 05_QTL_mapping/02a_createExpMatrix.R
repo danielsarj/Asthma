@@ -20,18 +20,10 @@ pca_rm <- function(input_data, pc_set) {
   return(new)
 }
 
-# function to quantilize normalize expression
-quantile_norm <- function(df){
-  quantile_expression <- matrix(, nrow = nrow(df), ncol = ncol(df))
-  for (j in 1:nrow(quantile_expression)){
-    exp <- df[j,]
-    exp_QN <- qqnorm(exp, plot = FALSE)
-    exp_QN <- exp_QN$x
-    quantile_expression[j,] <- exp_QN
-  }
-  rownames(quantile_expression) <- rownames(df)
-  colnames(quantile_expression) <- colnames(df)
-  return(quantile_expression)
+# function for rank-inverse normal transformation (stabilizes residual distributions. really important for small sample sizes)
+rint <- function(x) {
+  r <- rank(x, ties.method='average', na.last='keep')
+  qnorm((r - 0.5) / sum(!is.na(x)))
 }
 
 # load sample metadata
@@ -44,12 +36,11 @@ annotations <- annotations$hgnc_symbol[
     annotations$hgnc_symbol!='' &
     !grepl('^MT-', annotations$hgnc_symbol)]
 
+# load pseudobulk object
+obj <- readRDS('../scRNAanalysis/NI_IVA_RV.integrated.pseudobulks.rds')
+
 for (i in 1:length(conditions)){
   print(conditions[i])
-  
-  # load pseudobulk object
-  obj <- readRDS('../scRNAanalysis/NI_IVA_RV.integrated.pseudobulks.rds')
-
   for (j in 1:length(celltypes)){
     print(celltypes[j])
     
@@ -83,11 +74,13 @@ for (i in 1:length(conditions)){
     for (k in seq(20)){
       print(k)
       
-      # adjust for age, gender, number of cells, and k expression PCs
-      design <- model.matrix(~age+gender+n, data=filtered_meta)
-      expression <- voom(dge, design, plot=FALSE)$E
-      expression <- quantile_norm(expression)
+      # adjust for batch, age, gender, number of cells, average MT content, and k expression PCs
+      design <- model.matrix(~batch+age+gender+n+avg_mt, data=filtered_meta)
+      expression <- voom(dge, design, plot=FALSE)
+      fit <- lmFit(expression, design)
+      expression <- residuals.MArrayLM(fit, expression)
       expression <- pca_rm(expression, c(1:k))
+      expression <- t(apply(expression, 1, rint))
 
       # edit matrix and save results
       expression <- expression %>% as.data.frame() %>% rownames_to_column(var='GENES')
