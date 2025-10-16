@@ -38,9 +38,9 @@ snp_local <- fread('../genotypes/imputed_vcfs/snp_location.txt')
 gene_local <- fread('gene_location.txt')
 
 # save temporary files
-fwrite(dos_matrix, args$cond%&%'_'%&%args$ctype%&%'_dosage_TMP.txt', quote=F, sep='\t')
+fwrite(dos_matrix, args$cond%&%'_'%&%args$ctype%&%'_'%&%args$pcs%&%'_dosage_TMP.txt', quote=F, sep='\t')
 fwrite(exp_matrix, args$cond%&%'_'%&%args$ctype%&%'_'%&%args$pcs%&%'_expression_TMP.txt', quote=F, sep='\t')
-fwrite(geno_pcs, args$cond%&%'_'%&%args$ctype%&%'_covariates_TMP.txt', quote=F, sep='\t')
+fwrite(geno_pcs, args$cond%&%'_'%&%args$ctype%&%'_'%&%args$pcs%&%'_covariates_TMP.txt', quote=F, sep='\t')
 rm(dos_matrix, exp_matrix, geno_pcs)
 
 # create SlicedData objects
@@ -51,7 +51,7 @@ snp_d$fileOmitCharacters='NA'
 snp_d$fileSkipRows=1
 snp_d$fileSkipColumns=1
 snp_d$fileSliceSize=2000
-snp_d$LoadFile(args$cond%&%'_'%&%args$ctype%&%'_dosage_TMP.txt')
+snp_d$LoadFile(args$cond%&%'_'%&%args$ctype%&%'_'%&%args$pcs%&%'_dosage_TMP.txt')
 ## expression data
 exp_d <- SlicedData$new()
 exp_d$fileDelimiter='\t'
@@ -67,7 +67,7 @@ cov_d$fileOmitCharacters='NA'
 cov_d$fileSkipRows=1
 cov_d$fileSkipColumns=1
 cov_d$fileSliceSize=2000
-cov_d$LoadFile(args$cond%&%'_'%&%args$ctype%&%'_covariates_TMP.txt')
+cov_d$LoadFile(args$cond%&%'_'%&%args$ctype%&%'_'%&%args$pcs%&%'_covariates_TMP.txt')
 
 # run main MatrixeQTL function
 n_permutations <- 10
