@@ -55,13 +55,13 @@ for (i in 1:length(conditions)){
     # edit metadata
     filtered_meta <- left_join(filtered_meta, sample_m, by=c('IDs'='ID'))
     filtered_meta$gender <- as.factor(filtered_meta$gender)
-
+    
     # extract count 
     count_df <- tmp@assays$RNA$counts %>% as.data.frame()
     count_df <- count_df[rownames(count_df) %in% annotations,]
     zero_var_genes <- apply(count_df, 1, var) == 0
     count_df <- count_df[!zero_var_genes, ]
-
+    
     # normalize and remove genes with low expression (min. of 2 CPM across 5 samples)
     dge <- DGEList(counts=count_df)
     dge <- calcNormFactors(dge)
@@ -81,7 +81,7 @@ for (i in 1:length(conditions)){
       expression <- residuals.MArrayLM(fit, expression)
       expression <- pca_rm(expression, c(1:k))
       expression <- t(apply(expression, 1, rint))
-
+      
       # edit matrix and save results
       expression <- expression %>% as.data.frame() %>% rownames_to_column(var='GENES')
       tmp_colnames <- colnames(expression)
