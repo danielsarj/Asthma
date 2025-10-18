@@ -66,3 +66,35 @@ for (cond in conditions){
     }
   }
 }
+
+# assess results after computing qvalues
+for (cond in conditions){
+  print(cond)
+  for (ctype in celltypes){
+    print(ctype)
+    for (pc in pcs){
+      print(pc)
+      
+      result <- fread(cond%&%'_'%&%ctype%&%'_'%&%pc%&%'_best_cisQTL_sumstats.txt', sep=' ') %>% 
+        summarise(qval_5e02=sum(qvals<0.05), qval_1e01=sum(qvals<0.1)) %>% 
+        mutate(celltype=ctype, condition=cond, n_pcs=pc)
+
+      if (exists('compiled.results')){
+        compiled.results <- rbind(compiled.results, result)
+      } else {compiled.results <- result}
+      
+    }
+  }
+}
+
+# transform dataframe into longer format 
+compiled.results_long <- compiled.results %>% pivot_longer(cols=c(qval_5e02, qval_1e01))
+
+# plot number of sig eGenes by nPCs
+ggplot(compiled.results_long, aes(x=n_pcs, y=value, color=name)) + geom_line() + 
+  geom_point() + theme_bw() + facet_grid(rows=vars(condition), cols=vars(celltype))
+ggsave('eGenes_by_nPCs.pdf', height=4, width=10)
+
+# find the smallest PC (in case of ties) that has the largest number of eGenes for qvalue<0.1
+compiled.results %>% group_by(celltype, condition) %>% slice_max(qval_1e01, with_ties=TRUE) %>%
+  slice_min(n_pcs, with_ties=FALSE)
