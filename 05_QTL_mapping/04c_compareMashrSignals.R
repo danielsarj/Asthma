@@ -6,6 +6,9 @@ library(janitor)
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/mashr')
 celltypes <- c('B', 'T-CD4', 'T-CD8', 'Mono', 'NK')
 conditions <- c('NI', 'RV', 'IVA')
+input_prefix <- c('IVA_B_7', 'NI_B_7', 'RV_B_16', 'IVA_Mono_1', 'NI_Mono_2', 'RV_Mono_1', 
+                  'IVA_NK_2', 'NI_NK_3', 'RV_NK_4', 'IVA_T-CD4_3', 'NI_T-CD4_2', 'RV_T-CD4_10',
+                  'IVA_T-CD8_1', 'NI_T-CD8_6', 'RV_T-CD8_7')
 
 # load dosage file
 dos_matrix <- fread('../../genotypes/imputed_vcfs/imputed_dosage.txt')
@@ -91,7 +94,9 @@ for (i in 1:nrow(sig_mashr)){
   
   # get expression levels for the specific gene across all conditions
   for (cond in conditions){
-    expression <- fread('../'%&%cond%&%'_'%&%sig_mashr$celltype[i]%&%'_elbowPCs.txt') %>%
+    pc <- str_extract(input_prefix[str_detect(input_prefix, paste0('^', cond, '_', sig_mashr$celltype[i], '_'))],'(?<=_)\\d+$')
+    
+    expression <- fread('../'%&%cond%&%'_'%&%sig_mashr$celltype[i]%&%'_'%&%pc%&%'PCs.txt') %>%
       filter(GENES==sig_mashr$gene[i]) %>% t() %>% as.data.frame() %>% rownames_to_column() %>% 
       row_to_names(row_number=1) %>% rename(ID=GENES) %>% mutate(condition=cond)
     
@@ -184,8 +189,10 @@ for (i in 1:nrow(mash_filt)){
   
   # get expression levels for the specific gene across all conditions
   for (cond in c('NI','IVA','RV')){
-    expression <- fread('../'%&%cond%&%'_'%&%mash_filt$celltype[i]%&%'_elbowPCs.txt') %>%
-      filter(GENES==mash_filt$gene[i]) %>% t() %>% as.data.frame() %>% rownames_to_column() %>% 
+    pc <- str_extract(input_prefix[str_detect(input_prefix, paste0('^', cond, '_', sig_mashr$celltype[i], '_'))],'(?<=_)\\d+$')
+    
+    expression <- fread('../'%&%cond%&%'_'%&%sig_mashr$celltype[i]%&%'_'%&%pc%&%'PCs.txt') %>%
+      filter(GENES==sig_mashr$gene[i]) %>% t() %>% as.data.frame() %>% rownames_to_column() %>% 
       row_to_names(row_number=1) %>% rename(ID=GENES) %>% mutate(condition=cond)
     
     if (ncol(expression)==3){
