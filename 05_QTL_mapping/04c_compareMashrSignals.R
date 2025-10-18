@@ -78,8 +78,8 @@ for (i in 1:length(celltypes)){
     } else {sig_mashr <- tmp}
   }
 }
-
 sig_mashr <- sig_mashr %>% drop_na() %>% select(gene, snps, celltype) %>% unique()
+
 # box plot
 for (i in 1:nrow(sig_mashr)){
   print(i/nrow(sig_mashr)*100)
@@ -140,16 +140,25 @@ mash_summary <- mash.long.df %>% group_by(condition, celltype) %>% filter(lfsr <
   summarise(n_eGenes=n())
 mash_summary$condition <- factor(mash_summary$condition, levels=c('NI','IVA','RV'))
 ggplot(mash_summary, aes(x=celltype, y=n_eGenes, fill=condition)) + geom_col(position='dodge') +
-  theme_bw()
+  theme_bw() + ggtitle('Sig. eGenes')
 ggsave('sig_eGenes_per_cond.ctype.pdf', height=4, width=5)
 
-# unique eQTLs
+# unique eQTLs per infection
 mash_unique <- mash.long.df %>% group_by(gene, snps, celltype) %>%
   filter(sum(lfsr< 0.05)==1) %>% ungroup() %>% filter(lfsr<0.05) %>% 
     group_by(condition, celltype) %>% summarise(n_eGenes=n())
 mash_unique$condition <- factor(mash_unique$condition, levels=c('NI','IVA','RV'))
 ggplot(mash_unique, aes(x=celltype, y=n_eGenes, fill=condition)) + geom_col(position='dodge') +
-  theme_bw()
+  theme_bw() + ggtitle('Sig. eGenes that are unique per infection status')
+ggsave('sig_eGenes_per_ctype.unique.condition.pdf', height=4, width=5)
+
+# unique eQTLs per celltype
+mash_unique <- mash.long.df %>% group_by(gene, snps, condition) %>%
+  filter(sum(lfsr< 0.05)==1) %>% ungroup() %>% filter(lfsr<0.05) %>% 
+  group_by(condition, celltype) %>% summarise(n_eGenes=n())
+mash_unique$condition <- factor(mash_unique$condition, levels=c('NI','IVA','RV'))
+ggplot(mash_unique, aes(x=celltype, y=n_eGenes, fill=condition)) + geom_col(position='dodge') +
+  theme_bw() + ggtitle('Sig. eGenes that are unique per celltype')
 ggsave('sig_eGenes_per_cond.unique.ctype.pdf', height=4, width=5)
 
 # forest plot
