@@ -232,6 +232,10 @@ for (int in interactions){
     }
   }
 }
+# save files
+fwrite(full_infection_scores, 'pathway_scores_infection.txt', col.names=TRUE, sep=' ')
+fwrite(full_asthma_scores, 'pathway_scores_asthma.txt', col.names=TRUE, sep=' ')
+fwrite(full_income_scores, 'pathway_scores_income.txt', col.names=TRUE, sep=' ')
 
 # visualize scores for a given pathway
 ## INFECTION SCORES
