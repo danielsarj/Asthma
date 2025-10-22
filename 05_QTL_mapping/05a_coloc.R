@@ -50,9 +50,10 @@ for (wk_gene in (unique(matrix_out$gene))){
   gene_pos <- annotations %>% filter(hgnc_symbol==wk_gene)
     
   # subset matrixeqtl output
-  sub_matrix <- matrix_out %>% filter(gene==wk_gene)
+  sub_matrix <- matrix_out %>% filter(gene==wk_gene) %>% group_by(snp_id) %>% slice_min(pvalue, with_ties=FALSE) %>%
+    ungroup()
     
-  # subset gwas sumstats, and transform odds ratio into betas
+  # subset gwas sumstats
   sub_gwas <- gwas_in %>% filter(hm_chrom==gene_pos$chromosome_name, hm_pos %in% intersect(hm_pos, sub_matrix$pos)) %>%
     mutate(snp_id=hm_chrom%&%':'%&%hm_pos) %>% arrange(hm_pos) %>% group_by(snp_id) %>% slice_min(p_value, with_ties=FALSE) %>%
     ungroup()
@@ -104,8 +105,10 @@ for (wk_gene in (unique(matrix_out$gene))){
       coloc_gwas_obj <- list(beta=sub_gwas$hm_beta, varbeta=sub_gwas$standard_error^2, snp=sub_gwas$snp_id,
                              position=sub_gwas$hm_pos, pvalues=sub_gwas$p_value, type='cc', s=sub_gwas$s[1]) 
       # run coloc
-      my.res <- coloc.abf(dataset1=coloc_eqtl_obj, dataset2=coloc_gwas_obj)[['results']] %>% mutate(gene=wk_gene) %>% 
-        select(snp, position, gene, SNP.PP.H4)
+      my.res <- coloc.abf(dataset1=coloc_eqtl_obj, dataset2=coloc_gwas_obj)
+      A <- my.res[['results']] %>% mutate(gene=wk_gene) %>% select(snp, position, gene, SNP.PP.H4)
+      B <- my.res[['summary']] %>% as.data.frame() %>% t() 
+      my.res <- cbind(A, B)
 
       # save results
       if (exists('coloc.results')){
