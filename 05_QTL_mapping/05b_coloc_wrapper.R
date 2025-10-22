@@ -8,7 +8,7 @@ input_prefix <- c('IVA_B_7', 'NI_B_7', 'RV_B_16', 'IVA_Mono_1', 'NI_Mono_2', 'RV
 gwas_files <- c('FerreiraMAR_COA.h.tsv.gz', 'SakaueS_COA.h.tsv.gz')
 
 # sbtach file topper
-sbatch_topper <- '#!/bin/sh\n' %&% '#SBATCH --time=10:00:00\n' %&%
+sbatch_topper <- '#!/bin/sh\n' %&% '#SBATCH --time=20:00:00\n' %&%
   '#SBATCH --mem=50G\n' %&% '#SBATCH --partition=lbarreiro\n' %&%
   '#SBATCH --account=pi-lbarreiro\n\n' %&% 'conda init\n' %&%
   'conda activate seurat_env\n\n' %&%
