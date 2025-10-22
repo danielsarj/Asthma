@@ -18,16 +18,17 @@ comp <- function(allele) {
 
 # load gene annotation from ensembl
 annotations <- fread('../../DEanalysis/ensembl_genes.txt')
-
-# read GWAS file
-gwas_in <- fread(args$gwas) %>% select(hm_chrom, hm_pos, hm_other_allele, hm_effect_allele, hm_effect_allele_frequency, 
-                            hm_odds_ratio, standard_error, p_value, n)
   
-# add case/control fraction 
+# read GWAS file
 if (args$gwas=='FerreiraMAR_COA.h.tsv.gz'){
-  gwas_in <- gwas_in %>% mutate(s=13962/300671)
+  gwas_in <- fread(args$gwas) %>% select(hm_chrom, hm_pos, hm_other_allele, hm_effect_allele, hm_effect_allele_frequency, 
+                                         hm_odds_ratio, standard_error, p_value) %>% mutate(hm_beta=log(hm_odds_ratio), s=13962/300671) 
+  
 } else {
-  gwas_in <- gwas_in %>% mutate(s=28259/572934)
+  gwas_in <- fread(args$gwas) %>% rename(hm_chrom=chromosome, hm_pos=base_pair_location, hm_other_allele=other_allele, 
+                                         hm_effect_allele=effect_allele, hm_effect_allele_frequency=effect_allele_frequency,
+                                         hm_beta=beta) %>% select(hm_chrom, hm_pos, hm_other_allele, hm_effect_allele, hm_effect_allele_frequency, 
+                                                                  hm_beta, standard_error, p_value) %>% mutate(s=28259/572934)
 }
   
 # load matrixeqtl output
@@ -43,7 +44,7 @@ matrix_out <- matrix_out %>% left_join(exp_matrix, by=c('gene'='GENES'))
 rm(exp_matrix)
   
 for (wk_gene in (unique(matrix_out$gene))){
-  print(c(g, f, wk_gene))
+  print(c(wk_gene))
     
   # get gene position 
   gene_pos <- annotations %>% filter(hgnc_symbol==wk_gene)
@@ -53,7 +54,8 @@ for (wk_gene in (unique(matrix_out$gene))){
     
   # subset gwas sumstats, and transform odds ratio into betas
   sub_gwas <- gwas_in %>% filter(hm_chrom==gene_pos$chromosome_name, hm_pos %in% intersect(hm_pos, sub_matrix$pos)) %>%
-    mutate(snp_id=hm_chrom%&%':'%&%hm_pos, hm_beta=log(hm_odds_ratio)) %>% arrange(hm_pos)
+    mutate(snp_id=hm_chrom%&%':'%&%hm_pos) %>% arrange(hm_pos) %>% group_by(snp_id) %>% slice_min(p_value, with_ties=FALSE) %>%
+    ungroup()
     
   # re-filter sub_matrix (how to do this better?)
   sub_matrix <- sub_matrix %>% filter(pos %in% intersect(sub_gwas$hm_pos, pos))
