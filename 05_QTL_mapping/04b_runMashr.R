@@ -93,3 +93,17 @@ colnames(p_sd) <- gsub('_beta', '_SD', colnames(p_sd))
 fwrite(p_lfsr, 'mashr_out_lfsr_df.txt', quote=F, sep='\t')
 fwrite(p_mean, 'mashr_out_beta_df.txt', quote=F, sep='\t')
 fwrite(p_sd, 'mashr_out_sd_df.txt', quote=F, sep='\t')
+
+# transform into long format and join dfs
+p_mean_long <- p_mean %>% pivot_longer(cols=-c(gene, snps)) %>% 
+  separate(name, c('condition', 'celltype', 'info'), '_') %>%
+  select(-info) %>% rename(beta=value)
+p_sd_long <- p_sd %>% pivot_longer(cols=-c(gene, snps)) %>% 
+  separate(name, c('condition', 'celltype', 'info'), '_') %>%
+  select(-info) %>% rename(sd=value)
+p_lfsr_long <- p_lfsr %>% pivot_longer(cols=-c(gene, snps)) %>% 
+  separate(name, c('condition', 'celltype', 'info'), '_') %>%
+  select(-info) %>% rename(lfsr=value)
+full_long_results <- full_join(p_mean_long, p_sd_long, by=c('gene','snps','condition', 'celltype')) %>%
+  full_join(p_lfsr_long, by=c('gene','snps','condition', 'celltype'))
+fwrite(full_long_results, 'mashr_out_allstats_df.txt', quote=F, sep='\t')
