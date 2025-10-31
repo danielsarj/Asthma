@@ -15,7 +15,7 @@ GENE_LOCAL="inputs/${CONDITION}_${CELLTYPE}_gene_annotation.txt"
 GENIE_BIN="/project/lbarreiro/USERS/daniel/SOFTWARE/GENIE/build/GENIE"
 
 # read file line by line, skipping header
-tail -n +2 "$GENE_LOCAL"  | head -n 10 |  while IFS=$'\t' read -r GENE_NAME CHROMOSOME START END _rest; do
+tail -n +2 "$GENE_LOCAL"  | while IFS=$'\t' read -r GENE_NAME CHROMOSOME START END _rest; do
 
     # calculate +/- 500kb window
     FROM=$(( START - 500000 ))
