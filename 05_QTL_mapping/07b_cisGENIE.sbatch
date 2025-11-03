@@ -1,5 +1,5 @@
 #!/bin/sh
-#SBATCH --time=20:00:00
+#SBATCH --time=25:00:00
 #SBATCH --mem=50G
 #SBATCH --partition=caslake
 #SBATCH --account=pi-lbarreiro
@@ -29,10 +29,10 @@ tail -n +2 "$GENE_LOCAL"  | while IFS=$'\t' read -r GENE_NAME CHROMOSOME START E
     yes 1 | head -n "$NUM_SNPS" > "inputs/${CONDITION}_${CELLTYPE}_${GENE_NAME}_anno.txt"
 
     # run cisGENIE for asthma
-    $GENIE_BIN -g GENIE_${CONDITION}_${CELLTYPE}_cis_${GENE_NAME} -p inputs/${CONDITION}_${CELLTYPE}_${GENE_NAME}.txt -a inputs/${CONDITION}_${CELLTYPE}_${GENE_NAME}_anno.txt -c inputs/COV_albuterol.txt -o outputs/${CONDITION}_${CELLTYPE}/${CONDITION}_${CELLTYPE}_${GENE_NAME}_asthma.txt -e inputs/ENV_asthma.txt -m G+GxE -k 5 -jn 10
+    $GENIE_BIN -g GENIE_${CONDITION}_${CELLTYPE}_cis_${GENE_NAME} -p inputs/${CONDITION}_${CELLTYPE}_${GENE_NAME}.txt -a inputs/${CONDITION}_${CELLTYPE}_${GENE_NAME}_anno.txt -c inputs/COV_albuterol.txt -o outputs/${CONDITION}_${CELLTYPE}/${CONDITION}_${CELLTYPE}_${GENE_NAME}_asthma.txt -e inputs/ENV_asthma.txt -m G+GxE+NxE -k 5 -jn 10
 
     # run cisGENIE for income
-    $GENIE_BIN -g GENIE_${CONDITION}_${CELLTYPE}_cis_${GENE_NAME} -p inputs/${CONDITION}_${CELLTYPE}_${GENE_NAME}.txt -a inputs/${CONDITION}_${CELLTYPE}_${GENE_NAME}_anno.txt -o outputs/${CONDITION}_${CELLTYPE}/${CONDITION}_${CELLTYPE}_${GENE_NAME}_income.txt -e inputs/ENV_income.txt -m G+GxE -k 5 -jn 10
+    $GENIE_BIN -g GENIE_${CONDITION}_${CELLTYPE}_cis_${GENE_NAME} -p inputs/${CONDITION}_${CELLTYPE}_${GENE_NAME}.txt -a inputs/${CONDITION}_${CELLTYPE}_${GENE_NAME}_anno.txt -c inputs/COV_PCsonly.txt -o outputs/${CONDITION}_${CELLTYPE}/${CONDITION}_${CELLTYPE}_${GENE_NAME}_income.txt -e inputs/ENV_income.txt -m G+GxE+NxE -k 5 -jn 10
 
     # remove temporary files
     rm "GENIE_${CONDITION}_${CELLTYPE}_cis_${GENE_NAME}".*

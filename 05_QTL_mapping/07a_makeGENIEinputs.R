@@ -20,10 +20,17 @@ metadata$income <- factor(metadata$income, levels=c('Low','High'))  %>% as.numer
 metadata_asthma <- metadata %>% select(FID, IID, asthma)
 metadata_income <- metadata %>% select(FID, IID, income)
 metadata_albuterol <- metadata %>% select(FID, IID, albuterol)
+
+# read genetic PCs
+gen_pcs <- fread('../PCAIR.eigenvec') %>% select(sample_id, V1, V2, V3, V4)
+gen_pcs$sample_id <- gsub('SEA3', 'SEA-3', gen_pcs$sample_id)
+gen_pcs <- plink_fam %>% left_join(gen_pcs, , by=c('IID'='sample_id'))
+metadata_albuterol <- inner_join(metadata_albuterol, gen_pcs) %>% select(FID, IID, albuterol, V1, V2, V3, V4)
 fwrite(metadata_asthma, 'inputs/ENV_asthma.txt', col.names=T, sep=' ', na='NA', quote=F)
 fwrite(metadata_income, 'inputs/ENV_income.txt', col.names=T, sep=' ', na='NA', quote=F)
 fwrite(metadata_albuterol, 'inputs/COV_albuterol.txt', col.names=T, sep=' ', na='NA', quote=F)
-rm(metadata, metadata_asthma, metadata_income, metadata_albuterol)
+fwrite(gen_pcs, 'inputs/COV_PCsonly.txt', col.names=T, sep=' ', na='NA', quote=F)
+rm(metadata, metadata_asthma, metadata_income, metadata_albuterol, gen_pcs)
 
 # read gene annotation file
 gene_local <- fread('../../DEanalysis/ensembl_genes.txt') %>% 
