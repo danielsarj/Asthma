@@ -1,5 +1,7 @@
 library(Seurat)
 library(tidyverse)
+library(edgeR)
+library(limma)
 "%&%" <- function(a,b) paste(a,b, sep = '')
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/scRNAanalysis')
 
@@ -12,10 +14,6 @@ mdata <- inner_join(obj@meta.data, sample_m, by=c('IDs'='ID'))
 rownames(mdata) <- mdata$orig.ident
 obj@meta.data <- mdata
 rm(sample_m, mdata)
-
-# look at number of cells per individual
-ggplot(obj@meta.data, aes(x=IDs, y=n, color=condition)) + geom_boxplot() + theme_bw() +
-  facet_wrap(~condition)
 
 # load gene annotation from ensembl
 annotations <- fread('../DEanalysis/ensembl_genes.txt') %>% filter(gene_biotype=='protein_coding',
@@ -32,7 +30,7 @@ for (ct in c(unique(obj@meta.data$celltype), 'PBMC')){
                                       slot='counts', assays='RNA', return.seurat=T)
     # pbmc-like metadata
     pbmc_m <- obj@meta.data %>% group_by(IDs, condition) %>% reframe(batch=batch, n=sum(n), avg_mt=mean(avg_mt),
-                                 age=age, gender=gender, asthma=asthma) %>% unique()
+                                 age=age, gender=gender, asthma=asthma, income=income) %>% unique()
     pbmc_m <- inner_join(subset_obj@meta.data, pbmc_m, by=c('IDs', 'condition'))
     rownames(pbmc_m) <- pbmc_m$orig.ident
     subset_obj@meta.data <- pbmc_m
@@ -41,12 +39,6 @@ for (ct in c(unique(obj@meta.data$celltype), 'PBMC')){
     # subset seurat object
     subset_obj <- subset(obj, subset = celltype == ct)  
   }
-  
-  ## find cell number outliers and remove them
-  #outliers <- subset_obj@meta.data %>% mutate(zscore_n=scale(n)) %>% 
-  #  filter(abs(zscore_n)>2) %>% pull(orig.ident)
-  #cells_to_keep <- colnames(subset_obj)[!(subset_obj$orig.ident %in% outliers)]
-  #subset_obj <- subset(subset_obj, cells = cells_to_keep)
   
   # extract count matrix
   count_mat <- subset_obj@assays$RNA$counts
@@ -58,11 +50,13 @@ for (ct in c(unique(obj@meta.data$celltype), 'PBMC')){
   count_mat <- count_mat[gene_vars > 0, ]
   rm(gene_vars, keep_genes)
   
-  # convert to dense matrix for PC computing
-  count_mat <- count_mat %>% as.matrix() %>% t()
-  
+  # log transform
+  dge <- DGEList(counts = count_mat)
+  dge <- calcNormFactors(dge)
+  v <- voom(dge, design = NULL)
+
   # compute expression PCs
-  exp_pcs <- prcomp(count_mat, scale.=TRUE, center=TRUE)
+  exp_pcs <- prcomp(t(v$E), scale.=TRUE)
   pve <- exp_pcs$sdev[1:30]^2 / sum(exp_pcs$sdev[1:30]^2) 
   exp_pcs_x <- exp_pcs$x[,1:30] %>% as.data.frame() %>% rownames_to_column('orig.ident')
   
@@ -76,7 +70,10 @@ for (ct in c(unique(obj@meta.data$celltype), 'PBMC')){
   pcs_mdata$batch <- factor(pcs_mdata$batch, levels=c('B1','B2','B3','B4'))
   pcs_mdata$gender <- factor(pcs_mdata$gender, levels=c('Female', 'Male'))
   pcs_mdata$asthma <- factor(pcs_mdata$asthma, levels=c('No', 'Yes'))
-  mmatrix <- model.matrix(~condition+batch+n+age+gender+avg_mt+asthma, data=pcs_mdata)[,-1]
+  pcs_mdata$income <- ifelse(pcs_mdata$income %in% c('< $10,000', '$10,000-$29,999', '$30,000-$49,999'),
+                         'Low', 'High')
+  pcs_mdata$income <- factor(pcs_mdata$income, levels=c('Low','High'))
+  mmatrix <- model.matrix(~condition+batch+n+age+gender+avg_mt+asthma+income, data=pcs_mdata)[,-1]
   pcs_only <- pcs_mdata[,grep('^PC', colnames(pcs_mdata))]
   
   # create empty matrices
@@ -110,9 +107,9 @@ for (ct in c(unique(obj@meta.data$celltype), 'PBMC')){
       TRUE             ~ ''))
   
   # plot
-  pc1pc2 <- ggplot(pcs_mdata, aes(x=PC1, y=PC2, color=condition, shape=asthma)) + geom_point() +
+  pc1pc2 <- ggplot(pcs_mdata, aes(x=PC1, y=PC2, color=condition)) + geom_point() +
     theme_bw() + ggtitle(ct)
-  pc2pc3 <- ggplot(pcs_mdata, aes(x=PC3, y=PC2, color=condition, shape=asthma)) + geom_point() +
+  pc2pc3 <- ggplot(pcs_mdata, aes(x=PC3, y=PC2, color=condition)) + geom_point() +
     theme_bw() + ggtitle(ct)
   elbowp <- ggplot(pve, aes(x=PC, y=PVE)) + geom_line() + theme_bw() + ggtitle(ct) +
     scale_x_discrete(limits=as.character(1:30), breaks = c('1','5','10','15','20','25','30'))
