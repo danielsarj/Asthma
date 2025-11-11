@@ -75,8 +75,18 @@ compiled.results$h2g <- as.numeric(compiled.results$h2g)
 compiled.results$h2gxe <- as.numeric(compiled.results$h2gxe)
 fwrite(compiled.results, 'compiled.results.txt', sep=' ')
 
-sig_results <- compiled.results %>% mutate(sig_h2g=h2g-(2*h2g_se)>0, sig_h2gxe=h2gxe-(2*h2gxe_se)>0) %>% filter(sig_h2g==TRUE & sig_h2gxe==TRUE)
+ggplot(compiled.results, aes(x=h2g, fill=celltype, color=celltype)) + 
+  geom_density(aes(y=after_stat(count)), alpha=.4) + geom_rug() + theme_bw() +
+  facet_grid(cols=vars(condition), rows=vars(environment))
 
-sig_results %>% filter(h2g>0 & h2g <1 & h2gxe>0 & h2gxe<1) %>% 
-  ggplot(.) + geom_point(aes(x=h2gxe, y=h2g)) + theme_bw() + facet_grid(cols=vars(celltype), rows=vars(condition)) +
-  geom_abline(color='red')
+ggplot(compiled.results, aes(x=h2gxe, fill=celltype, color=celltype)) + 
+  geom_density(aes(y=after_stat(count)), alpha=.4) + geom_rug() + theme_bw() +
+  facet_grid(cols=vars(condition), rows=vars(environment))
+
+compiled.results %>% filter(h2g > -1.5 & h2g < 1.5) %>% ggplot(., aes(x=h2g, fill=celltype, color=celltype)) + 
+  geom_density(aes(y=after_stat(count)), alpha=.4) + geom_rug() + theme_bw() +
+  facet_grid(cols=vars(condition), rows=vars(environment))
+
+compiled.results %>% filter(h2gxe > -1.5 & h2gxe < 1.5) %>% ggplot(., aes(x=h2gxe, fill=celltype, color=celltype)) + 
+  geom_density(aes(y=after_stat(count)), alpha=.4) + geom_rug() + theme_bw() +
+  facet_grid(cols=vars(condition), rows=vars(environment))
