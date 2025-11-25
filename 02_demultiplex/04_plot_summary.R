@@ -24,15 +24,15 @@ summary_df <- summary_df %>% group_by(classification, batch, condition) %>%
   summarise('n_assigs'=sum(assignment_n))
 
 fwrite(summary_df, 'demuxalot_assignments_summary.txt', sep=' ', col.names=T)
+summary_df$condition <- factor(summary_df$condition, levels=c('NI', 'IVA', 'RV'))
 
 summary_df %>% filter(classification %in% c('doublet')==F) %>%
   ggplot(.) + geom_col(aes(x=fct_reorder(classification, batch), y=n_assigs, fill=batch)) + coord_flip() +
-  facet_wrap(~condition) + theme_bw()
-
-ggsave('demultiplexing_summary.pdf', height=6, width=8)
+  facet_grid(~condition) + theme_bw() + xlab(NULL)
+ggsave('demultiplexing_summary.pdf', height=5, width=6)
 
 summary_df %>% 
   ggplot(.) + geom_col(aes(x=fct_reorder(classification, batch), y=n_assigs, fill=batch)) + coord_flip() +
-  facet_wrap(~condition) + scale_y_continuous(breaks = seq(0,16000, by=2000)) + theme_bw()
+  facet_wrap(~condition) + scale_y_continuous(breaks = seq(0,16000, by=2000)) + theme_bw() + xlab(NULL)
 
-ggsave('demultiplexing_summary_wdoublet.pdf', height=6, width=10)
+ggsave('demultiplexing_summary_wdoublet.pdf', height=5, width=10)
