@@ -49,11 +49,13 @@ meta_df <- obj@meta.data
 filtered_meta <- meta_df %>% filter(!is.na(celltype))
 matching_cells <- rownames(filtered_meta)
 obj <- subset(obj, cells=matching_cells)
+obj$condition <- factor(obj$condition, levels=c('NI', 'IVA', 'RV'))
 
 # visualize new UMAP
 DimPlot(obj, reduction='rna.umap', group.by='celltype', split.by='condition', 
         label=TRUE, label.size=5, repel=TRUE)
-ggsave(filename='UMAP_NI_IVA_RV_celltypes.pdf', height=6, width=12)
+ggsave(filename='UMAP_NI_IVA_RV_celltypes.pdf', height=4, width=9)
+ggsave(filename='UMAP_NI_IVA_RV_celltypes.png', height=4, width=9)
 
 # analyze meta.data
 ## proportion of celltype per condition
@@ -68,12 +70,15 @@ summ_indv_condition <- filtered_meta %>% select(batch, condition, IDs, celltype,
   group_by(batch, condition, IDs, celltype) %>% summarise(n=n(), avg_mt=mean(percent.mt))
 summ_indv_condition <- summ_indv_condition %>%
   mutate(batch_ID = paste0(batch, '_', IDs))
+summ_indv_condition$condition <- factor(summ_indv_condition$condition, levels=c('NI', 'IVA', 'RV'))
+
 ggplot(summ_indv_condition) + geom_col(aes(x=batch_ID, y=n, fill=celltype, group=batch), position='fill') +
-  facet_wrap(~condition) + theme_bw() + coord_flip()
-ggsave(filename='BarPlot_NI_IVA_RV_proportion.celltypes.perIDandCond.pdf', height=8, width=10)
+  facet_wrap(~condition) + theme_bw() + coord_flip() + xlab(NULL)
+ggsave(filename='BarPlot_NI_IVA_RV_proportion.celltypes.perIDandCond.pdf', height=5, width=7)
+
 ggplot(summ_indv_condition) + geom_col(aes(x=batch_ID, y=n, fill=celltype), position='stack') +
-  facet_wrap(~condition) + theme_bw() + coord_flip()
-ggsave(filename='BarPlot_NI_IVA_RV_absolute.celltypes.perIDandCond.pdf', height=8, width=10)
+  facet_wrap(~condition) + theme_bw() + coord_flip() + xlab(NULL)
+ggsave(filename='BarPlot_NI_IVA_RV_absolute.celltypes.perIDandCond.pdf', height=5, width=7)
 
 # save object
 saveRDS(obj, file='NI_IVA_RV.integrated.w_celltype.rds')
