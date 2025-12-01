@@ -118,6 +118,6 @@ for (ct in c(unique(obj@meta.data$celltype), 'PBMC')){
     scale_x_discrete(limits=as.character(1:30), breaks = c('1','5','10','15','20','25','30')) + 
   geom_text(aes(label=sig), color='black', size=2) + ggtitle(ct)
 
-  (pc1pc2 + elbowp) / (pc2pc3 + hmap)
+  (pc1pc2 + pc2pc3) / (elbowp + hmap)
   ggsave(ct%&%'_expPCs_corr.pdf', height=6, width=12)
 }
