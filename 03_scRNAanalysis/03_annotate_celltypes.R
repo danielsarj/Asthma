@@ -37,8 +37,8 @@ VlnPlot(obj, features=c(cd4t, cd8t, nk, b, mono), group.by='RNA_snn_res.0.4', pt
 ggsave(filename='UMAP_celltypeannotation_ViolinPlot.pdf', height=15, width=20)
 
 # add manual annotation labels to metadata
-manual_anno <- data.frame(c('Mono','B','NK','T-CD4','T-CD4','T-CD4','T-CD4',
-                            'T-CD8','T-CD8','T-CD8','T-CD8','T-CD8','T-CD8'),
+manual_anno <- data.frame(c('Mono','B','NK','CD4-T','CD4-T','CD4-T','CD4-T',
+                            'CD8-T','CD8-T','CD8-T','CD8-T','CD8-T','CD8-T'),
                           c(13,11,18,0,1,3,15,2,8,10,12,14,16))
 colnames(manual_anno) <- c('manual_anno', 'RNA_snn_res.0.4')
 obj[['celltype']]<- manual_anno$manual_anno[match(as.vector(obj[['RNA_snn_res.0.4']])[[1]], manual_anno$RNA_snn_res.0.4)]
@@ -61,9 +61,11 @@ ggsave(filename='UMAP_NI_IVA_RV_celltypes.png', height=4, width=9)
 ## proportion of celltype per condition
 summ_condition <- filtered_meta %>% select(condition, celltype) %>%
   group_by(condition, celltype) %>% summarise(n=n())
-ggplot(summ_condition) + geom_col(aes(x=condition, y=n, fill=celltype), position='fill') +
-  theme_bw()
-ggsave(filename='BarPlot_NI_IVA_RV_proportion.celltypes.perCond.pdf', height=5, width=6)
+(ggplot(summ_condition) + geom_col(aes(x=condition, y=n, fill=celltype), position='dodge') +
+  theme_bw() + guides(fill='none')) +
+(ggplot(summ_condition) + geom_col(aes(x=condition, y=n, fill=celltype), position='fill') +
+  theme_bw() + ylab('p'))
+ggsave(filename='BarPlot_NI_IVA_RV_absolute.proportion.celltypes.perCond.pdf', height=4, width=9)
   
 ## proportion of celltype per indv. and condition
 summ_indv_condition <- filtered_meta %>% select(batch, condition, IDs, celltype, percent.mt) %>%
@@ -79,6 +81,13 @@ ggsave(filename='BarPlot_NI_IVA_RV_proportion.celltypes.perIDandCond.pdf', heigh
 ggplot(summ_indv_condition) + geom_col(aes(x=batch_ID, y=n, fill=celltype), position='stack') +
   facet_wrap(~condition) + theme_bw() + coord_flip() + xlab(NULL)
 ggsave(filename='BarPlot_NI_IVA_RV_absolute.celltypes.perIDandCond.pdf', height=5, width=7)
+
+(ggplot(summ_indv_condition) + geom_col(aes(x=batch_ID, y=n, fill=celltype), position='stack') +
+    facet_wrap(~condition) + theme_bw() + coord_flip() + xlab(NULL) + guides(fill='none')) +
+(ggplot(summ_indv_condition) + geom_col(aes(x=batch_ID, y=n, fill=celltype, group=batch), position='fill') +
+    facet_wrap(~condition) + theme_bw() + coord_flip() + ylab('p') + xlab(NULL) +
+   theme(axis.text.y = element_blank(), axis.ticks.y = element_blank()))
+ggsave(filename='BarPlot_NI_IVA_RV_absolute.proportion.celltypes.perCond.pdf', height=5, width=10)
 
 # save object
 saveRDS(obj, file='NI_IVA_RV.integrated.w_celltype.rds')
