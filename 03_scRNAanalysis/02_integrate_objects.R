@@ -41,16 +41,25 @@ merged_seurat <- RunUMAP(merged_seurat, reduction='integrated.rpca', dims=1:30,
 # find clusters
 merged_seurat <- merged_seurat %>% FindNeighbors(dims=1:30) %>% 
   FindClusters(resolution=c(0.1, 0.4, 0.8, 1.2))
+merged_seurat$condition <- factor(merged_seurat$condition, levels=c('NI', 'IVA', 'RV'))
+Idents(merged_seurat) <- 'condition' 
 
-# UMAP plots
+# plots
 DimPlot(merged_seurat, reduction='rna.umap', group.by='condition')
 ggsave(filename='UMAP_mergedNI_RV_IVA.pdf', height=5, width=6)
+
+DimPlot(merged_seurat, reduction='rna.umap', group.by='RNA_snn_res.0.4')
+ggsave(filename='UMAP_mergedNI_RV_IVA_byclusters.pdf', height=5, width=6)
 
 DimPlot(merged_seurat, reduction='rna.umap', group.by=c('condition','batch'))
 ggsave(filename='UMAP_mergedNI_RV_IVA_byconditionandbatch.pdf', height=4, width=10)
 
 DimPlot(merged_seurat, reduction='rna.umap', group.by='batch', split.by='condition')
 ggsave(filename='UMAP_mergedNI_RV_IVA_byconditionandbatch.pdf', height=4, width=10)
+
+VlnPlot(merged_seurat, features=c('nFeature_RNA','nCount_RNA'), ncol=2, alpha=0.01)
+ggsave(filename='VlnPlot_mergedNI_RV_IVA_nFeatureRNA.nCountRNA.pdf', height=4, width=6)
+ggsave(filename='VlnPlot_mergedNI_RV_IVA_nFeatureRNA.nCountRNA.png', height=4, width=6)
 
 # save integrated Seurat object
 saveRDS(merged_seurat, file='NI_RV_IVA_integrated.rds')
