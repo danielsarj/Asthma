@@ -2,6 +2,7 @@ library(Seurat)
 library(tidyverse)
 library(edgeR)
 library(limma)
+library(data.table)
 "%&%" <- function(a,b) paste(a,b, sep = '')
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/scRNAanalysis')
 
@@ -109,7 +110,7 @@ for (ct in c(unique(obj@meta.data$celltype), 'PBMC')){
   # plot
   pc1pc2 <- ggplot(pcs_mdata, aes(x=PC1, y=PC2, color=condition)) + geom_point() +
     theme_bw() + ggtitle(ct)
-  pc2pc3 <- ggplot(pcs_mdata, aes(x=PC3, y=PC2, color=condition)) + geom_point() +
+  pc1pc3 <- ggplot(pcs_mdata, aes(x=PC1, y=PC3, color=condition)) + geom_point() +
     theme_bw() + ggtitle(ct)
   elbowp <- ggplot(pve, aes(x=PC, y=PVE)) + geom_line() + theme_bw() + ggtitle(ct) +
     scale_x_discrete(limits=as.character(1:30), breaks = c('1','5','10','15','20','25','30'))
@@ -118,6 +119,6 @@ for (ct in c(unique(obj@meta.data$celltype), 'PBMC')){
     scale_x_discrete(limits=as.character(1:30), breaks = c('1','5','10','15','20','25','30')) + 
   geom_text(aes(label=sig), color='black', size=2) + ggtitle(ct)
 
-  (pc1pc2 + pc2pc3) / (elbowp + hmap)
+  (pc1pc2 + pc1pc3) / (elbowp + hmap)
   ggsave(ct%&%'_expPCs_corr.pdf', height=6, width=12)
 }
