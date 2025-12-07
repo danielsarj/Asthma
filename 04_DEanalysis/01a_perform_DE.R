@@ -8,7 +8,7 @@ library(qvalue)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/scRNAanalysis')
 conditions <- c('RV', 'IVA')
-celltypes <- c('B','T-CD4','T-CD8','Mono','NK')
+celltypes <- c('B','CD4-T','CD8-T','Mono','NK')
 
 # load gene annotation from ensembl
 annotations <- fread('../DEanalysis/ensembl_genes.txt')
@@ -34,18 +34,18 @@ objs@meta.data <- mdata
 ggplot(mdata, aes(x=reorder(IDs, as.numeric(batch)), y=n, fill=batch)) + geom_col() + theme_bw() +
   facet_grid(cols=vars(factor(condition, levels=c('NI','IVA','RV'))), 
              rows=vars(celltype), scales='free') +
-  theme(axis.text.x=element_text(angle=45, hjust=1))
+  theme(axis.text.x=element_text(angle=45, hjust=1)) + xlab(NULL)
 ggsave('Pseudobulksizes_byCondition.pdf', height=6, width=12)
 
 ggplot(mdata, aes(x=reorder(IDs, as.numeric(batch)), y=n, fill=asthma)) + geom_col() + theme_bw() +
   facet_grid(cols=vars(factor(condition, levels=c('NI','IVA','RV'))), 
              rows=vars(celltype), scales='free') +
-  theme(axis.text.x=element_text(angle=45, hjust=1))
+  theme(axis.text.x=element_text(angle=45, hjust=1)) + xlab(NULL)
 ggsave('../DEanalysis/Pseudobulksizes_byCondition_Asthmastatus.pdf', height=6, width=12)
 
 # define minimum average logCPM thresholds
-logCPMfilter_table <- data.frame(celltype=c('B','T-CD4','T-CD8','Mono','NK',
-                                            'B','T-CD4','T-CD8','Mono','NK'),
+logCPMfilter_table <- data.frame(celltype=c('B','CD4-T','CD8-T','Mono','NK',
+                                            'B','CD4-T','CD8-T','Mono','NK'),
                                  threshold=c(4.9,1.9,1,3.4,5.6,
                                              3.5,3.6,3.1,3.4,5.6),
                                  condition=c(rep('IVA',5),rep('RV',5)))

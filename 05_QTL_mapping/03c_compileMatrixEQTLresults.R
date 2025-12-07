@@ -75,7 +75,7 @@ for (cond in conditions){
     for (pc in pcs){
       print(pc)
       
-      result <- fread(cond%&%'_'%&%ctype%&%'_'%&%pc%&%'_best_cisQTL_sumstats.txt', sep=' ') %>% 
+      result <- fread(cond%&%'_'%&%ctype%&%'_'%&%pc%&%'_best_cisQTL_sumstats.txt.gz', sep=' ') %>% 
         summarise(qval_5e02=sum(qvals<0.05), qval_1e01=sum(qvals<0.1)) %>% 
         mutate(celltype=ctype, condition=cond, n_pcs=pc)
 
@@ -89,6 +89,9 @@ for (cond in conditions){
 
 # transform dataframe into longer format 
 compiled.results_long <- compiled.results %>% pivot_longer(cols=c(qval_5e02, qval_1e01))
+compiled.results_long$celltype <- gsub('T-CD4', 'CD4-T', compiled.results_long$celltype)
+compiled.results_long$celltype <- gsub('T-CD8', 'CD8-T', compiled.results_long$celltype)
+compiled.results_long$condition <- factor(compiled.results_long$condition, levels=c('NI','IVA','RV'))
 
 # plot number of sig eGenes by nPCs
 ggplot(compiled.results_long, aes(x=n_pcs, y=value, color=name)) + geom_line() + 

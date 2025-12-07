@@ -68,6 +68,8 @@ for (g in gwas_files){
 # save results
 mr.compiled$condition <- factor(mr.compiled$condition, levels=c('NI', 'IVA', 'RV'))
 fwrite(mr.compiled, 'compiled_mr_results.txt', sep=' ')
+mr.compiled$celltype <- gsub('T-CD4', 'CD4-T', mr.compiled$celltype)
+mr.compiled$celltype <- gsub('T-CD8', 'CD8-T', mr.compiled$celltype)
 ## nts: the beta of the Wald ratio method is the ratio of the Boutcome/Bexposure
 
 # find top SNP per facet (condition × celltype × gwas)
@@ -75,18 +77,33 @@ top_hits <- mr.compiled %>% group_by(condition, celltype, gwas) %>%
   slice_min(pval, n=1, with_ties=FALSE) %>% ungroup()
 
 # volcano plots
-ggplot(mr.compiled, aes(x=b, y=-log10(pval), color=celltype)) + geom_point(size = 3, alpha = 0.8) +
+ggplot(mr.compiled, aes(x=b, y=-log10(pval), color=celltype)) + geom_point(size=1, alpha = 0.8) +
   geom_hline(yintercept=-log10(0.05), linetype='dashed', color='grey40') +
-  labs(x='Causal effect (betaMR)', y='-log10(p-value)') + theme_bw() + 
+  labs(x='Boutcome/Bexposure', y='-log10(p-value)') + theme_bw() + 
   facet_grid(cols=vars(condition), rows=vars(gwas)) +
   geom_text_repel(data=top_hits, aes(label=paste0(exposure,' (',celltype,')')),
                   size=2.8, color='black', segment.color='gray60', box.padding=0.4, point.padding=0.3,
                   max.overlaps=Inf)
 ggsave('MR_volcanoplot_allgenes.pdf', height=4, width=8)
+ggsave('MR_volcanoplot_allgenes.png', height=4, width=8)
+
+# qqplot
+exp_p <- (1:length(mr.compiled$pval))/(length(mr.compiled$pval)+1)
+chisq <- qchisq(1-mr.compiled$pval, df=1)
+lambda <- median(chisq) / qchisq(0.5, df = 1)
+
+png('MR_pvalues_qqplot_allgenes.png', width=1200, height=1200, res=300)
+qqplot(x=-log10(exp_p), y=-log10(mr.compiled$pval), xlab='Expected -log10(p)', ylab='Observed -log10(p)')
+abline(0, 1, col='red', lwd=2)
+text(x=par()$usr[1] + 0.05 * diff(par()$usr[1:2]), y=par()$usr[4] - 0.05 * diff(par()$usr[3:4]),
+  labels=paste0('lambda = ', round(lambda, 3)), adj=c(0, 1), cex=1.2)
+dev.off()
 
 # subset to mash-significant eGenes
 mash_sig <- fread('../mashr/mashr_out_allstats_df.txt') %>% group_by(condition, celltype) %>%
   filter(lfsr<0.05)
+mash_sig$celltype <- gsub('T-CD4', 'CD4-T', mash_sig$celltype)
+mash_sig$celltype <- gsub('T-CD8', 'CD8-T', mash_sig$celltype)
 sub_mr.compiled <- mr.compiled %>% inner_join(mash_sig, by=c('exposure'='gene', 'condition', 'celltype'))
 sub_mr.compiled$condition <- factor(sub_mr.compiled$condition, levels=c('NI', 'IVA', 'RV'))
 
@@ -97,9 +114,22 @@ sub_top_hits <- sub_mr.compiled %>% group_by(condition, celltype, gwas) %>%
 # volcano plots
 ggplot(sub_mr.compiled, aes(x=b, y=-log10(pval), color=celltype)) + geom_point(size = 3, alpha = 0.8) +
   geom_hline(yintercept=-log10(0.05), linetype='dashed', color='grey40') +
-  labs(x='Causal effect (betaMR)', y='-log10(p-value)') + theme_bw() + 
+  labs(x='Boutcome/Bexposure', y='-log10(p-value)') + theme_bw() + 
   facet_grid(cols=vars(condition), rows=vars(gwas)) +
   geom_text_repel(data=sub_top_hits, aes(label=paste0(exposure,' (',celltype,')')),
                   size=2.8, color='black', segment.color='gray60', box.padding=0.4, point.padding=0.3,
                   max.overlaps=Inf)
 ggsave('MR_volcanoplot_mashgenes.pdf', height=4, width=8)
+ggsave('MR_volcanoplot_mashgenes.png', height=4, width=8)
+
+# qqplot
+exp_p <- (1:length(sub_mr.compiled$pval))/(length(sub_mr.compiled$pval)+1)
+chisq <- qchisq(1-sub_mr.compiled$pval, df=1)
+lambda <- median(chisq) / qchisq(0.5, df = 1)
+
+png('MR_pvalues_qqplot_mashgenes.png', width=1200, height=1200, res=300)
+qqplot(x=-log10(exp_p), y=-log10(sub_mr.compiled$pval), xlab='Expected -log10(p)', ylab='Observed -log10(p)')
+abline(0, 1, col='red', lwd=2)
+text(x=par()$usr[1] + 0.05 * diff(par()$usr[1:2]), y=par()$usr[4] - 0.05 * diff(par()$usr[3:4]),
+     labels=paste0('lambda = ', round(lambda, 3)), adj=c(0, 1), cex=1.2)
+dev.off()

@@ -9,7 +9,7 @@ library(limma)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/DEanalysis')
 conditions <- c('RV', 'IVA')
-cells_seurat <- c('B','T-CD4','T-CD8','Mono','NK')
+cells_seurat <- c('B','CD4-T','CD8-T','Mono','NK')
 interactions <- c('none','asthma','income')
 
 # get human hallmark gene sets
@@ -243,14 +243,16 @@ full_infection_scores$condition <- factor(full_infection_scores$condition, level
 full_infection_scores %>% select(condition, celltype, INTERFERON_ALPHA_RESPONSE) %>%
   ggplot(., aes(x=condition, y=INTERFERON_ALPHA_RESPONSE)) + geom_boxplot() +
   stat_compare_means(aes(group=ID), method='t.test', label='p.format', comparisons=list(c('NI_iva', 'IVA'), c('NI_rv', 'RV')), paired=T) + 
-  facet_wrap(~celltype) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
-ggsave('INTERFERON_ALPHA_RESPONSE_ssGSEA_infection_boxplots.pdf', height=4, width=9)
+  facet_wrap(~celltype, nrow=1) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_ALPHA_RESPONSE_ssGSEA_infection_boxplots.pdf', height=3, width=10)
+ggsave('INTERFERON_ALPHA_RESPONSE_ssGSEA_infection_boxplots.png', height=3, width=10)
 
 full_infection_scores %>% select(condition, celltype, INTERFERON_GAMMA_RESPONSE) %>%
   ggplot(., aes(x=condition, y=INTERFERON_GAMMA_RESPONSE)) + geom_boxplot() +
   stat_compare_means(aes(group=ID), method='t.test', label='p.format', comparisons=list(c('NI_iva', 'IVA'), c('NI_rv', 'RV')), paired=T) + 
-  facet_wrap(~celltype) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
-ggsave('INTERFERON_GAMMA_RESPONSE_ssGSEA_infection_boxplots.pdf', height=4, width=9)
+  facet_wrap(~celltype, nrow=1) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_GAMMA_RESPONSE_ssGSEA_infection_boxplots.pdf', height=3, width=10)
+ggsave('INTERFERON_GAMMA_RESPONSE_ssGSEA_infection_boxplots.png', height=3, width=10)
 
 ## INFECTION:ASTHMA SCORES
 #join asthma status
@@ -258,17 +260,29 @@ full_asthma_scores_w_mdata <- left_join(full_asthma_scores, mdata, by=c('ID'='ID
   select(-c(batch, n, avg_mt, age, gender, income, albuterol))
 full_asthma_scores_w_mdata$asthma <- factor(full_asthma_scores_w_mdata$asthma, levels=c('No', 'Yes'))
 
-full_asthma_scores_w_mdata %>% select(condition, celltype, delta_INTERFERON_ALPHA_RESPONSE, asthma) %>%
+full_asthma_scores_w_mdata %>% select(condition, celltype, delta_INTERFERON_ALPHA_RESPONSE,asthma) %>%
   ggplot(., aes(x=condition, y=delta_INTERFERON_ALPHA_RESPONSE, fill=asthma)) + geom_boxplot() +
   stat_compare_means(method='t.test', label='p.format') + 
-  facet_wrap(~celltype) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
-ggsave('INTERFERON_ALPHA_RESPONSE_ssGSEA_asthma_boxplots.pdf', height=4, width=9)
+  facet_wrap(~celltype, nrow=1) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_ALPHA_RESPONSE_ssGSEA_asthma_boxplots.pdf', height=4, width=10)
 
 full_asthma_scores_w_mdata %>% select(condition, celltype, delta_INTERFERON_GAMMA_RESPONSE, asthma) %>%
   ggplot(., aes(x=condition, y=delta_INTERFERON_GAMMA_RESPONSE, fill=asthma)) + geom_boxplot() +
   stat_compare_means(method='t.test', label='p.format') + 
-  facet_wrap(~celltype) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
-ggsave('INTERFERON_GAMMA_RESPONSE_ssGSEA_asthma_boxplots.pdf', height=4, width=9)
+  facet_wrap(~celltype, nrow=1) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_GAMMA_RESPONSE_ssGSEA_asthma_boxplots.pdf', height=4, width=10)
+
+a <- full_asthma_scores_w_mdata %>% select(condition, celltype, delta_INTERFERON_ALPHA_RESPONSE, 
+                                           delta_INTERFERON_GAMMA_RESPONSE, asthma) %>%
+  filter(celltype=='CD8-T', condition=='RV') %>% pivot_longer(cols=contains('delta'))
+a$name <- gsub('delta_INTERFERON_ALPHA_RESPONSE', 'delta_IFNa', a$name)
+a$name <- gsub('delta_INTERFERON_GAMMA_RESPONSE', 'delta_IFNy', a$name)
+ggplot(a, aes(x=name, y=value, fill=asthma)) + geom_boxplot() +
+  stat_compare_means(method='t.test', label='p.format') + 
+  facet_wrap(~celltype, nrow=1) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_RESPONSEs_CD8-T_RV_ssGSEA_asthma_boxplots.pdf', height=4, width=5)
+ggsave('INTERFERON_RESPONSEs_CD8-T_RV_ssGSEA_asthma_boxplots.png', height=4, width=5)
+
 
 ## INFECTION:INCOME SCORES
 #join income status
@@ -289,3 +303,22 @@ full_income_scores_w_mdata %>% select(condition, celltype, delta_INTERFERON_GAMM
   stat_compare_means(method='t.test', label='p.format') + 
   facet_wrap(~celltype) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
 ggsave('INTERFERON_GAMMA_RESPONSE_ssGSEA_income_boxplots.pdf', height=4, width=9)
+
+a <- full_income_scores_w_mdata %>% select(condition, celltype, delta_INTERFERON_ALPHA_RESPONSE, 
+                                           delta_INTERFERON_GAMMA_RESPONSE, income) %>%
+  filter(celltype %in% c('CD8-T','CD4-T','Mono') & condition=='IVA' |
+         celltype %in% c('CD4-T','Mono') & condition=='RV') %>% pivot_longer(cols=contains('delta'))
+a$name <- gsub('delta_INTERFERON_ALPHA_RESPONSE', 'delta_IFNa', a$name)
+a$name <- gsub('delta_INTERFERON_GAMMA_RESPONSE', 'delta_IFNy', a$name)
+
+ggplot(a, aes(x=name, y=value, fill=income)) + geom_boxplot() +
+  stat_compare_means(method='t.test', label='p.format') + 
+  facet_grid(cols=vars(celltype), rows=vars(condition)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_RESPONSEs_ssGSEA_income_grid.boxplots.pdf', height=4, width=7)
+ggsave('INTERFERON_RESPONSEs_ssGSEA_income_grid.boxplots.png', height=4, width=7)
+
+ggplot(a, aes(x=name, y=value, fill=income)) + geom_boxplot() +
+  stat_compare_means(method='t.test', label='p.format') + 
+  facet_wrap(~celltype+condition, nrow=1) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_RESPONSEs_ssGSEA_income_wrap.boxplots.pdf', height=4, width=9)
+ggsave('INTERFERON_RESPONSEs_ssGSEA_income_wrap.boxplots.png', height=4, width=9)

@@ -27,7 +27,7 @@ names(ifn_genes) <- c('IFNa','IFNy')
 
 # get expression levels
 for (int in c('none','asthma','income')){
-  for (ctype in c('B','T-CD4','T-CD8','Mono','NK')){
+  for (ctype in c('B','CD4-T','CD8-T','Mono','NK')){
     for (cond in c('IVA', 'RV')){
 
   if (int == 'none'){

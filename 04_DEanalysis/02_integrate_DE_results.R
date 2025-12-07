@@ -4,7 +4,7 @@ library(ggrepel)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/DEanalysis')
 conditions <- c('RV', 'IVA')
-cells_seurat <- c('B','T-CD4','T-CD8','Mono','NK')
+cells_seurat <- c('B','CD4-T','CD8-T','Mono','NK')
 interactions <- c('none','asthma_alb','income')
 
 # integrate DE limma results
@@ -46,6 +46,7 @@ for (int in unique(full_results$interaction)){
     theme(legend.position='none')
   
   ggsave('NI_IVAxRV_'%&%int%&%'_limma_facetgrid_volcanoplot.pdf', height=4, width=8)
+  ggsave('NI_IVAxRV_'%&%int%&%'_limma_facetgrid_volcanoplot.png', height=4, width=8)
   
   # histograms of unadjusted pvalues
   ggplot(tmp, aes(x=P.Value)) + geom_histogram(binwidth=0.05, boundary=0) +
@@ -53,6 +54,7 @@ for (int in unique(full_results$interaction)){
     theme_bw() + ggtitle(int) + xlab('Unadjusted p-values')
   
   ggsave('NI_IVAxRV_'%&%int%&%'_limma_pval_histogram.pdf', height=4, width=8)
+  ggsave('NI_IVAxRV_'%&%int%&%'_limma_pval_histogram.png', height=4, width=8)
   
   # compare logFCs of significant DE genes
   tmp <- tmp %>% filter(sig==TRUE) 
@@ -61,9 +63,12 @@ for (int in unique(full_results$interaction)){
       pivot_wider(names_from=condition, values_from=logFC) %>% drop_na()
     
     ggplot(tmp, aes(x=IVA, y=RV)) + geom_point() + theme_bw() + facet_wrap(~celltype) +
-      ylab('RV LogFC') + xlab('IVA LogFC') + geom_abline(slope=1, color='red')
+      ylab('RV LogFC') + xlab('IVA LogFC') + geom_abline(slope=1, color='red') +
+      geom_hline(yintercept=0, color='blue') + geom_vline(xintercept=0, color='blue')
     
-    ggsave('NI_IVAxRV_'%&%int%&%'_ComparelogFCs_barplot.pdf', height=3, width=5)
+    ggsave('NI_IVAxRV_'%&%int%&%'_ComparelogFCs_barplot.pdf', height=4, width=4)
+    ggsave('NI_IVAxRV_'%&%int%&%'_ComparelogFCs_barplot.png', height=4, width=4)
+    
   }
 }
 
@@ -86,5 +91,7 @@ for (int in unique(full_results$interaction)){
       labs(y='Number of DE genes (Up vs Down)') + theme(legend.position='none')
     
     ggsave('NI_IVAxRV_'%&%int%&%'_NumOfDEgenes_barplot.pdf', height=4, width=7)
+    ggsave('NI_IVAxRV_'%&%int%&%'_NumOfDEgenes_barplot.png', height=4, width=7)
+    
   }
 }

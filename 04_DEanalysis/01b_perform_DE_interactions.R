@@ -28,10 +28,11 @@ objs <- readRDS('../scRNAanalysis/NI_IVA_RV.integrated.pseudobulks.rds')
 mdata <- objs@meta.data
 mdata <- inner_join(mdata, sample_m, by=c('IDs'='ID')) %>% column_to_rownames('orig.ident')
 objs@meta.data <- mdata
+mdata$condition <- factor(mdata$condition, levels=c('NI', 'IVA', 'RV'))
 
 # define minimum average logCPM thresholds
-logCPMfilter_table <- data.frame(celltype=c('B','T-CD4','T-CD8','Mono','NK',
-                                'B','T-CD4','T-CD8','Mono','NK'),
+logCPMfilter_table <- data.frame(celltype=c('B','CD4-T','CD8-T','Mono','NK',
+                                'B','CD4-T','CD8-T','Mono','NK'),
                          threshold=c(4.9,1.9,1,3.4,5.6,
                                  3.5,3.6,3.1,3.4,5.6),
                          condition=c(rep('IVA',5),rep('RV',5)))
@@ -43,12 +44,14 @@ summ %>% ggplot(.) + geom_col(aes(x=celltype, y=n, fill=asthma), position='dodge
 ggsave('SampleSizeByAsthmaStatus.pdf', height=4, width=8)
 
 summ <- mdata %>% group_by(condition, celltype, income) %>% summarise(n=n())
-summ %>% drop_na() %>% ggplot(.) + geom_col(aes(x=celltype, y=n, fill=income), position='dodge') + 
+summ %>% mutate(across('income', ~na_if(., ''))) %>% drop_na() %>% ggplot(.) + 
+  geom_col(aes(x=celltype, y=n, fill=income), position='dodge') + 
   scale_y_continuous(breaks=seq(0, max(summ$n), by=1)) + theme_bw() + facet_wrap(~condition)
-ggsave('SampleSizeByIncomeStatus.pdf', height=4, width=8)
+ggsave('SampleSizeByIncomeStatus.pdf', height=4, width=9)
 
 summ <- mdata %>% group_by(condition, celltype, asthma, income) %>% summarise(n=n())
-summ %>% drop_na() %>% ggplot(.) + geom_col(aes(x=celltype, y=n, fill=condition), position='dodge') + 
+summ %>% mutate(across('income', ~na_if(., ''))) %>% drop_na() %>% ggplot(.) + 
+  geom_col(aes(x=celltype, y=n, fill=condition), position='dodge') + 
   scale_y_continuous(breaks=seq(0, max(summ$n), by=1)) + theme_bw() + 
   facet_grid(cols=vars(income), rows=vars(asthma))
 ggsave('SampleSizeByIncomeStatusANDAsthmaStatus.pdf', height=6, width=12)
@@ -58,14 +61,14 @@ summ <- mdata %>% group_by(condition, celltype, asthma, albuterol) %>% summarise
 summ %>% drop_na() %>% ggplot(.) + geom_col(aes(x=celltype, y=n, fill=condition), position='dodge') + 
   scale_y_continuous(breaks=seq(0, max(summ$n), by=1)) + theme_bw() + 
   facet_grid(cols=vars(albuterol), rows=vars(asthma))
-ggsave('SampleSizeByAlbuterolStatusANDAsthmaStatus.pdf', height=6, width=7)
+ggsave('SampleSizeByAlbuterolStatusANDAsthmaStatus.pdf', height=7, width=7)
 
 # condition specific DE
 for (i in 1:length(conditions)){
   print(c(conditions[i]))
   
   # celltype specific DE
-  for (ctype in c('B','T-CD4','T-CD8','Mono','NK')){
+  for (ctype in c('B','CD4-T','CD8-T','Mono','NK')){
     print(ctype)
     
     # extract metadata for subsetting
