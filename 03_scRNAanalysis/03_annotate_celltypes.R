@@ -1,50 +1,83 @@
 library(Seurat)
+library(SeuratDisk)
 library(patchwork)
 library(tidyverse)
+library(celldex)
+library(SingleR)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/scRNAanalysis')
 
 # load seurat object
 obj <- readRDS('NI_RV_IVA_integrated.rds') %>% JoinLayers()
+obj@meta.data$IDs <- gsub('SEA3', 'SEA-3', obj@meta.data$IDs)
 
-# find cluster-specific markers at different resolutions
+# find cluster-specific markers
 Idents(obj) <- 'seurat_clusters' 
-markers_seurat <- FindAllMarkers(obj, only.pos=TRUE, min.pct=0.25, logfc.threshold=0.25)
+markers_seurat <- FindAllMarkers(obj, only.pos=TRUE, min.pct=0.10)
 
-Idents(obj) <- 'RNA_snn_res.0.8' 
-markers_res08 <- FindAllMarkers(obj, only.pos=TRUE, min.pct=0.25, logfc.threshold=0.25)
+# find top markers for seurat clusters
+top_seurat <- markers_seurat %>% group_by(cluster) %>% slice_min(p_val_adj, n=100) %>% slice_max(avg_log2FC, n=20)
+DimPlot(obj, reduction='rna.umap')
 
-Idents(obj) <- 'RNA_snn_res.0.4' 
-markers_res04 <- FindAllMarkers(obj, only.pos=TRUE, min.pct=0.25, logfc.threshold=0.25)
+# annotate using different references using SingleR
+ref_list <- list(celldex::BlueprintEncodeData(), celldex::DatabaseImmuneCellExpressionData(), 
+                 celldex::HumanPrimaryCellAtlasData(), celldex::MonacoImmuneData(), celldex::NovershternHematopoieticData())
+for (i in seq(length(ref_list))){
+  print(i)
+  prediction <- SingleR(test=GetAssayData(obj, layer='data'), ref=ref_list[[i]], labels=ref_list[[i]]$label.fine, clusters=obj$seurat_clusters)
+  
+  # retrieve labels and their respective scores
+  labels <- data.frame(seurat_clusters=as.factor(prediction@rownames), labs=prediction$pruned.labels)
+  scores <- prediction$scores %>% as.data.frame() %>% rownames_to_column(var='seurat_clusters') %>% 
+    mutate(seurat_clusters=as.factor(as.numeric(seurat_clusters)-1)) %>% pivot_longer(cols=-seurat_clusters, names_to='labs', values_to='score')
+  full_anno <- left_join(labels, scores, by=c('seurat_clusters', 'labs'))
+  full_anno$labs <- as.factor(full_anno$labs)
+    
+  if (i == 1){
+    colnames(full_anno) <- c('seurat_clusters', 'blueprint_ct', 'blueprint_ct_score')
+    obj@meta.data <- left_join(obj@meta.data, full_anno, by=c('seurat_clusters'))
+    DimPlot(obj, reduction='rna.umap', group.by='blueprint_ct')
+    } else if (i == 2){
+      colnames(full_anno) <- c('seurat_clusters', 'dice_ct', 'dice_ct_score')
+      obj@meta.data <- left_join(obj@meta.data, full_anno, by=c('seurat_clusters'))
+    } else if (i == 3){
+      colnames(full_anno) <- c('seurat_clusters', 'hpca_ct', 'hpca_ct_score')
+      obj@meta.data <- left_join(obj@meta.data, full_anno, by=c('seurat_clusters'))
+    } else if (i == 4){
+      colnames(full_anno) <- c('seurat_clusters', 'monaco_ct', 'monaco_ct_score')
+      obj@meta.data <- left_join(obj@meta.data, full_anno, by=c('seurat_clusters'))
+    } else {
+      colnames(full_anno) <- c('seurat_clusters', 'novershtern_ct', 'novershtern_ct_score')
+      obj@meta.data <- left_join(obj@meta.data, full_anno, by=c('seurat_clusters'))
+    }
+}
+rm(prediction, labels, scores, full_anno)
 
-Idents(obj) <- 'RNA_snn_res.0.1' 
-markers_res01 <- FindAllMarkers(obj, only.pos=TRUE, min.pct=0.25, logfc.threshold=0.25)
+# fix metadata missing cell IDs as row names
+rownames(obj@meta.data) <- rownames(obj@reductions$rna.umap@cell.embeddings)
+Idents(obj) <- 'seurat_clusters' 
 
-# define markers manually
-cd4t <- c('CD3D', 'CD3E', 'CD4')
-cd8t <- c('CD3D', 'CD8A', 'CD8B')
-nk <- c('NKG7', 'GNLY', 'KLRF1')
-b <- c('MS4A1', 'CD79A')
-mono <- c('CD14', 'LYZ')
-
-# make feature plot
-Idents(obj) <- 'RNA_snn_res.0.4' 
-FeaturePlot(obj, features=c(cd4t, cd8t, nk, b, mono), label = TRUE)
-ggsave(filename='UMAP_celltypeannotation_FeaturePlot.pdf', height=15, width=15)
-
-# make violin plot
-VlnPlot(obj, features=c(cd4t, cd8t, nk, b, mono), group.by='RNA_snn_res.0.4', pt.size=0.01)
-ggsave(filename='UMAP_celltypeannotation_ViolinPlot.pdf', height=15, width=20)
-
-# add manual annotation labels to metadata
-manual_anno <- data.frame(c('Mono','B','NK','CD4-T','CD4-T','CD4-T','CD4-T',
-                            'CD8-T','CD8-T','CD8-T','CD8-T','CD8-T','CD8-T'),
-                          c(13,11,18,0,1,3,15,2,8,10,12,14,16))
-colnames(manual_anno) <- c('manual_anno', 'RNA_snn_res.0.4')
-obj[['celltype']]<- manual_anno$manual_anno[match(as.vector(obj[['RNA_snn_res.0.4']])[[1]], manual_anno$RNA_snn_res.0.4)]
+# make UMAPs per annotation source
+for (i in seq(length(ref_list))){
+  if (i == 1){
+    DimPlot(obj, reduction='rna.umap', group.by='blueprint_ct', label=T, repel=T, shuffle=T) + NoLegend()
+    ggsave(filename='UMAP_NI_IVA_RV_blueprint_celltypes.pdf', height=6, width=8) 
+  } else if (i == 2){
+    DimPlot(obj, reduction='rna.umap', group.by='dice_ct', label=T, repel=T, shuffle=T) + NoLegend()
+    ggsave(filename='UMAP_NI_IVA_RV_dice_celltypes.pdf', height=6, width=8)
+  } else if (i == 3){
+    DimPlot(obj, reduction='rna.umap', group.by='hpca_ct', label=T, repel=T, shuffle=T) + NoLegend()
+    ggsave(filename='UMAP_NI_IVA_RV_hpca_celltypes.pdf', height=6, width=8)
+  } else if (i == 4){
+    DimPlot(obj, reduction='rna.umap', group.by='monaco_ct', label=T, repel=T, shuffle=T) + NoLegend()
+    ggsave(filename='UMAP_NI_IVA_RV_monaco_celltypes.pdf', height=6, width=8)
+  } else {
+    DimPlot(obj, reduction='rna.umap', group.by='novershtern_ct', label=T, repel=T, shuffle=T) + NoLegend()
+    ggsave(filename='UMAP_NI_IVA_RV_novershtern_celltypes.pdf', height=6, width=8)
+  }
+}
 
 # remove non-annotated clusters
-obj@meta.data$IDs <- gsub('SEA3', 'SEA-3', obj@meta.data$IDs)
 meta_df <- obj@meta.data
 filtered_meta <- meta_df %>% filter(!is.na(celltype))
 matching_cells <- rownames(filtered_meta)
