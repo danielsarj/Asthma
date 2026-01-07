@@ -4,7 +4,8 @@ library(patchwork)
 library(tidyverse)
 library(celldex)
 library(SingleR)
-"%&%" <- function(a,b) paste(a,b, sep = "")
+library(viridis)
+'%&%' <- function(a,b) paste(a,b, sep = '')
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/scRNAanalysis')
 
 # load seurat object
@@ -36,7 +37,6 @@ for (i in seq(length(ref_list))){
   if (i == 1){
     colnames(full_anno) <- c('seurat_clusters', 'blueprint_ct', 'blueprint_ct_score')
     obj@meta.data <- left_join(obj@meta.data, full_anno, by=c('seurat_clusters'))
-    DimPlot(obj, reduction='rna.umap', group.by='blueprint_ct')
     } else if (i == 2){
       colnames(full_anno) <- c('seurat_clusters', 'dice_ct', 'dice_ct_score')
       obj@meta.data <- left_join(obj@meta.data, full_anno, by=c('seurat_clusters'))
@@ -56,6 +56,47 @@ rm(prediction, labels, scores, full_anno)
 # fix metadata missing cell IDs as row names
 rownames(obj@meta.data) <- rownames(obj@reductions$rna.umap@cell.embeddings)
 Idents(obj) <- 'seurat_clusters' 
+
+# define gene markers 
+HannahMarkerGenes <- c(
+  'CD34', # Hematopoietic stem cells (HSPCs)
+  'GATA1','HBB', 'PPBP', # Erythrocytes or Megakaryocytes
+  'PAX5', 'RAG1', 'MS4A1', 'EBF1', 'MME', 'CD19', 'CD38', # B cells
+  'CD14', 'FCGR3A', 'CIITA', 'LYZ', # Monocytes
+  'NCAM1', 'KLRB1', 'NKG7', 'GZMA', 'GZMB', 'PRF1', 'EOMES', 'TBX21', 'KIR3DL1', 'KIR2DL1', # NK cells
+  'CD3D', 'IL7R', 'CD8A', 'CCR7', 'S100A4', 'CTLA4', # without CD8, CD4+ T cell
+  'TRGV4', # γδ T
+  'FOXP3', # Treg
+  'MR1', 'TRBV2', # MAIT (TRBV13 may not exist in human, check below) #MR1 also expressed in Neutrophils
+  'TRAC', 'TRBC1', 'TRBC2', # TCR (instead of TRA/TRB shorthand)
+  'LILRA4','IRF8', # Plasmacytoid dendritic cells (pDCs)
+  'CD1C', # Myeloid dendritic cells (mDCs),
+  'CEACAM8' # Neutrophils
+)
+VlnPlot(obj, features=HannahMarkerGenes[1])
+
+OneK1KMarkerGenes <- c(
+  'CST3', 'FCER1A', 'SERPINF1', # Dendritic cell 
+  'CD16', # Non-Classical Monocyte
+  'CD14', 'LYZ', # Classical Monocyte
+  'TNFRSF17', 'IGJ', # Plasma cell 
+  'MS4A1', # Shared B cell
+  'CD27', 'TNFRSF13B', # Memory B cell 
+  'TCL1A', 'FCER2', 'IL4R', # Immature and Naïve B cell 
+  'NCAM1', # Shared NK cell 
+  'GZMA', 'GZMB', # Natural killer cell 
+  'GZMK', 'XCL1', 'XCL2', # Natural killer cell Recruiting 
+  'CD3D', # Shared T cells
+  'CD8A', # Shared CD8+ T cells
+  'S100B', 'KLRB1', 'LTB', 'IL7R', 'GZMK', # CD8+ S100B T cell
+  'GNLY', 'NKG7', 'KLRB1', # CD8+ Effector memory T cell 
+  'LTB', 'CCR7', 'PASK', # CD8+ Naïve and Central memory T cell 
+  'CD4', # Shared CD4+ T cell
+  'SOX4', 'ID2', 'SELL', # SOX4 CD4+ T cells
+  'KLRB1', 'GZMK', 'TNFSF13B', 'IL7R', # CD4+ Effector memory and central memory T cell 
+  'CCR7', 'SELL', 'LRRN3' # CD4+ Naïve and Central Memory T cell 
+)
+VlnPlot(obj, features=OneK1KMarkerGenes[1])
 
 # make UMAPs per annotation source
 for (i in seq(length(ref_list))){
