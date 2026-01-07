@@ -4,10 +4,11 @@ library(limma)
 library(edgeR)
 library(tidyverse)
 library(data.table)
+library(PCAForQTL)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping')
 conditions <- c('NI', 'RV', 'IVA')
-celltypes <- c('B', 'T-CD4', 'T-CD8', 'Mono', 'NK')
+celltypes <- c('B', 'CD4-T', 'CD8-T', 'Mono', 'NK')
 
 # function to regress out k number of pcs from expression data frame
 pca_rm <- function(input_data, pc_set) {
@@ -20,10 +21,18 @@ pca_rm <- function(input_data, pc_set) {
   return(new)
 }
 
-# function for rank-inverse normal transformation (stabilizes residual distributions. really important for small sample sizes)
-rint <- function(x) {
-  r <- rank(x, ties.method='average', na.last='keep')
-  qnorm((r - 0.5) / sum(!is.na(x)))
+# function for quantile normalization
+quantile_norm <- function(df){
+  quantile_expression <- matrix(, nrow = nrow(df), ncol = ncol(df))
+  for (j in 1:nrow(quantile_expression)){
+    exp <- df[j,]
+    exp_QN <- qqnorm(exp, plot = FALSE)
+    exp_QN <- exp_QN$x
+    quantile_expression[j,] <- exp_QN
+  }
+  rownames(quantile_expression) <- rownames(df)
+  colnames(quantile_expression) <- colnames(df)
+  return(quantile_expression)
 }
 
 # load sample metadata
@@ -70,24 +79,32 @@ for (i in 1:length(conditions)){
     min_samples <- 5
     keep <- rowSums(cpm_values > threshold) >= min_samples
     dge <- dge[keep, ]
+
+    # adjust for batch, age, gender, number of cells, average MT content, and k expression PCs
+    design <- model.matrix(~batch+age+gender+n+avg_mt, data=filtered_meta)
+    expression <- voom(dge, design, plot=FALSE)
+    fit <- lmFit(expression, design)
+    expression <- residuals.MArrayLM(fit, expression)
+      
+    # find best number of PCs according to the elbow method
+    pc_set <- prcomp(expression, center=TRUE, scale.=TRUE)
+    resultRunElbow <- runElbow(prcompResult=pc_set)
+    print('number of PCs per elbow method: '%&% resultRunElbow)
+    expression <- quantile_norm(expression)
     
-    for (k in seq(20)){
-      print(k)
-      
-      # adjust for batch, age, gender, number of cells, average MT content, and k expression PCs
-      design <- model.matrix(~batch+age+gender+n+avg_mt, data=filtered_meta)
-      expression <- voom(dge, design, plot=FALSE)
-      fit <- lmFit(expression, design)
-      expression <- residuals.MArrayLM(fit, expression)
-      expression <- pca_rm(expression, c(1:k))
-      expression <- t(apply(expression, 1, rint))
-      
+    for (k in seq(from=0, to=20)){
+      if (k>0){
+        adj_expression <- pca_rm(expression, c(1:k))
+      } else {
+        adj_expression <- expression
+      }
+
       # edit matrix and save results
-      expression <- expression %>% as.data.frame() %>% rownames_to_column(var='GENES')
-      tmp_colnames <- colnames(expression)
+      adj_expression <- adj_expression %>% as.data.frame() %>% rownames_to_column(var='GENES')
+      tmp_colnames <- colnames(adj_expression)
       tmp_colnames <- gsub('_'%&%conditions[i]%&%'_'%&%celltypes[j], '', tmp_colnames)
-      colnames(expression) <- tmp_colnames
-      fwrite(expression, conditions[i]%&%'_'%&%celltypes[j]%&%'_'%&%k%&%'PCs.txt', col.names=T, sep='\t')
+      colnames(adj_expression) <- tmp_colnames
+      fwrite(adj_expression, conditions[i]%&%'_'%&%celltypes[j]%&%'_'%&%k%&%'PCs.txt', col.names=T, sep='\t')
     }
   }
 }
