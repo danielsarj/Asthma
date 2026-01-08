@@ -18,7 +18,7 @@ markers_seurat <- FindAllMarkers(obj, only.pos=TRUE, min.pct=0.10)
 
 # find top markers for seurat clusters
 top_seurat <- markers_seurat %>% group_by(cluster) %>% slice_min(p_val_adj, n=100) %>% slice_max(avg_log2FC, n=20)
-DimPlot(obj, reduction='rna.umap')
+DimPlot(obj, reduction='rna.umap', label=T, repel=T, shuffle=T)
 
 # annotate using different references using SingleR
 ref_list <- list(celldex::BlueprintEncodeData(), celldex::DatabaseImmuneCellExpressionData(), 
@@ -73,7 +73,15 @@ HannahMarkerGenes <- c(
   'CD1C', # Myeloid dendritic cells (mDCs),
   'CEACAM8' # Neutrophils
 )
-VlnPlot(obj, features=HannahMarkerGenes[1])
+#VlnPlot(obj, features=HannahMarkerGenes[1])
+labels <- data.frame(seurat_clusters=factor(seq(from=0, to=35)), 
+                     hannah=c('CD4+ T cell','CD4+ T cell','CD4+ T cell','CD4+ T cell','CD8+ T cell',
+                              'CD8+ T cell','NK cell','B cell','CD4+ T cell','CD8+ T cell','CD8+ T cell',
+                              'CD4+ T cell','NK-like CD8+ T cell','B cell','CD4+ T cell','NK-like CD8+ T cell',
+                              'CD4+ T cell','Treg','CD4+ T cell','Monocyte','Monocyte','CD8+ T cell','CD4+ T cell',
+                              'CD4+ T cell','NK cell','Monocyte','B cell','NK cell','NK cell','CD8+ T cell','CD4+ T cell',
+                              'CD8+ T cell','B cell','NK-like CD8+ T cell','CD4+ T cell','NK cell'))
+obj@meta.data <- left_join(obj@meta.data, labels, by=c('seurat_clusters'))
 
 OneK1KMarkerGenes <- c(
   'CST3', 'FCER1A', 'SERPINF1', # Dendritic cell 
@@ -96,10 +104,26 @@ OneK1KMarkerGenes <- c(
   'KLRB1', 'GZMK', 'TNFSF13B', 'IL7R', # CD4+ Effector memory and central memory T cell 
   'CCR7', 'SELL', 'LRRN3' # CD4+ Naïve and Central Memory T cell 
 )
-VlnPlot(obj, features=OneK1KMarkerGenes[1])
+#VlnPlot(obj, features=OneK1KMarkerGenes[1])
+labels <- data.frame(seurat_clusters=factor(seq(from=0, to=35)), 
+                     onek1k=c('CD4+ Naïve and Central Memory T cells','CD4+ Naïve and Central Memory T cells',
+                              'CD4+ Naïve and Central Memory T cells','Double-negative T cells (gamma delta?)',
+                              'CD8+ Naïve and Central memory T cells','CD8+ Naïve and Central memory T cells',
+                              'NK-like CD8+ Effector memory T cells','Immature and naïve B cells','Double-negative T cells (gamma delta?)',
+                              'CD8+ Naïve and Central memory T cells','CD8+ Naïve and Central memory T cells','Double-negative T cells (gamma delta?)',
+                              'CD8+ Effector memory T cells','Immature and naïve B cells','CD4+ Naïve and Central Memory T cells',
+                              'CD8+ Effector memory T cells','Double-negative T cells (gamma delta?)','CD4+ Naïve and Central Memory T cells',
+                              'Pro-thymocytes? ','Classical monocytes','Memory B cells','CD8+ Naïve and Central memory T cells',
+                              'Double-negative T cells (gamma delta?)','Classical monocytes','Recruiting NK cells','Classical monocytes',
+                              'Immature and naïve B cells','NK cells','NK cells','CD8+ Naïve and Central memory T cells',
+                              'Double-negative T cells (gamma delta?)','CD8+ Effector memory or Naïve and Central memory T cells','B cells',
+                              'CD8+ Effector memory T cells','CD4+ Naïve and Central Memory T cells','Gamma delta?'))
+obj@meta.data <- left_join(obj@meta.data, labels, by=c('seurat_clusters'))
 
+# fix metadata missing cell IDs as row names
+rownames(obj@meta.data) <- rownames(obj@reductions$rna.umap@cell.embeddings)
 # make UMAPs per annotation source
-for (i in seq(length(ref_list))){
+for (i in seq(length(ref_list)+2)){
   if (i == 1){
     DimPlot(obj, reduction='rna.umap', group.by='blueprint_ct', label=T, repel=T, shuffle=T) + NoLegend()
     ggsave(filename='UMAP_NI_IVA_RV_blueprint_celltypes.pdf', height=6, width=8) 
@@ -112,9 +136,15 @@ for (i in seq(length(ref_list))){
   } else if (i == 4){
     DimPlot(obj, reduction='rna.umap', group.by='monaco_ct', label=T, repel=T, shuffle=T) + NoLegend()
     ggsave(filename='UMAP_NI_IVA_RV_monaco_celltypes.pdf', height=6, width=8)
-  } else {
+  } else if (i == 5){
     DimPlot(obj, reduction='rna.umap', group.by='novershtern_ct', label=T, repel=T, shuffle=T) + NoLegend()
     ggsave(filename='UMAP_NI_IVA_RV_novershtern_celltypes.pdf', height=6, width=8)
+  } else if (i == 6){
+    DimPlot(obj, reduction='rna.umap', group.by='hannah', label=T, repel=T, shuffle=T) + NoLegend()
+    ggsave(filename='UMAP_NI_IVA_RV_hannah_celltypes.pdf', height=6, width=8)
+  } else {
+    DimPlot(obj, reduction='rna.umap', group.by='onek1k', label=T, repel=T, shuffle=T) + NoLegend()
+    ggsave(filename='UMAP_NI_IVA_RV_onek1k_celltypes.pdf', height=6, width=8)
   }
 }
 
