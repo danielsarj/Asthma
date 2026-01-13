@@ -83,6 +83,8 @@ labels <- data.frame(seurat_clusters=factor(seq(from=0, to=35)),
                               'CD8+ T cell','B cell','NK-like CD8+ T cell','CD4+ T cell','NK cell'))
 obj@meta.data <- left_join(obj@meta.data, labels, by=c('seurat_clusters'))
 
+# fix metadata missing cell IDs as row names
+rownames(obj@meta.data) <- rownames(obj@reductions$rna.umap@cell.embeddings)
 OneK1KMarkerGenes <- c(
   'CST3', 'FCER1A', 'SERPINF1', # Dendritic cell 
   'CD16', # Non-Classical Monocyte
