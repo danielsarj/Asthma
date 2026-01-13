@@ -6,7 +6,8 @@ library(viridis)
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/colocalization')
 
 # set file vectors
-coloc_outputs <- list.files(pattern='_coloc_results.txt')
+coloc_outputs <- list.files(pattern='_coloc_results\\.txt$')
+coloc_outputs <- coloc_outputs[coloc_outputs!='best_coloc_results.txt']
 
 for (f in coloc_outputs){
   info <- str_split_1(f, pattern='_')
@@ -22,8 +23,6 @@ for (f in coloc_outputs){
 
 # save compiled best coloc results
 fwrite(coloc.compiled, 'best_coloc_results.txt', sep=' ')
-coloc.compiled$celltype <- gsub('T-CD4', 'CD4-T', coloc.compiled$celltype)
-coloc.compiled$celltype <- gsub('T-CD8', 'CD8-T', coloc.compiled$celltype)
 
 # reformat coloc.compiled to make a manhattan plot
 coloc_plot <- coloc.compiled %>% separate(snp, into=c('chr', 'pos'), sep=':', remove=FALSE) %>%
@@ -54,8 +53,6 @@ ggsave('coloc_volcanoplot_allgenes.png', height=5, width=12)
 # subset to mash-significant eGenes
 mash_sig <- fread('../mashr/mashr_out_allstats_df.txt') %>% group_by(condition, celltype) %>%
   filter(lfsr<0.05) %>% ungroup() %>% separate(snps, into=c('snp', 'effectallele'), sep='_')
-mash_sig$celltype <- gsub('T-CD4', 'CD4-T', mash_sig$celltype)
-mash_sig$celltype <- gsub('T-CD8', 'CD8-T', mash_sig$celltype)
 sub_coloc.compiled <- coloc.compiled %>% inner_join(mash_sig, by=c('gene', 'snp', 'condition', 'celltype'))
 sub_coloc.compiled$condition <- factor(sub_coloc.compiled$condition, levels=c('NI', 'IVA', 'RV'))
 

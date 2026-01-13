@@ -5,17 +5,14 @@ library(janitor)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/mashr')
 conditions <- c('NI', 'RV', 'IVA')
-input_prefix <- c('IVA_B_7', 'NI_B_7', 'RV_B_16', 'IVA_Mono_1', 'NI_Mono_2', 'RV_Mono_1', 
-                  'IVA_NK_2', 'NI_NK_3', 'RV_NK_4', 'IVA_T-CD4_3', 'NI_T-CD4_2', 'RV_T-CD4_10',
-                  'IVA_T-CD8_1', 'NI_T-CD8_6', 'RV_T-CD8_7')
+input_prefix <- c('IVA_B_17','NI_B_13','RV_B_17','IVA_CD4-T_8','NI_CD4-T_4','RV_CD4-T_5',
+                  'IVA_CD8-T_1','NI_CD8-T_6','RV_CD8-T_2','IVA_Mono_1','NI_Mono_0','RV_Mono_20','IVA_NK_5','NI_NK_2','RV_NK_2')
 
 # load dosage file
 dos_matrix <- fread('../../genotypes/imputed_vcfs/imputed_dosage.txt')
 
 # read mashr dfs
 mash_df <- fread('mashr_out_allstats_df.txt')
-mash_df$celltype <- gsub('T-CD4', 'CD4-T', mash_df$celltype)
-mash_df$celltype <- gsub('T-CD8', 'CD8-T', mash_df$celltype)
 
 # remove snps in which all lfsr are >0.05 for a given gene
 mash_df <- mash_df %>% group_by(gene) %>% filter(sum(lfsr<0.05)<15) %>% ungroup()
@@ -60,8 +57,6 @@ rm(mash_total, mash_unique_ct, mash_unique_inf)
 # box plots of significant eGenes per celltype (significant in the celltype in at least one infection status)
 mash_reduced <- mash_df %>% group_by(gene, condition, celltype) %>% filter(lfsr<0.05) %>% ungroup() %>%
   select(gene, snps, celltype) %>% unique()
-mash_reduced$celltype <- gsub('CD4-T', 'T-CD4', mash_reduced$celltype)
-mash_reduced$celltype <- gsub('CD8-T', 'T-CD8', mash_reduced$celltype)
 for (i in 1:nrow(mash_reduced)){
   # subset dosage file for the specific SNP
   subset_dosage <- dos_matrix %>% filter(snpid==mash_reduced$snps[i]) %>% t() %>% 
@@ -72,7 +67,7 @@ for (i in 1:nrow(mash_reduced)){
   for (cond in c('NI','IVA','RV')){
     pc <- str_extract(input_prefix[str_detect(input_prefix, paste0('^', cond, '_', mash_reduced$celltype[i], '_'))],'(?<=_)\\d+$')
     
-    expression <- fread('../'%&%cond%&%'_'%&%mash_reduced$celltype[i]%&%'_'%&%pc%&%'PCs.txt.gz') %>%
+    expression <- fread('../'%&%cond%&%'_'%&%mash_reduced$celltype[i]%&%'_'%&%pc%&%'PCs.txt') %>%
       filter(GENES==mash_reduced$gene[i]) %>% t() %>% as.data.frame() %>% rownames_to_column() %>% 
       row_to_names(row_number=1) %>% rename(ID=GENES) %>% mutate(condition=cond)
     

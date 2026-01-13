@@ -2,9 +2,8 @@
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/colocalization/jobs')
 
 # arguments
-input_prefix <- c('IVA_B_7', 'NI_B_7', 'RV_B_16', 'IVA_Mono_1', 'NI_Mono_2', 'RV_Mono_1', 
-                  'IVA_NK_2', 'NI_NK_3', 'RV_NK_4', 'IVA_T-CD4_3', 'NI_T-CD4_2', 'RV_T-CD4_10',
-                  'IVA_T-CD8_1', 'NI_T-CD8_6', 'RV_T-CD8_7')
+input_prefix <- c('IVA_B_17','NI_B_13','RV_B_17','IVA_CD4-T_8','NI_CD4-T_4','RV_CD4-T_5',
+                  'IVA_CD8-T_1','NI_CD8-T_6','RV_CD8-T_2','IVA_Mono_1','NI_Mono_0','RV_Mono_20','IVA_NK_5','NI_NK_2','RV_NK_2')
 gwas_files <- c('FerreiraMAR_COA.h.tsv.gz', 'SakaueS_COA.h.tsv.gz')
 
 # sbtach file topper
