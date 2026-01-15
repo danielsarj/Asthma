@@ -16,6 +16,15 @@ rownames(mdata) <- mdata$orig.ident
 obj@meta.data <- mdata
 rm(sample_m, mdata)
 
+# compute cell type proportions
+#ct_prop <- obj@meta.data %>% select(IDs, condition, celltype, n) %>%
+#  group_by(IDs, condition) %>% mutate(total_cells=sum(n), prop=n/total_cells)
+#mdata <- inner_join(obj@meta.data, ct_prop)
+#rownames(mdata) <- mdata$orig.ident
+#obj@meta.data <- mdata
+#rm(ct_prop, mdata)
+# saveRDS(obj, file='NI_IVA_RV.integrated.pseudobulks.rds')
+
 # load gene annotation from ensembl
 annotations <- fread('../DEanalysis/ensembl_genes.txt') %>% filter(gene_biotype=='protein_coding',
                                                                    hgnc_symbol!='', !grepl('^MT-', hgnc_symbol))
@@ -74,7 +83,11 @@ for (ct in c(unique(obj@meta.data$celltype), 'PBMC')){
   pcs_mdata$income <- ifelse(pcs_mdata$income %in% c('< $10,000', '$10,000-$29,999', '$30,000-$49,999'),
                          'Low', 'High')
   pcs_mdata$income <- factor(pcs_mdata$income, levels=c('Low','High'))
-  mmatrix <- model.matrix(~condition+batch+n+age+gender+avg_mt+asthma+income, data=pcs_mdata)[,-1]
+  if (ct=='PBMC'){
+    mmatrix <- model.matrix(~condition+batch+n+age+gender+avg_mt+asthma+income, data=pcs_mdata)[,-1]
+  } else {
+    mmatrix <- model.matrix(~condition+batch+n+prop+age+gender+avg_mt+asthma+income, data=pcs_mdata)[,-1]
+  }
   pcs_only <- pcs_mdata[,grep('^PC', colnames(pcs_mdata))]
   
   # create empty matrices
