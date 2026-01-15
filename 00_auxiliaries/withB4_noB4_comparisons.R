@@ -140,6 +140,15 @@ ggsave('DEanalysis/withB4_noB4_GSEA_n.hits.png', height=4, width=9)
   geom_abline(slope=1) + ggtitle('RV'))
 ggsave('DEanalysis/withB4_noB4_GSEA_NES.png', height=5, width=10)
 
+(NES_joint %>% filter(condition=='IVA', sig!='neither') %>%
+    ggplot(., aes(x=NES_withB4, y=NES_noB4, color=sig)) + geom_point() +
+    theme_bw() + facet_grid(cols=vars(interaction), rows=vars(celltype)) +
+    geom_abline(slope=1) + ggtitle('IVA') + theme(legend.position='none')) +
+  (NES_joint %>% filter(condition=='RV', sig!='neither') %>%
+     ggplot(., aes(x=NES_withB4, y=NES_noB4, color=sig)) + geom_point() +
+     theme_bw() + facet_grid(cols=vars(interaction), rows=vars(celltype)) +
+     geom_abline(slope=1) + ggtitle('RV'))
+ggsave('DEanalysis/withB4_noB4_GSEA_sig.NES.png', height=5, width=10)
 
 ###############
 # QTL Mapping #
@@ -161,13 +170,13 @@ ggplot(sighQTLs_joint, aes(x=celltype, y=n_hits, fill=dataset)) + geom_col(posit
   theme_bw() + facet_wrap(~condition)
 ggsave('QTLmapping/withB4_noB4_n.sig.eGenes.png', height=3, width=9)
 
-# compare effect sizes
-betaQTLs_withB4 <- QTLs_withB4 %>% select(gene, condition, celltype, beta, lfsr) %>%
+# compare effect sizes between the same top gene=snp pair
+betaQTLs_withB4 <- QTLs_withB4 %>% select(gene, snps, condition, celltype, beta, lfsr) %>%
   rename(beta_withB4=beta, lfsr_withB4=lfsr)
-betaQTLs_noB4 <- QTLs_noB4 %>% select(gene, condition, celltype, beta, lfsr) %>%
+betaQTLs_noB4 <- QTLs_noB4 %>% select(gene, snps, condition, celltype, beta, lfsr) %>%
   rename(beta_noB4=beta, lfsr_noB4=lfsr)
 
-betaQTLs_joint <- full_join(betaQTLs_withB4, betaQTLs_noB4) %>% 
+betaQTLs_joint <- inner_join(betaQTLs_withB4, betaQTLs_noB4) %>% 
   mutate(sig = case_when(
     lfsr_withB4 < 0.05 & lfsr_noB4 < 0.05 ~ 'shared',
     lfsr_withB4 < 0.05 & 
@@ -179,7 +188,7 @@ betaQTLs_joint <- full_join(betaQTLs_withB4, betaQTLs_noB4) %>%
 
 summary_betaQTLs_joint <- betaQTLs_joint %>%  
   group_by(condition, celltype, sig) %>% summarise(n_hits=n())
-summary_betaQTLs_joint$sig <- factor(summary_betaQTLs_joint$sig, levels=c('shared', 'withB4_only', 'noB4_only'))
+summary_betaQTLs_joint$sig <- factor(summary_betaQTLs_joint$sig, levels=c('shared', 'withB4_only', 'noB4_only', 'neither'))
 summary_betaQTLs_joint$condition <- factor(summary_betaQTLs_joint$condition, levels=c('NI','IVA','RV'))
 summary_betaQTLs_joint %>% filter(sig!='neither') %>%
   ggplot(., aes(x=celltype, y=n_hits, fill=sig)) + geom_col(position='dodge') +
@@ -197,3 +206,104 @@ betaQTLs_joint %>% filter(sig!='neither') %>%
   theme_bw() + facet_grid(cols=vars(condition), rows=vars(celltype)) +
   geom_abline(slope=1) 
 ggsave('QTLmapping/withB4_noB4_eGenes_betas.png', height=5, width=10)
+
+# let's check MatrixeQTL outputs
+noB4_prefix <- c('IVA_B_14','NI_B_11','RV_B_2','IVA_CD4-T_0','NI_CD4-T_1','RV_CD4-T_1',
+                  'IVA_CD8-T_20','NI_CD8-T_1','RV_CD8-T_4','IVA_Mono_3',
+                  'NI_Mono_0','RV_Mono_0','IVA_NK_1','NI_NK_15','RV_NK_0')
+withB4_prefix <- c('IVA_B_17','NI_B_13','RV_B_17','IVA_CD4-T_8','NI_CD4-T_4','RV_CD4-T_5',
+                   'IVA_CD8-T_1','NI_CD8-T_6','RV_CD8-T_2','IVA_Mono_1','NI_Mono_0',
+                   'RV_Mono_20','IVA_NK_5','NI_NK_2','RV_NK_2')
+
+# compile results
+for (p in noB4_prefix){
+  tmp <- fread('QTLmapping/matrixEQTL_results/'%&%p%&%'_best_cisQTL_sumstats_noB4.txt', sep=' ') %>% 
+        mutate(id=p) %>% separate(id, c('condition', 'celltype', 'PCs'), '_') %>% 
+    select(gene, snps, condition, celltype, beta, qvals) %>%
+    rename(beta_noB4=beta, qvals_noB4=qvals)
+  if (exists('noB4_bestMatrixeQTL')){
+    noB4_bestMatrixeQTL <- rbind(noB4_bestMatrixeQTL, tmp)
+    } else {noB4_bestMatrixeQTL <- tmp}
+}
+
+for (p in withB4_prefix){
+  tmp <- fread('QTLmapping/matrixEQTL_results/'%&%p%&%'_best_cisQTL_sumstats.txt.gz', sep=' ') %>% 
+    mutate(id=p) %>% separate(id, c('condition', 'celltype', 'PCs'), '_') %>% 
+    select(gene, snps, condition, celltype, beta, qvals) %>%
+    rename(beta_withB4=beta, qvals_withB4=qvals)
+  if (exists('withB4_bestMatrixeQTL')){
+    withB4_bestMatrixeQTL <- rbind(withB4_bestMatrixeQTL, tmp)
+  } else {withB4_bestMatrixeQTL <- tmp}
+}
+rm(tmp)
+
+# compare effect sizes between the same top gene=snp pair before MASH
+beta_MatrixeQTLs_joint <- inner_join(noB4_bestMatrixeQTL, withB4_bestMatrixeQTL) %>% 
+  mutate(sig = case_when(
+    qvals_withB4 < 0.1 & qvals_noB4 < 0.1 ~ 'shared',
+    qvals_withB4 < 0.1 & 
+      (qvals_noB4 >= 0.1 | is.na(qvals_noB4)) ~ 'withB4_only',
+    (qvals_withB4 >= 0.1 | is.na(qvals_withB4)) & 
+      qvals_noB4 < 0.1 ~ 'noB4_only',
+    TRUE ~ 'neither'
+    ))
+
+beta_MatrixeQTLs_joint$condition <- factor(beta_MatrixeQTLs_joint$condition, levels=c('NI','IVA','RV'))
+beta_MatrixeQTLs_joint$sig <- factor(beta_MatrixeQTLs_joint$sig, levels=c('shared', 'withB4_only', 'noB4_only', 'neither'))
+beta_MatrixeQTLs_joint %>% 
+  ggplot(., aes(x=beta_withB4, y=beta_noB4, color=sig)) + geom_point() +
+  theme_bw() + facet_grid(cols=vars(condition), rows=vars(celltype)) +
+  geom_abline(slope=1) 
+ggsave('QTLmapping/withB4_noB4_eGenes_MatrixeQTL.betas.png', height=5, width=10)
+beta_MatrixeQTLs_joint %>% filter(sig!='neither') %>%
+  ggplot(., aes(x=beta_withB4, y=beta_noB4, color=sig)) + geom_point() +
+  theme_bw() + facet_grid(cols=vars(condition), rows=vars(celltype)) +
+  geom_abline(slope=1) 
+ggsave('QTLmapping/withB4_noB4_eGenes_sig.MatrixeQTL.betas.png', height=5, width=10)
+
+
+#################
+# Two Sample MR #
+#################
+TSMR_withB4 <- fread('QTLmapping/twosampleMR/compiled_mr_results.txt') %>%
+  select(exposure, SNP, b, pval, gwas, condition, celltype, effect_allele.exposure) %>%
+  rename(b_withB4=b, effect_allele.exposure_withB4=effect_allele.exposure, pval_withB4=pval)
+TSMR_noB4 <- fread('QTLmapping/twosampleMR/compiled_mr_results_noB4.txt') %>%
+  select(exposure, SNP, b, pval, gwas, condition, celltype, effect_allele.exposure) %>%
+  rename(b_noB4=b, effect_allele.exposure_noB4=effect_allele.exposure, pval_noB4=pval)
+
+harmonizedTSMR <- full_join(TSMR_withB4, TSMR_noB4) %>% 
+  mutate(sig = case_when(
+    pval_withB4 < 0.05 & pval_noB4 < 0.05 ~ 'shared',
+    pval_withB4 < 0.05 & 
+      (pval_noB4 >= 0.05 | is.na(pval_noB4)) ~ 'withB4_only',
+    (pval_withB4 >= 0.05 | is.na(pval_withB4)) & 
+      pval_noB4 < 0.05 ~ 'noB4_only',
+    TRUE ~ 'neither'
+  ))
+
+summary_TSMR <- harmonizedTSMR %>%  
+  group_by(condition, celltype, gwas, sig) %>% summarise(n_hits=n())
+summary_TSMR$sig <- factor(summary_TSMR$sig, levels=c('shared', 'withB4_only', 'noB4_only', 'neither'))
+summary_TSMR$condition <- factor(summary_TSMR$condition, levels=c('NI','IVA','RV'))
+summary_TSMR %>% filter(sig!='neither') %>%
+  ggplot(., aes(x=celltype, y=n_hits, fill=sig)) + geom_col(position='dodge') +
+  theme_bw() + facet_wrap(~condition)
+ggsave('QTLmapping/twosampleMR/withB4_noB4_n.sig.2SMR_split.png', height=3, width=9)
+
+harmonizedTSMR <- inner_join(TSMR_withB4, TSMR_noB4) %>% 
+  mutate(sig = case_when(
+    pval_withB4 < 0.05 & pval_noB4 < 0.05 ~ 'shared',
+    pval_withB4 < 0.05 & 
+      (pval_noB4 >= 0.05 | is.na(pval_noB4)) ~ 'withB4_only',
+    (pval_withB4 >= 0.05 | is.na(pval_withB4)) & 
+      pval_noB4 < 0.05 ~ 'noB4_only',
+    TRUE ~ 'neither'
+  ))
+harmonizedTSMR$condition <- factor(harmonizedTSMR$condition, levels=c('NI','IVA','RV'))
+harmonizedTSMR$sig <- factor(harmonizedTSMR$sig, levels=c('shared', 'withB4_only', 'noB4_only', 'neither'))
+harmonizedTSMR %>% 
+  ggplot(., aes(x=b_withB4, y=b_noB4, color=sig)) + geom_point() +
+  theme_bw() + facet_grid(cols=vars(condition), rows=vars(celltype)) +
+  geom_abline(slope=1) 
+ggsave('QTLmapping/twosampleMR/withB4_noB4_sig.2SMR.betas.png', height=5, width=10)
