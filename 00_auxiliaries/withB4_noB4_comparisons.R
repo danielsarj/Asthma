@@ -307,3 +307,21 @@ harmonizedTSMR %>%
   theme_bw() + facet_grid(cols=vars(condition), rows=vars(celltype)) +
   geom_abline(slope=1) 
 ggsave('QTLmapping/twosampleMR/withB4_noB4_sig.2SMR.betas.png', height=5, width=10)
+
+#################
+# Colocalization #
+#################
+Coloc_withB4 <- fread('QTLmapping/colocalization/best_coloc_results.txt') %>%
+  select(gene, snp, PP.H4.abf, condition, celltype, gwas) %>%
+  rename(PP.H4.abf_withB4=PP.H4.abf)
+Coloc_noB4 <- fread('QTLmapping/colocalization/best_coloc_results_noB4.txt') %>%
+  select(gene, snp, PP.H4.abf, condition, celltype, gwas) %>%
+  rename(PP.H4.abf_noB4=PP.H4.abf)
+
+Coloc_joint <- full_join(Coloc_withB4, Coloc_noB4)
+Coloc_joint$condition <- factor(Coloc_joint$condition, levels=c('NI','IVA','RV'))
+Coloc_joint %>% 
+  ggplot(., aes(x=PP.H4.abf_withB4, y=PP.H4.abf_noB4, color=gwas)) + geom_point() +
+  theme_bw() + facet_grid(cols=vars(condition), rows=vars(celltype)) +
+  geom_abline(slope=1) 
+ggsave('QTLmapping/twosampleMR/withB4_noB4_sig.2SMR.betas.png', height=5, width=10)
