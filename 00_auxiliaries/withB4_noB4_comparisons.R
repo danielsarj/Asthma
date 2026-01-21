@@ -324,4 +324,4 @@ Coloc_joint %>%
   ggplot(., aes(x=PP.H4.abf_withB4, y=PP.H4.abf_noB4, color=gwas)) + geom_point() +
   theme_bw() + facet_grid(cols=vars(condition), rows=vars(celltype)) +
   geom_abline(slope=1) 
-ggsave('QTLmapping/twosampleMR/withB4_noB4_sig.2SMR.betas.png', height=5, width=10)
+ggsave('QTLmapping/colocalization/withB4_noB4_PPH4s.png', height=5, width=10)
