@@ -4,9 +4,11 @@ library(edgeR)
 library(limma)
 library(broom)
 library(data.table)
+library(betareg)
+library(DirichletReg)
 "%&%" <- function(a,b) paste(a,b, sep = '')
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/scRNAanalysis')
-conditions <- c('RV', 'IVA')
+conditions <- c('NI', 'RV', 'IVA')
 celltypes <- c('B','CD4-T','CD8-T','Mono','NK')
 
 # load seurat object
@@ -110,9 +112,83 @@ joint_df %>% filter(batch!='B4') %>% group_by(condition, celltype, infection) %>
   do(tidy(t.test(prop ~ income, data = .))) %>% ungroup() %>% mutate(p_adj=p.adjust(p.value, method='fdr')) %>%
   filter(p.value<0.05)
 
+########################################
+### MULTIPLE LINEAR REGRESSION MODEL ###
+########################################
+# first, test asthma and income per infection
 for (i in 1:length(conditions)){
   for (ctype in celltypes){
 
+    # extract and format metadata
+    mdata <- obj@meta.data %>% filter(celltype==ctype, (condition==conditions[i]))
+    mdata$gender <- factor(mdata$gender, levels=c('Male','Female'))
+    mdata$albuterol <- na_if(mdata$albuterol, '')
+    mdata$albuterol <- factor(mdata$albuterol, levels=c('No', 'Yes'))
+    mdata$asthma <- factor(mdata$asthma, levels=c('No', 'Yes'))
+    mdata$income <- na_if(mdata$income, '')
+    mdata$income <- ifelse(mdata$income %in% c('< $10,000', '$10,000-$29,999', '$30,000-$49,999'),
+                       'Low', 'High')
+    mdata$income <- factor(mdata$income, levels=c('Low','High'))
+    mdata_nob4 <- mdata %>% filter(batch!='B4')
+    
+    # fit linear model in income, with batch 4 
+    linear_m <- lm(prop~batch+age+gender+income, data=mdata) %>% summary()
+    betas <- linear_m$coefficients[,1]
+    pvals <- linear_m$coefficients[,4]
+    terms <- rownames(linear_m$coefficients)
+    results_linear_m <- data.frame(terms, betas, pvals) %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='yes') %>%
+      filter(terms=='incomeHigh')
+    if (exists('compiled_linear_income')){
+      compiled_linear_income <- rbind(compiled_linear_income, results_linear_m)
+    } else {compiled_linear_income <- results_linear_m}
+    
+    # fit linear model in income, without batch 4 
+    linear_m <- lm(prop~batch+age+gender+income, data=mdata_nob4) %>% summary()
+    betas <- linear_m$coefficients[,1]
+    pvals <- linear_m$coefficients[,4]
+    terms <- rownames(linear_m$coefficients)
+    results_linear_m <- data.frame(terms, betas, pvals) %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='no') %>%
+      filter(terms=='incomeHigh')
+    if (exists('compiled_linear_income_nob4')){
+      compiled_linear_income_nob4 <- rbind(compiled_linear_income_nob4, results_linear_m)
+    } else {compiled_linear_income_nob4 <- results_linear_m}
+    
+    # fit linear model in asthma, with batch 4 
+    linear_m <- lm(prop~batch+age+gender+albuterol+asthma, data=mdata) %>% summary()
+    betas <- linear_m$coefficients[,1]
+    pvals <- linear_m$coefficients[,4]
+    terms <- rownames(linear_m$coefficients)
+    results_linear_m <- data.frame(terms, betas, pvals) %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='yes') %>%
+      filter(terms=='asthmaYes')
+    if (exists('compiled_linear_asthma')){
+      compiled_linear_asthma <- rbind(compiled_linear_asthma, results_linear_m)
+    } else {compiled_linear_asthma <- results_linear_m}
+    
+    # fit linear model in asthma, without batch 4 
+    linear_m <- lm(prop~batch+age+gender+albuterol+asthma, data=mdata_nob4) %>% summary()
+    betas <- linear_m$coefficients[,1]
+    pvals <- linear_m$coefficients[,4]
+    terms <- rownames(linear_m$coefficients)
+    results_linear_m <- data.frame(terms, betas, pvals) %>%
+      mutate(condition=conditions[i], celltype=ctype, batch4='no') %>%
+      filter(terms=='asthmaYes')
+    if (exists('compiled_linear_asthma_nob4')){
+      compiled_linear_asthma_nob4 <- rbind(compiled_linear_asthma_nob4, results_linear_m)
+    } else {compiled_linear_asthma_nob4 <- results_linear_m}
+  }
+}
+
+########################################
+### MULTIPLE LINEAR REGRESSION MODEL ###
+########################################
+# now, test asthma and income interacting with infection
+conditions <- c('RV', 'IVA')
+for (i in 1:length(conditions)){
+  for (ctype in celltypes){
+    
     # extract and format metadata
     mdata <- obj@meta.data %>% filter(celltype==ctype, (condition==conditions[i]|condition=='NI'))
     mdata$condition <- factor(mdata$condition, levels=c('NI', conditions[i]))
@@ -122,28 +198,378 @@ for (i in 1:length(conditions)){
     mdata$asthma <- factor(mdata$asthma, levels=c('No', 'Yes'))
     mdata$income <- na_if(mdata$income, '')
     mdata$income <- ifelse(mdata$income %in% c('< $10,000', '$10,000-$29,999', '$30,000-$49,999'),
-                       'Low', 'High')
+                           'Low', 'High')
     mdata$income <- factor(mdata$income, levels=c('Low','High'))
+    mdata <- mdata %>% filter(IDs %in% IDs[duplicated(IDs)])    # remove IDs that are not paired
+    mdata_nob4 <- mdata %>% filter(batch!='B4')
     
-    # remove IDs that are not paired
-    mdata <- mdata %>% filter(IDs %in% IDs[duplicated(IDs)])
+    # fit linear model in income, with batch 4 
+    linear_m <- lm(prop~batch+age+gender+condition*income, data=mdata) %>% summary()
+    betas <- linear_m$coefficients[,1]
+    pvals <- linear_m$coefficients[,4]
+    terms <- rownames(linear_m$coefficients)
+    results_linear_m <- data.frame(terms, betas, pvals) %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='yes') %>%
+      filter(terms=='condition'%&%conditions[i]%&%':incomeHigh')
+    if (exists('compiled_linear_interaction_income')){
+      compiled_linear_interaction_income <- rbind(compiled_linear_interaction_income, results_linear_m)
+    } else {compiled_linear_interaction_income <- results_linear_m}
     
-    # define design matrix for infection
-    design <- model.matrix(~batch+age+gender+avg_mt+condition, data=mdata)
+    # fit linear model in income, without batch 4 
+    linear_m <- lm(prop~batch+age+gender+condition*income, data=mdata_nob4) %>% summary()
+    betas <- linear_m$coefficients[,1]
+    pvals <- linear_m$coefficients[,4]
+    terms <- rownames(linear_m$coefficients)
+    results_linear_m <- data.frame(terms, betas, pvals) %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='no') %>%
+      filter(terms=='condition'%&%conditions[i]%&%':incomeHigh')
+    if (exists('compiled_linear_interaction_income_nob4')){
+      compiled_linear_interaction_income_nob4 <- rbind(compiled_linear_interaction_income_nob4, results_linear_m)
+    } else {compiled_linear_interaction_income_nob4 <- results_linear_m}
     
-    # fit linear model
-    a <- lm(mdata$prop ~ design) %>% summary()
+    # fit linear model in asthma, with batch 4 
+    linear_m <- lm(prop~batch+age+gender+albuterol+condition*asthma, data=mdata) %>% summary()
+    betas <- linear_m$coefficients[,1]
+    pvals <- linear_m$coefficients[,4]
+    terms <- rownames(linear_m$coefficients)
+    results_linear_m <- data.frame(terms, betas, pvals) %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='yes') %>%
+      filter(terms=='condition'%&%conditions[i]%&%':asthmaYes')
+    if (exists('compiled_linear_interaction_asthma')){
+      compiled_linear_interaction_asthma <- rbind(compiled_linear_interaction_asthma, results_linear_m)
+    } else {compiled_linear_interaction_asthma <- results_linear_m}
+    
+    # fit linear model in asthma, without batch 4 
+    linear_m <- lm(prop~batch+age+gender+albuterol+condition*asthma, data=mdata_nob4) %>% summary()
+    betas <- linear_m$coefficients[,1]
+    pvals <- linear_m$coefficients[,4]
+    terms <- rownames(linear_m$coefficients)
+    results_linear_m <- data.frame(terms, betas, pvals) %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='no') %>%
+      filter(terms=='condition'%&%conditions[i]%&%':asthmaYes')
+    if (exists('compiled_linear_interaction_asthma_nob4')){
+      compiled_linear_interaction_asthma_nob4 <- rbind(compiled_linear_interaction_asthma_nob4, results_linear_m)
+    } else {compiled_linear_interaction_asthma_nob4 <- results_linear_m}
   }
 }
 
+######################################
+### MULTIPLE BETA REGRESSION MODEL ###
+######################################
+# first, test asthma and income per infection
+conditions <- c('NI', 'RV', 'IVA')
+for (i in 1:length(conditions)){
+  for (ctype in celltypes){
+    
+    # extract and format metadata
+    mdata <- obj@meta.data %>% filter(celltype==ctype, (condition==conditions[i]))
+    mdata$gender <- factor(mdata$gender, levels=c('Male','Female'))
+    mdata$albuterol <- na_if(mdata$albuterol, '')
+    mdata$albuterol <- factor(mdata$albuterol, levels=c('No', 'Yes'))
+    mdata$asthma <- factor(mdata$asthma, levels=c('No', 'Yes'))
+    mdata$income <- na_if(mdata$income, '')
+    mdata$income <- ifelse(mdata$income %in% c('< $10,000', '$10,000-$29,999', '$30,000-$49,999'),
+                           'Low', 'High')
+    mdata$income <- factor(mdata$income, levels=c('Low','High'))
+    mdata_nob4 <- mdata %>% filter(batch!='B4')
+    
+    # fit beta model in income, with batch 4 
+    beta_m <- betareg(prop~batch+age+gender+income, data=mdata, link='logit') %>% summary()
+    betas <- beta_m$coefficients$mean[,1]
+    pvals <- beta_m$coefficients$mean[,4]
+    terms <- rownames(beta_m$coefficients$mean)
+    results_beta_m <- data.frame(terms, betas, pvals) %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='yes') %>%
+      filter(terms=='incomeHigh')
+    if (exists('compiled_beta_income')){
+      compiled_beta_income <- rbind(compiled_beta_income, results_beta_m)
+    } else {compiled_beta_income <- results_beta_m}
+    
+    # fit beta model in income, without batch 4 
+    beta_m <- betareg(prop~batch+age+gender+income, data=mdata_nob4, link='logit') %>% summary()
+    betas <- beta_m$coefficients$mean[,1]
+    pvals <- beta_m$coefficients$mean[,4]
+    terms <- rownames(beta_m$coefficients$mean)
+    results_beta_m <- data.frame(terms, betas, pvals) %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='no') %>%
+      filter(terms=='incomeHigh')
+    if (exists('compiled_beta_income_nob4')){
+      compiled_beta_income_nob4 <- rbind(compiled_beta_income_nob4, results_beta_m)
+    } else {compiled_beta_income_nob4 <- results_beta_m}
+    
+    # fit beta model in asthma, with batch 4 
+    beta_m <- betareg(prop~batch+age+gender+asthma, data=mdata, link='logit') %>% summary()
+    betas <- beta_m$coefficients$mean[,1]
+    pvals <- beta_m$coefficients$mean[,4]
+    terms <- rownames(beta_m$coefficients$mean)
+    results_beta_m <- data.frame(terms, betas, pvals) %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='yes') %>%
+      filter(terms=='asthmaYes')
+    if (exists('compiled_beta_asthma')){
+      compiled_beta_asthma <- rbind(compiled_beta_asthma, results_beta_m)
+    } else {compiled_beta_asthma <- results_beta_m}
+    
+    # fit beta model in asthma, without batch 4 
+    beta_m <- betareg(prop~batch+age+gender+asthma, data=mdata_nob4, link='logit') %>% summary()
+    betas <- beta_m$coefficients$mean[,1]
+    pvals <- beta_m$coefficients$mean[,4]
+    terms <- rownames(beta_m$coefficients$mean)
+    results_beta_m <- data.frame(terms, betas, pvals) %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='no') %>%
+      filter(terms=='asthmaYes')
+    if (exists('compiled_beta_asthma_nob4')){
+      compiled_beta_asthma_nob4 <- rbind(compiled_beta_asthma_nob4, results_beta_m)
+    } else {compiled_beta_asthma_nob4 <- results_beta_m}
+  }
+}
+
+######################################
+### MULTIPLE BETA REGRESSION MODEL ###
+######################################
+# now, test asthma and income interacting with infection
+conditions <- c('RV', 'IVA')
+for (i in 1:length(conditions)){
+  for (ctype in celltypes){
+    
+    # extract and format metadata
+    mdata <- obj@meta.data %>% filter(celltype==ctype, (condition==conditions[i]|condition=='NI'))
+    mdata$condition <- factor(mdata$condition, levels=c('NI', conditions[i]))
+    mdata$gender <- factor(mdata$gender, levels=c('Male','Female'))
+    mdata$albuterol <- na_if(mdata$albuterol, '')
+    mdata$albuterol <- factor(mdata$albuterol, levels=c('No', 'Yes'))
+    mdata$asthma <- factor(mdata$asthma, levels=c('No', 'Yes'))
+    mdata$income <- na_if(mdata$income, '')
+    mdata$income <- ifelse(mdata$income %in% c('< $10,000', '$10,000-$29,999', '$30,000-$49,999'),
+                           'Low', 'High')
+    mdata$income <- factor(mdata$income, levels=c('Low','High'))
+    mdata <- mdata %>% filter(IDs %in% IDs[duplicated(IDs)])    # remove IDs that are not paired
+    mdata_nob4 <- mdata %>% filter(batch!='B4')
+    
+    # fit beta model in income, with batch 4 
+    beta_m <- betareg(prop~batch+age+gender+condition*income, data=mdata, link='logit') %>% summary()
+    betas <- beta_m$coefficients$mean[,1]
+    pvals <- beta_m$coefficients$mean[,4]
+    terms <- rownames(beta_m$coefficients$mean)
+    results_beta_m <- data.frame(terms, betas, pvals) %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='yes') %>%
+      filter(terms=='condition'%&%conditions[i]%&%':incomeHigh')
+    if (exists('compiled_beta_interaction_income')){
+      compiled_beta_interaction_income <- rbind(compiled_beta_interaction_income, results_beta_m)
+    } else {compiled_beta_interaction_income <- results_beta_m}
+    
+    # fit beta model in income, without batch 4 
+    beta_m <- betareg(prop~batch+age+gender+condition*income, data=mdata_nob4, link='logit') %>% summary()
+    betas <- beta_m$coefficients$mean[,1]
+    pvals <- beta_m$coefficients$mean[,4]
+    terms <- rownames(beta_m$coefficients$mean)
+    results_beta_m <- data.frame(terms, betas, pvals) %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='no') %>%
+      filter(terms=='condition'%&%conditions[i]%&%':incomeHigh')
+    if (exists('compiled_beta_interaction_income_nob4')){
+      compiled_beta_interaction_income_nob4 <- rbind(compiled_beta_interaction_income_nob4, results_beta_m)
+    } else {compiled_beta_interaction_income_nob4 <- results_beta_m}
+    
+    # fit beta model in asthma, with batch 4 
+    beta_m <- betareg(prop~batch+age+gender+condition*asthma, data=mdata, link='logit') %>% summary()
+    betas <- beta_m$coefficients$mean[,1]
+    pvals <- beta_m$coefficients$mean[,4]
+    terms <- rownames(beta_m$coefficients$mean)
+    results_beta_m <- data.frame(terms, betas, pvals) %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='yes') %>%
+      filter(terms=='condition'%&%conditions[i]%&%':asthmaYes')
+    if (exists('compiled_beta_interaction_asthma')){
+      compiled_beta_interaction_asthma <- rbind(compiled_beta_interaction_asthma, results_beta_m)
+    } else {compiled_beta_interaction_asthma <- results_beta_m}
+    
+    # fit beta model in asthma, without batch 4 
+    beta_m <- betareg(prop~batch+age+gender+condition*asthma, data=mdata_nob4, link='logit') %>% summary()
+    betas <- beta_m$coefficients$mean[,1]
+    pvals <- beta_m$coefficients$mean[,4]
+    terms <- rownames(beta_m$coefficients$mean)
+    results_beta_m <- data.frame(terms, betas, pvals) %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='no') %>%
+      filter(terms=='condition'%&%conditions[i]%&%':asthmaYes')
+    if (exists('compiled_beta_interaction_asthma_nob4')){
+      compiled_beta_interaction_asthma_nob4 <- rbind(compiled_beta_interaction_asthma_nob4, results_beta_m)
+    } else {compiled_beta_interaction_asthma_nob4 <- results_beta_m}
+  }
+}
+
+###########################################
+### MULTIPLE DIRICHLET REGRESSION MODEL ###
+###########################################
+# first, test asthma and income per infection
+conditions <- c('NI', 'RV', 'IVA')
+eps <- 1e-6
+for (i in 1:length(conditions)){
+
+    # extract and format metadata
+    mdata <- obj@meta.data %>% filter((condition==conditions[i])) %>% select(-c(orig.ident, n, avg_mt))
+    mdata <- mdata %>% pivot_wider(names_from='celltype', values_from='prop', values_fill=0)
+    # add small pseudocount to 0s and renormalize
+    mdata[celltypes] <- mdata[celltypes] + eps
+    mdata[celltypes] <- mdata[celltypes] / rowSums(mdata[celltypes])
+    mdata$Y <- DR_data(mdata[,10:ncol(mdata)])
+    mdata$gender <- factor(mdata$gender, levels=c('Male','Female'))
+    mdata$albuterol <- na_if(mdata$albuterol, '')
+    mdata$albuterol <- factor(mdata$albuterol, levels=c('No', 'Yes'))
+    mdata$asthma <- factor(mdata$asthma, levels=c('No', 'Yes'))
+    mdata$income <- na_if(mdata$income, '')
+    mdata$income <- ifelse(mdata$income %in% c('< $10,000', '$10,000-$29,999', '$30,000-$49,999'),
+                           'Low', 'High')
+    mdata$income <- factor(mdata$income, levels=c('Low','High'))
+    mdata_nob4 <- mdata %>% filter(batch!='B4')
+
+    # fit Dirichlet model in income, with batch 4 
+    dr_m <- DirichReg(Y~batch+age+gender+income, data=mdata) %>% summary()
+    dr_m_coeffs <- dr_m$coef.mat %>% as.data.frame() %>% rownames_to_column() %>%
+      filter(str_detect(rowname, 'incomeHigh')) %>% 
+      mutate(condition=conditions[i], celltype=dr_m$varnames, batch4='yes',
+             terms='incomeHigh') %>% select(terms, Estimate, `Pr(>|z|)`,
+                                            condition, celltype, batch4) %>%
+      rename(betas=Estimate, pvals=`Pr(>|z|)`)
+    if (exists('compiled_dr_income')){
+      compiled_dr_income <- rbind(compiled_dr_income, dr_m_coeffs)
+    } else {compiled_dr_income <- dr_m_coeffs}
+    
+    # fit Dirichlet model in income, without batch 4 
+    dr_m <- DirichReg(Y~batch+age+gender+income, data=mdata_nob4) %>% summary()
+    dr_m_coeffs <- dr_m$coef.mat %>% as.data.frame() %>% rownames_to_column() %>%
+      filter(str_detect(rowname, 'incomeHigh')) %>% 
+      mutate(condition=conditions[i], celltype=dr_m$varnames, batch4='no',
+             terms='incomeHigh') %>% select(terms, Estimate, `Pr(>|z|)`,
+                                            condition, celltype, batch4) %>%
+      rename(betas=Estimate, pvals=`Pr(>|z|)`)
+    if (exists('compiled_dr_income_nob4')){
+      compiled_dr_income_nob4 <- rbind(compiled_dr_income_nob4, dr_m_coeffs)
+    } else {compiled_dr_income_nob4 <- dr_m_coeffs}
+
+    # fit Dirichlet model in asthma, with batch 4 
+    dr_m <- DirichReg(Y~batch+age+gender+asthma, data=mdata) %>% summary()
+    dr_m_coeffs <- dr_m$coef.mat %>% as.data.frame() %>% rownames_to_column() %>%
+      filter(str_detect(rowname, 'asthmaYes')) %>% 
+      mutate(condition=conditions[i], celltype=dr_m$varnames, batch4='yes',
+             terms='asthmaYes') %>% select(terms, Estimate, `Pr(>|z|)`,
+                                            condition, celltype, batch4) %>%
+      rename(betas=Estimate, pvals=`Pr(>|z|)`)
+    if (exists('compiled_dr_asthma')){
+      compiled_dr_asthma <- rbind(compiled_dr_asthma, dr_m_coeffs)
+    } else {compiled_dr_asthma <- dr_m_coeffs}
+    
+    # fit Dirichlet model in asthma, without batch 4 
+    dr_m <- DirichReg(Y~batch+age+gender+asthma, data=mdata_nob4) %>% summary()
+    dr_m_coeffs <- dr_m$coef.mat %>% as.data.frame() %>% rownames_to_column() %>%
+      filter(str_detect(rowname, 'asthmaYes')) %>% 
+      mutate(condition=conditions[i], celltype=dr_m$varnames, batch4='no',
+             terms='asthmaYes') %>% select(terms, Estimate, `Pr(>|z|)`,
+                                            condition, celltype, batch4) %>%
+      rename(betas=Estimate, pvals=`Pr(>|z|)`)
+    if (exists('compiled_dr_asthma_nob4')){
+      compiled_dr_asthma_nob4 <- rbind(compiled_dr_asthma_nob4, dr_m_coeffs)
+    } else {compiled_dr_asthma_nob4 <- dr_m_coeffs}
+}
+
+###########################################
+### MULTIPLE DIRICHLET REGRESSION MODEL ###
+###########################################
+# now, test asthma and income interacting with infection
+conditions <- c('RV', 'IVA')
+eps <- 1e-6
+for (i in 1:length(conditions)){
+  
+  # extract and format metadata
+  mdata <- obj@meta.data %>% filter((condition==conditions[i]|condition=='NI')) %>% select(-c(orig.ident, n, avg_mt))
+  mdata <- mdata %>% pivot_wider(names_from='celltype', values_from='prop', values_fill=0)
+  # add small pseudocount to 0s and renormalize
+  mdata[celltypes] <- mdata[celltypes] + eps
+  mdata[celltypes] <- mdata[celltypes] / rowSums(mdata[celltypes])
+  mdata$Y <- DR_data(mdata[,10:ncol(mdata)])
+  mdata$gender <- factor(mdata$gender, levels=c('Male','Female'))
+  mdata$condition <- factor(mdata$condition, levels=c('NI', conditions[i]))
+  mdata$albuterol <- na_if(mdata$albuterol, '')
+  mdata$albuterol <- factor(mdata$albuterol, levels=c('No', 'Yes'))
+  mdata$asthma <- factor(mdata$asthma, levels=c('No', 'Yes'))
+  mdata$income <- na_if(mdata$income, '')
+  mdata$income <- ifelse(mdata$income %in% c('< $10,000', '$10,000-$29,999', '$30,000-$49,999'),
+                         'Low', 'High')
+  mdata$income <- factor(mdata$income, levels=c('Low','High'))
+  mdata <- mdata %>% filter(IDs %in% IDs[duplicated(IDs)])    # remove IDs that are not paired
+  mdata_nob4 <- mdata %>% filter(batch!='B4')
+  
+  # fit Dirichlet model in income, with batch 4 
+  dr_m <- DirichReg(Y~batch+age+gender+condition*income, data=mdata) %>% summary()
+  dr_m_coeffs <- dr_m$coef.mat %>% as.data.frame() %>% rownames_to_column() %>%
+    filter(str_detect(rowname, 'condition'%&%conditions[i]%&%'.incomeHigh')) %>% 
+    mutate(condition=conditions[i], celltype=dr_m$varnames, batch4='yes',
+           terms='condition'%&%conditions[i]%&%':incomeHigh') %>% select(terms, Estimate, `Pr(>|z|)`,
+                                          condition, celltype, batch4) %>%
+    rename(betas=Estimate, pvals=`Pr(>|z|)`)
+  if (exists('compiled_dr_interaction_income')){
+    compiled_dr_interaction_income <- rbind(compiled_dr_interaction_income, dr_m_coeffs)
+  } else {compiled_dr_interaction_income <- dr_m_coeffs}
+  
+  # fit Dirichlet model in income, without batch 4 
+  dr_m <- DirichReg(Y~batch+age+gender+condition*income, data=mdata_nob4) %>% summary()
+  dr_m_coeffs <- dr_m$coef.mat %>% as.data.frame() %>% rownames_to_column() %>%
+    filter(str_detect(rowname, 'condition'%&%conditions[i]%&%'.incomeHigh')) %>% 
+    mutate(condition=conditions[i], celltype=dr_m$varnames, batch4='no',
+           terms='condition'%&%conditions[i]%&%':incomeHigh') %>% select(terms, Estimate, `Pr(>|z|)`,
+                                          condition, celltype, batch4) %>%
+    rename(betas=Estimate, pvals=`Pr(>|z|)`)
+  if (exists('compiled_dr_interaction_income_nob4')){
+    compiled_dr_interaction_income_nob4 <- rbind(compiled_dr_interaction_income_nob4, dr_m_coeffs)
+  } else {compiled_dr_interaction_income_nob4 <- dr_m_coeffs}
+  
+  # fit Dirichlet model in asthma, with batch 4 
+  dr_m <- DirichReg(Y~batch+age+gender+condition*asthma, data=mdata) %>% summary()
+  dr_m_coeffs <- dr_m$coef.mat %>% as.data.frame() %>% rownames_to_column() %>%
+    filter(str_detect(rowname, 'condition'%&%conditions[i]%&%'.asthmaYes')) %>% 
+    mutate(condition=conditions[i], celltype=dr_m$varnames, batch4='yes',
+           terms='condition'%&%conditions[i]%&%':asthmaYes') %>% select(terms, Estimate, `Pr(>|z|)`,
+                                                                         condition, celltype, batch4) %>%
+    rename(betas=Estimate, pvals=`Pr(>|z|)`)
+  if (exists('compiled_dr_interaction_asthma')){
+    compiled_dr_interaction_asthma <- rbind(compiled_dr_interaction_asthma, dr_m_coeffs)
+  } else {compiled_dr_interaction_asthma <- dr_m_coeffs}
+  
+  # fit Dirichlet model in asthma, without batch 4 
+  dr_m <- DirichReg(Y~batch+age+gender+condition*asthma, data=mdata_nob4) %>% summary()
+  dr_m_coeffs <- dr_m$coef.mat %>% as.data.frame() %>% rownames_to_column() %>%
+    filter(str_detect(rowname, 'condition'%&%conditions[i]%&%'.asthmaYes')) %>% 
+    mutate(condition=conditions[i], celltype=dr_m$varnames, batch4='no',
+           terms='condition'%&%conditions[i]%&%':asthmaYes') %>% select(terms, Estimate, `Pr(>|z|)`,
+                                                                         condition, celltype, batch4) %>%
+    rename(betas=Estimate, pvals=`Pr(>|z|)`)
+  if (exists('compiled_dr_interaction_asthma_nob4')){
+    compiled_dr_interaction_asthma_nob4 <- rbind(compiled_dr_interaction_asthma_nob4, dr_m_coeffs)
+  } else {compiled_dr_interaction_asthma_nob4 <- dr_m_coeffs}
+}
+
+# perform multiple testing correction on each model separately 
+list_of_results <- mget(ls(pattern='^compiled'))
+for (j in seq(1:length(list_of_results))){
+  list_of_results[[j]] <- list_of_results[[j]] %>% mutate(p_adj=p.adjust(pvals, method='fdr'))
+}
+single_results <- do.call(rbind, list_of_results) %>% rownames_to_column('regression') %>% 
+  mutate(regression = case_when(
+    grepl('_beta_', regression)   ~ 'beta',
+    grepl('_dr_', regression)     ~ 'DR',
+    grepl('_linear_', regression) ~ 'linear',
+    TRUE                          ~ NA_character_
+  )
+) 
+single_results <- single_results %>% mutate(ultra_p_adj=p.adjust(pvals, method='fdr')) %>%
+  arrange(terms, condition, celltype, batch4) 
+sig_single_resutls <- single_results %>% filter(p_adj<0.05)
+
+# sig. in DR but not in beta or linear:
+# asthma or income changes the relative composition of cell types (compositional dependencies captured by DR), 
+# without producing a strong marginal change in any single celltype’s absolute proportion
+# sig. in beta or linear but not in DR:
+# ? 
 
 
-
-
-
-
-
-
-
-
-
+sig_single_resutls %>% filter(batch4=='yes') %>% ggplot(., aes(x=celltype, y=betas, color=regression)) + geom_point() +
+  theme_bw() + facet_grid(cols=vars(terms), rows=vars(condition)) + ggtitle('batch4')
+sig_single_resutls %>% filter(batch4=='no') %>% ggplot(., aes(x=celltype, y=betas, color=regression)) + geom_point() +
+  theme_bw() + facet_grid(cols=vars(terms), rows=vars(condition)) + ggtitle('no_batch4')
