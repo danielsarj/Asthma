@@ -12,6 +12,11 @@ setwd('/project/lbarreiro/USERS/daniel/asthma_project/scRNAanalysis')
 conditions <- c('NI', 'RV', 'IVA')
 celltypes <- c('B','CD4-T','CD8-T','Mono','NK')
 
+# function to compute RMSE
+rmse <- function(obs, pred) {
+  sqrt(mean((obs - pred)^2, na.rm = TRUE))
+}
+
 # load seurat object
 obj <- readRDS('NI_IVA_RV.integrated.pseudobulks.rds')
 
@@ -33,7 +38,7 @@ ggplot(joint_df, aes(x=condition, y=prop, group=IDs)) + geom_point(alpha=0.2) + 
   geom_point(data=avg_df, aes(x=condition, y=prop), color='red', size=3, inherit.aes=FALSE) +
   facet_grid(rows=vars(celltype), cols=vars(infection), scales='free') + theme_bw() + theme(legend.position='none')
 ggsave('proportion_plots/celltype_prop_simple.png', height=5, width=5)
-ggsave('proportion_plots/celltype_prop_simple.pdf', height=5, width=5)
+#ggsave('proportion_plots/celltype_prop_simple.pdf', height=5, width=5)
 
 ## same thing, but without batch 4
 avg_df <- joint_df %>% filter(batch!='B4') %>% group_by(condition, celltype, infection) %>%
@@ -44,7 +49,7 @@ joint_df %>% filter(batch!='B4') %>% ggplot(., aes(x=condition, y=prop, group=ID
   geom_point(data=avg_df, aes(x=condition, y=prop), color='red', size=3, inherit.aes=FALSE) +
   facet_grid(rows=vars(celltype), cols=vars(infection), scales='free') + theme_bw() + theme(legend.position='none')
 ggsave('proportion_plots/celltype_prop_simple_noB4.png', height=5, width=5)
-ggsave('proportion_plots/celltype_prop_simple_noB4.pdf', height=5, width=5)
+#ggsave('proportion_plots/celltype_prop_simple_noB4.pdf', height=5, width=5)
 
 # proportion of each cell type per NI or Inf group per asthma status
 avg_df <- joint_df %>% group_by(condition, celltype, infection, asthma) %>%
@@ -54,7 +59,7 @@ ggplot(joint_df, aes(x=condition, y=prop, group=IDs, color=asthma)) + geom_point
   geom_point(data=avg_df, aes(x=condition, y=prop, color=asthma), size=3, inherit.aes=FALSE) +
   facet_grid(rows=vars(celltype), cols=vars(infection), scales='free') + theme_bw() 
 ggsave('proportion_plots/celltype_prop_simple_asthma.png', height=5, width=5)
-ggsave('proportion_plots/celltype_prop_simple_asthma.pdf', height=5, width=5)
+#ggsave('proportion_plots/celltype_prop_simple_asthma.pdf', height=5, width=5)
 
 # test if there are differences in proportion
 joint_df %>% group_by(condition, celltype, infection) %>% filter(n_distinct(asthma) == 2) %>% 
@@ -71,7 +76,7 @@ joint_df %>% filter(batch!='B4') %>% ggplot(., aes(x=condition, y=prop, group=ID
   geom_point(data=avg_df, aes(x=condition, y=prop, color=asthma), size=3, inherit.aes=FALSE) +
   facet_grid(rows=vars(celltype), cols=vars(infection), scales='free') + theme_bw() 
 ggsave('proportion_plots/celltype_prop_simple_asthma_noB4.png', height=5, width=5)
-ggsave('proportion_plots/celltype_prop_simple_asthma_noB4.pdf', height=5, width=5)
+#ggsave('proportion_plots/celltype_prop_simple_asthma_noB4.pdf', height=5, width=5)
 
 # test if there are differences in proportion
 joint_df %>% filter(batch!='B4') %>% group_by(condition, celltype, infection) %>% filter(n_distinct(asthma)==2) %>% 
@@ -89,7 +94,7 @@ ggplot(joint_df, aes(x=condition, y=prop, group=IDs, color=income)) + geom_point
   geom_point(data=avg_df, aes(x=condition, y=prop, color=income), size=3, inherit.aes=FALSE) +
   facet_grid(rows=vars(celltype), cols=vars(infection), scales='free') + theme_bw() 
 ggsave('proportion_plots/celltype_prop_simple_income.png', height=5, width=5)
-ggsave('proportion_plots/celltype_prop_simple_income.pdf', height=5, width=5)
+#ggsave('proportion_plots/celltype_prop_simple_income.pdf', height=5, width=5)
 
 # test if there are differences in proportion
 joint_df %>% group_by(condition, celltype, infection) %>% filter(n_distinct(income) == 2) %>% 
@@ -106,7 +111,7 @@ joint_df %>% filter(batch!='B4') %>% ggplot(., aes(x=condition, y=prop, group=ID
   geom_point(data=avg_df, aes(x=condition, y=prop, color=income), size=3, inherit.aes=FALSE) +
   facet_grid(rows=vars(celltype), cols=vars(infection), scales='free') + theme_bw() 
 ggsave('proportion_plots/celltype_prop_simple_income_noB4.png', height=5, width=5)
-ggsave('proportion_plots/celltype_prop_simple_income_noB4.pdf', height=5, width=5)
+#ggsave('proportion_plots/celltype_prop_simple_income_noB4.pdf', height=5, width=5)
 
 # test if there are differences in proportion
 joint_df %>% filter(batch!='B4') %>% group_by(condition, celltype, infection) %>% filter(n_distinct(income)==2) %>% 
@@ -141,7 +146,15 @@ for (i in 1:length(conditions)){
     if (exists('compiled_linear_income')){
       compiled_linear_income <- rbind(compiled_linear_income, results_linear_m)
     } else {compiled_linear_income <- results_linear_m}
-    ## plot 
+    # compute RMSE
+    linear_m <- predict(lm(prop~batch+age+gender+income, data=mdata)) 
+    rmse_lin <- rmse(mdata$prop, linear_m) %>% as.data.frame() %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='yes', terms='incomeHigh') %>%
+      rename(rmse='.')
+    if (exists('rmse_compiled_linear_income')){
+      rmse_compiled_linear_income <- rbind(rmse_compiled_linear_income, rmse_lin)
+    } else {rmse_compiled_linear_income <- rmse_lin}
+    ## plot residuals
     linear_m <- lm(prop~batch+age+gender, data=mdata) %>% residuals(type='pearson') %>% 
       as.data.frame() %>% rename(residuals='.') %>% rownames_to_column('orig.ident') %>% 
       left_join(mdata, by=c('orig.ident')) %>% select(celltype, income, residuals)
@@ -162,7 +175,15 @@ for (i in 1:length(conditions)){
     if (exists('compiled_linear_income_nob4')){
       compiled_linear_income_nob4 <- rbind(compiled_linear_income_nob4, results_linear_m)
     } else {compiled_linear_income_nob4 <- results_linear_m}
-    ## plot 
+    # compute RMSE
+    linear_m <- predict(lm(prop~batch+age+gender+income, data=mdata_nob4)) 
+    rmse_lin <- rmse(mdata_nob4$prop, linear_m) %>% as.data.frame() %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='no', terms='incomeHigh') %>%
+      rename(rmse='.')
+    if (exists('rmse_compiled_linear_income_nob4')){
+      rmse_compiled_linear_income_nob4 <- rbind(rmse_compiled_linear_income_nob4, rmse_lin)
+    } else {rmse_compiled_linear_income_nob4 <- rmse_lin}
+    ## plot residuals
     linear_m <- lm(prop~batch+age+gender, data=mdata_nob4) %>% residuals(type='pearson') %>% 
       as.data.frame() %>% rename(residuals='.') %>% rownames_to_column('orig.ident') %>% 
       left_join(mdata_nob4, by=c('orig.ident')) %>% select(celltype, income, residuals)
@@ -183,7 +204,15 @@ for (i in 1:length(conditions)){
     if (exists('compiled_linear_asthma')){
       compiled_linear_asthma <- rbind(compiled_linear_asthma, results_linear_m)
     } else {compiled_linear_asthma <- results_linear_m}
-    ## plot 
+    # compute RMSE
+    linear_m <- predict(lm(prop~batch+age+gender+asthma, data=mdata)) 
+    rmse_lin <- rmse(mdata$prop, linear_m) %>% as.data.frame() %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='yes', terms='asthmaYes') %>%
+      rename(rmse='.')
+    if (exists('rmse_compiled_linear_asthma')){
+      rmse_compiled_linear_asthma <- rbind(rmse_compiled_linear_asthma, rmse_lin)
+    } else {rmse_compiled_linear_asthma <- rmse_lin}
+    ## plot residuals
     linear_m <- lm(prop~batch+age+gender, data=mdata) %>% residuals(type='pearson') %>% 
       as.data.frame() %>% rename(residuals='.') %>% rownames_to_column('orig.ident') %>% 
       left_join(mdata, by=c('orig.ident')) %>% select(celltype, asthma, residuals)
@@ -204,7 +233,15 @@ for (i in 1:length(conditions)){
     if (exists('compiled_linear_asthma_nob4')){
       compiled_linear_asthma_nob4 <- rbind(compiled_linear_asthma_nob4, results_linear_m)
     } else {compiled_linear_asthma_nob4 <- results_linear_m}
-    ## plot 
+    # compute RMSE
+    linear_m <- predict(lm(prop~batch+age+gender+asthma, data=mdata_nob4)) 
+    rmse_lin <- rmse(mdata_nob4$prop, linear_m) %>% as.data.frame() %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='no', terms='asthmaYes') %>%
+      rename(rmse='.')
+    if (exists('rmse_compiled_linear_asthma_nob4')){
+      rmse_compiled_linear_asthma_nob4 <- rbind(rmse_compiled_linear_asthma_nob4, rmse_lin)
+    } else {rmse_compiled_linear_asthma_nob4 <- rmse_lin}
+    ## plot residuals
     linear_m <- lm(prop~batch+age+gender, data=mdata_nob4) %>% residuals(type='pearson') %>% 
       as.data.frame() %>% rename(residuals='.') %>% rownames_to_column('orig.ident') %>% 
       left_join(mdata_nob4, by=c('orig.ident')) %>% select(celltype, asthma, residuals)
@@ -247,7 +284,15 @@ for (i in 1:length(conditions)){
     if (exists('compiled_linear_infection')){
       compiled_linear_infection <- rbind(compiled_linear_infection, results_linear_m)
     } else {compiled_linear_infection <- results_linear_m}
-    ## plot 
+    # compute RMSE
+    linear_m <- predict(lm(prop~batch+age+gender+condition, data=mdata)) 
+    rmse_lin <- rmse(mdata$prop, linear_m) %>% as.data.frame() %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='yes', terms='infection') %>%
+      rename(rmse='.')
+    if (exists('rmse_compiled_linear_infection')){
+      rmse_compiled_linear_infection <- rbind(rmse_compiled_linear_infection, rmse_lin)
+    } else {rmse_compiled_linear_infection <- rmse_lin}
+    ## plot residuals
     linear_m <- lm(prop~batch+age+gender, data=mdata) %>% residuals(type='pearson') %>% 
       as.data.frame() %>% rename(residuals='.') %>% rownames_to_column('orig.ident') %>% 
       left_join(mdata, by=c('orig.ident')) %>% select(celltype, condition, residuals)
@@ -268,7 +313,15 @@ for (i in 1:length(conditions)){
     if (exists('compiled_linear_infection_nob4')){
       compiled_linear_infection_nob4 <- rbind(compiled_linear_infection_nob4, results_linear_m)
     } else {compiled_linear_infection_nob4 <- results_linear_m}
-    ## plot 
+    # compute RMSE
+    linear_m <- predict(lm(prop~batch+age+gender+condition, data=mdata_nob4)) 
+    rmse_lin <- rmse(mdata_nob4$prop, linear_m) %>% as.data.frame() %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='no', terms='infection') %>%
+      rename(rmse='.')
+    if (exists('rmse_compiled_linear_infection_nob4')){
+      rmse_compiled_linear_infection_nob4 <- rbind(rmse_compiled_linear_infection_nob4, rmse_lin)
+    } else {rmse_compiled_linear_infection_nob4 <- rmse_lin}
+    ## plot residuals
     linear_m <- lm(prop~batch+age+gender, data=mdata_nob4) %>% residuals(type='pearson') %>% 
       as.data.frame() %>% rename(residuals='.') %>% rownames_to_column('orig.ident') %>% 
       left_join(mdata_nob4, by=c('orig.ident')) %>% select(celltype, condition, residuals)
@@ -289,7 +342,15 @@ for (i in 1:length(conditions)){
     if (exists('compiled_linear_interaction_income')){
       compiled_linear_interaction_income <- rbind(compiled_linear_interaction_income, results_linear_m)
     } else {compiled_linear_interaction_income <- results_linear_m}
-    ## plot 
+    # compute RMSE
+    linear_m <- predict(lm(prop~batch+age+gender+condition*income, data=mdata)) 
+    rmse_lin <- rmse(mdata$prop, linear_m) %>% as.data.frame() %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='yes', terms='condition'%&%conditions[i]%&%':incomeHigh') %>%
+      rename(rmse='.')
+    if (exists('rmse_compiled_linear_interaction_income')){
+      rmse_compiled_linear_interaction_income <- rbind(rmse_compiled_linear_interaction_income, rmse_lin)
+    } else {rmse_compiled_linear_interaction_income <- rmse_lin}
+    ## plot residuals
     linear_m <- lm(prop~batch+age+gender, data=mdata) %>% residuals(type='pearson') %>% 
       as.data.frame() %>% rename(residuals='.') %>% rownames_to_column('orig.ident') %>% 
       left_join(mdata, by=c('orig.ident')) %>% select(IDs, celltype, condition, income, residuals) %>%
@@ -312,7 +373,15 @@ for (i in 1:length(conditions)){
     if (exists('compiled_linear_interaction_income_nob4')){
       compiled_linear_interaction_income_nob4 <- rbind(compiled_linear_interaction_income_nob4, results_linear_m)
     } else {compiled_linear_interaction_income_nob4 <- results_linear_m}
-    ## plot 
+    # compute RMSE
+    linear_m <- predict(lm(prop~batch+age+gender+condition*income, data=mdata_nob4)) 
+    rmse_lin <- rmse(mdata_nob4$prop, linear_m) %>% as.data.frame() %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='no', terms='condition'%&%conditions[i]%&%':incomeHigh') %>%
+      rename(rmse='.')
+    if (exists('rmse_compiled_linear_interaction_income_nob4')){
+      rmse_compiled_linear_interaction_income_nob4 <- rbind(rmse_compiled_linear_interaction_income_nob4, rmse_lin)
+    } else {rmse_compiled_linear_interaction_income_nob4 <- rmse_lin}
+    ## plot residuals
     linear_m <- lm(prop~batch+age+gender, data=mdata_nob4) %>% residuals(type='pearson') %>% 
       as.data.frame() %>% rename(residuals='.') %>% rownames_to_column('orig.ident') %>% 
       left_join(mdata_nob4, by=c('orig.ident')) %>% select(IDs, celltype, condition, income, residuals) %>%
@@ -335,7 +404,15 @@ for (i in 1:length(conditions)){
     if (exists('compiled_linear_interaction_asthma')){
       compiled_linear_interaction_asthma <- rbind(compiled_linear_interaction_asthma, results_linear_m)
     } else {compiled_linear_interaction_asthma <- results_linear_m}
-    ## plot 
+    # compute RMSE
+    linear_m <- predict(lm(prop~batch+age+gender+condition*asthma, data=mdata)) 
+    rmse_lin <- rmse(mdata$prop, linear_m) %>% as.data.frame() %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='yes', terms='condition'%&%conditions[i]%&%':asthmaYes') %>%
+      rename(rmse='.')
+    if (exists('rmse_compiled_linear_interaction_asthma')){
+      rmse_compiled_linear_interaction_asthma <- rbind(rmse_compiled_linear_interaction_asthma, rmse_lin)
+    } else {rmse_compiled_linear_interaction_asthma <- rmse_lin}
+    ## plot residuals
     linear_m <- lm(prop~batch+age+gender, data=mdata) %>% residuals(type='pearson') %>% 
       as.data.frame() %>% rename(residuals='.') %>% rownames_to_column('orig.ident') %>% 
       left_join(mdata, by=c('orig.ident')) %>% select(IDs, celltype, condition, asthma, residuals) %>%
@@ -358,7 +435,15 @@ for (i in 1:length(conditions)){
     if (exists('compiled_linear_interaction_asthma_nob4')){
       compiled_linear_interaction_asthma_nob4 <- rbind(compiled_linear_interaction_asthma_nob4, results_linear_m)
     } else {compiled_linear_interaction_asthma_nob4 <- results_linear_m}
-    ## plot 
+    # compute RMSE
+    linear_m <- predict(lm(prop~batch+age+gender+condition*asthma, data=mdata_nob4)) 
+    rmse_lin <- rmse(mdata_nob4$prop, linear_m) %>% as.data.frame() %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='no', terms='condition'%&%conditions[i]%&%':asthmaYes') %>%
+      rename(rmse='.')
+    if (exists('rmse_compiled_linear_interaction_asthma_nob4')){
+      rmse_compiled_linear_interaction_asthma_nob4 <- rbind(rmse_compiled_linear_interaction_asthma_nob4, rmse_lin)
+    } else {rmse_compiled_linear_interaction_asthma_nob4 <- rmse_lin}
+    ## plot residuals
     linear_m <- lm(prop~batch+age+gender, data=mdata_nob4) %>% residuals(type='pearson') %>% 
       as.data.frame() %>% rename(residuals='.') %>% rownames_to_column('orig.ident') %>% 
       left_join(mdata_nob4, by=c('orig.ident')) %>% select(IDs, celltype, condition, asthma, residuals) %>%
@@ -401,7 +486,15 @@ for (i in 1:length(conditions)){
     if (exists('compiled_beta_income')){
       compiled_beta_income <- rbind(compiled_beta_income, results_beta_m)
     } else {compiled_beta_income <- results_beta_m}
-    ## plot 
+    # compute RMSE
+    beta_m <- predict(betareg(prop~batch+age+gender+income, data=mdata, link='logit'), type='response')
+    rmse_beta <- rmse(mdata$prop, beta_m) %>% as.data.frame() %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='yes', terms='incomeHigh') %>%
+      rename(rmse='.')
+    if (exists('rmse_compiled_beta_income')){
+      rmse_compiled_beta_income <- rbind(rmse_compiled_beta_income, rmse_beta)
+    } else {rmse_compiled_beta_income <- rmse_beta}
+    ## plot residuals
     beta_m <- betareg(prop~batch+age+gender, data=mdata, link='logit')%>% residuals(type='pearson') %>% 
       as.data.frame() %>% rename(residuals='.') %>% rownames_to_column('orig.ident') %>% 
       left_join(mdata, by=c('orig.ident')) %>% select(celltype, income, residuals)
@@ -422,7 +515,15 @@ for (i in 1:length(conditions)){
     if (exists('compiled_beta_income_nob4')){
       compiled_beta_income_nob4 <- rbind(compiled_beta_income_nob4, results_beta_m)
     } else {compiled_beta_income_nob4 <- results_beta_m}
-    ## plot 
+    # compute RMSE
+    beta_m <- predict(betareg(prop~batch+age+gender+income, data=mdata_nob4, link='logit'), type='response')
+    rmse_beta <- rmse(mdata_nob4$prop, beta_m) %>% as.data.frame() %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='no', terms='incomeHigh') %>%
+      rename(rmse='.')
+    if (exists('rmse_compiled_beta_income_nob4')){
+      rmse_compiled_beta_income_nob4 <- rbind(rmse_compiled_beta_income_nob4, rmse_beta)
+    } else {rmse_compiled_beta_income_nob4 <- rmse_beta}
+    ## plot residuals    
     beta_m <- betareg(prop~batch+age+gender, data=mdata_nob4, link='logit')%>% residuals(type='pearson') %>% 
       as.data.frame() %>% rename(residuals='.') %>% rownames_to_column('orig.ident') %>% 
       left_join(mdata_nob4, by=c('orig.ident')) %>% select(celltype, income, residuals)
@@ -443,7 +544,15 @@ for (i in 1:length(conditions)){
     if (exists('compiled_beta_asthma')){
       compiled_beta_asthma <- rbind(compiled_beta_asthma, results_beta_m)
     } else {compiled_beta_asthma <- results_beta_m}
-    ## plot 
+    # compute RMSE
+    beta_m <- predict(betareg(prop~batch+age+gender+asthma, data=mdata, link='logit'), type='response')
+    rmse_beta <- rmse(mdata$prop, beta_m) %>% as.data.frame() %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='yes', terms='asthmaYes') %>%
+      rename(rmse='.')
+    if (exists('rmse_compiled_beta_asthma')){
+      rmse_compiled_beta_asthma <- rbind(rmse_compiled_beta_asthma, rmse_beta)
+    } else {rmse_compiled_beta_asthma <- rmse_beta}
+    ## plot residuals    
     beta_m <- betareg(prop~batch+age+gender, data=mdata, link='logit')%>% residuals(type='pearson') %>% 
       as.data.frame() %>% rename(residuals='.') %>% rownames_to_column('orig.ident') %>% 
       left_join(mdata, by=c('orig.ident')) %>% select(celltype, asthma, residuals)
@@ -464,7 +573,15 @@ for (i in 1:length(conditions)){
     if (exists('compiled_beta_asthma_nob4')){
       compiled_beta_asthma_nob4 <- rbind(compiled_beta_asthma_nob4, results_beta_m)
     } else {compiled_beta_asthma_nob4 <- results_beta_m}
-    ## plot 
+    # compute RMSE
+    beta_m <- predict(betareg(prop~batch+age+gender+asthma, data=mdata_nob4, link='logit'), type='response')
+    rmse_beta <- rmse(mdata_nob4$prop, beta_m) %>% as.data.frame() %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='no', terms='asthmaYes') %>%
+      rename(rmse='.')
+    if (exists('rmse_compiled_beta_asthma_nob4')){
+      rmse_compiled_beta_asthma_nob4 <- rbind(rmse_compiled_beta_asthma_nob4, rmse_beta)
+    } else {rmse_compiled_beta_asthma_nob4 <- rmse_beta}
+    ## plot residuals    
     beta_m <- betareg(prop~batch+age+gender, data=mdata_nob4, link='logit')%>% residuals(type='pearson') %>% 
       as.data.frame() %>% rename(residuals='.') %>% rownames_to_column('orig.ident') %>% 
       left_join(mdata_nob4, by=c('orig.ident')) %>% select(celltype, asthma, residuals)
@@ -507,7 +624,15 @@ for (i in 1:length(conditions)){
     if (exists('compiled_beta_infection')){
       compiled_beta_infection <- rbind(compiled_beta_infection, results_beta_m)
     } else {compiled_beta_infection <- results_beta_m}
-    ## plot 
+    # compute RMSE
+    beta_m <- predict(betareg(prop~batch+age+gender+condition, data=mdata, link='logit'), type='response')
+    rmse_beta <- rmse(mdata$prop, beta_m) %>% as.data.frame() %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='yes', terms='infection') %>%
+      rename(rmse='.')
+    if (exists('rmse_compiled_beta_infection')){
+      rmse_compiled_beta_infection <- rbind(rmse_compiled_beta_infection, rmse_beta)
+    } else {rmse_compiled_beta_infection <- rmse_beta}
+    ## plot residuals    
     beta_m <- betareg(prop~batch+age+gender, data=mdata, link='logit') %>% residuals(type='pearson') %>% 
       as.data.frame() %>% rename(residuals='.') %>% rownames_to_column('orig.ident') %>% 
       left_join(mdata, by=c('orig.ident')) %>% select(celltype, condition, residuals)
@@ -528,7 +653,15 @@ for (i in 1:length(conditions)){
     if (exists('compiled_beta_infection_nob4')){
       compiled_beta_infection_nob4 <- rbind(compiled_beta_infection_nob4, results_beta_m)
     } else {compiled_beta_infection_nob4 <- results_beta_m}
-    ## plot 
+    # compute RMSE
+    beta_m <- predict(betareg(prop~batch+age+gender+condition, data=mdata_nob4, link='logit'), type='response')
+    rmse_beta <- rmse(mdata_nob4$prop, beta_m) %>% as.data.frame() %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='no', terms='infection') %>%
+      rename(rmse='.')
+    if (exists('rmse_compiled_beta_infection_nob4')){
+      rmse_compiled_beta_infection_nob4 <- rbind(rmse_compiled_beta_infection_nob4, rmse_beta)
+    } else {rmse_compiled_beta_infection_nob4 <- rmse_beta}
+    ## plot residuals    
     beta_m <- betareg(prop~batch+age+gender, data=mdata_nob4, link='logit') %>% residuals(type='pearson') %>% 
       as.data.frame() %>% rename(residuals='.') %>% rownames_to_column('orig.ident') %>% 
       left_join(mdata_nob4, by=c('orig.ident')) %>% select(celltype, condition, residuals)
@@ -549,7 +682,15 @@ for (i in 1:length(conditions)){
     if (exists('compiled_beta_interaction_income')){
       compiled_beta_interaction_income <- rbind(compiled_beta_interaction_income, results_beta_m)
     } else {compiled_beta_interaction_income <- results_beta_m}
-    ## plot 
+    # compute RMSE
+    beta_m <- predict(betareg(prop~batch+age+gender+condition*income, data=mdata, link='logit'), type='response')
+    rmse_beta <- rmse(mdata$prop, beta_m) %>% as.data.frame() %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='yes', terms='condition'%&%conditions[i]%&%':incomeHigh') %>%
+      rename(rmse='.')
+    if (exists('rmse_compiled_beta_interaction_income')){
+      rmse_compiled_beta_interaction_income <- rbind(rmse_compiled_beta_interaction_income, rmse_beta)
+    } else {rmse_compiled_beta_interaction_income <- rmse_beta}
+    ## plot residuals   
     beta_m <- betareg(prop~batch+age+gender, data=mdata, link='logit') %>% residuals(type='pearson') %>% 
       as.data.frame() %>% rename(residuals='.') %>% rownames_to_column('orig.ident') %>% 
       left_join(mdata, by=c('orig.ident')) %>% select(IDs, condition, celltype, income, residuals)%>%
@@ -572,7 +713,15 @@ for (i in 1:length(conditions)){
     if (exists('compiled_beta_interaction_income_nob4')){
       compiled_beta_interaction_income_nob4 <- rbind(compiled_beta_interaction_income_nob4, results_beta_m)
     } else {compiled_beta_interaction_income_nob4 <- results_beta_m}
-    ## plot 
+    # compute RMSE
+    beta_m <- predict(betareg(prop~batch+age+gender+condition*income, data=mdata_nob4, link='logit'), type='response')
+    rmse_beta <- rmse(mdata_nob4$prop, beta_m) %>% as.data.frame() %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='no', terms='condition'%&%conditions[i]%&%':incomeHigh') %>%
+      rename(rmse='.')
+    if (exists('rmse_compiled_beta_interaction_income_nob4')){
+      rmse_compiled_beta_interaction_income_nob4 <- rbind(rmse_compiled_beta_interaction_income_nob4, rmse_beta)
+    } else {rmse_compiled_beta_interaction_income_nob4 <- rmse_beta}
+    ## plot residuals   
     beta_m <- betareg(prop~batch+age+gender, data=mdata_nob4, link='logit') %>% residuals(type='pearson') %>% 
       as.data.frame() %>% rename(residuals='.') %>% rownames_to_column('orig.ident') %>% 
       left_join(mdata_nob4, by=c('orig.ident')) %>% select(IDs, condition, celltype, income, residuals)%>%
@@ -595,7 +744,15 @@ for (i in 1:length(conditions)){
     if (exists('compiled_beta_interaction_asthma')){
       compiled_beta_interaction_asthma <- rbind(compiled_beta_interaction_asthma, results_beta_m)
     } else {compiled_beta_interaction_asthma <- results_beta_m}
-    ## plot 
+    # compute RMSE
+    beta_m <- predict(betareg(prop~batch+age+gender+condition*asthma, data=mdata, link='logit'), type='response')
+    rmse_beta <- rmse(mdata$prop, beta_m) %>% as.data.frame() %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='yes', terms='condition'%&%conditions[i]%&%':asthmaYes') %>%
+      rename(rmse='.')
+    if (exists('rmse_compiled_beta_interaction_asthma')){
+      rmse_compiled_beta_interaction_asthma <- rbind(rmse_compiled_beta_interaction_asthma, rmse_beta)
+    } else {rmse_compiled_beta_interaction_asthma <- rmse_beta}
+    ## plot residuals   
     beta_m <- betareg(prop~batch+age+gender, data=mdata, link='logit') %>% residuals(type='pearson') %>% 
       as.data.frame() %>% rename(residuals='.') %>% rownames_to_column('orig.ident') %>% 
       left_join(mdata, by=c('orig.ident')) %>% select(IDs, condition, celltype, asthma, residuals)%>%
@@ -618,7 +775,15 @@ for (i in 1:length(conditions)){
     if (exists('compiled_beta_interaction_asthma_nob4')){
       compiled_beta_interaction_asthma_nob4 <- rbind(compiled_beta_interaction_asthma_nob4, results_beta_m)
     } else {compiled_beta_interaction_asthma_nob4 <- results_beta_m}
-    ## plot 
+    # compute RMSE
+    beta_m <- predict(betareg(prop~batch+age+gender+condition*asthma, data=mdata_nob4, link='logit'), type='response')
+    rmse_beta <- rmse(mdata_nob4$prop, beta_m) %>% as.data.frame() %>% 
+      mutate(condition=conditions[i], celltype=ctype, batch4='no', terms='condition'%&%conditions[i]%&%':asthmaYes') %>%
+      rename(rmse='.')
+    if (exists('rmse_compiled_beta_interaction_asthma_nob4')){
+      rmse_compiled_beta_interaction_asthma_nob4 <- rbind(rmse_compiled_beta_interaction_asthma_nob4, rmse_beta)
+    } else {rmse_compiled_beta_interaction_asthma_nob4 <- rmse_beta}
+    ## plot residuals   
     beta_m <- betareg(prop~batch+age+gender, data=mdata_nob4, link='logit') %>% residuals(type='pearson') %>% 
       as.data.frame() %>% rename(residuals='.') %>% rownames_to_column('orig.ident') %>% 
       left_join(mdata_nob4, by=c('orig.ident')) %>% select(IDs, condition, celltype, asthma, residuals) %>%
@@ -668,7 +833,17 @@ for (i in 1:length(conditions)){
     if (exists('compiled_dr_income')){
       compiled_dr_income <- rbind(compiled_dr_income, dr_m_coeffs)
     } else {compiled_dr_income <- dr_m_coeffs}
-    ## plot 
+    # compute RMSE
+    dr_m <- predict(DirichReg(Y~batch+age+gender+income, data=mdata)) %>% as.data.frame()
+    for (j in 1:length(celltypes)){
+      rmse_dr <- rmse(mdata[[15]][,celltypes[j]], dr_m[,j]) %>% as.data.frame() %>% 
+        mutate(condition=conditions[i], celltype=celltypes[j], batch4='yes', terms='incomeHigh') %>%
+        rename(rmse='.')
+      if (exists('rmse_compiled_dr_income')){
+        rmse_compiled_dr_income <- rbind(rmse_compiled_dr_income, rmse_dr)
+      } else {rmse_compiled_dr_income <- rmse_dr}
+    }
+    ## plot residuals   
     dr_res <- DirichReg(Y~batch+age+gender, data=mdata) %>% residuals(type='standardized') %>% 
       unclass() %>% as.data.frame() %>% mutate(IDs=mdata$IDs) %>%
       pivot_longer(cols=celltypes, names_to='celltype', values_to='residuals') %>% left_join(mdata, by=c('IDs')) %>% 
@@ -693,7 +868,17 @@ for (i in 1:length(conditions)){
     if (exists('compiled_dr_income_nob4')){
       compiled_dr_income_nob4 <- rbind(compiled_dr_income_nob4, dr_m_coeffs)
     } else {compiled_dr_income_nob4 <- dr_m_coeffs}
-    ## plot 
+    # compute RMSE
+    dr_m <- predict(DirichReg(Y~batch+age+gender+income, data=mdata_nob4)) %>% as.data.frame()
+    for (j in 1:length(celltypes)){
+      rmse_dr <- rmse(mdata_nob4[[15]][,celltypes[j]], dr_m[,j]) %>% as.data.frame() %>% 
+        mutate(condition=conditions[i], celltype=celltypes[j], batch4='no', terms='incomeHigh') %>%
+        rename(rmse='.')
+      if (exists('rmse_compiled_dr_income_nob4')){
+        rmse_compiled_dr_income_nob4 <- rbind(rmse_compiled_dr_income_nob4, rmse_dr)
+      } else {rmse_compiled_dr_income_nob4 <- rmse_dr}
+    }
+    ## plot residuals 
     dr_res <- DirichReg(Y~batch+age+gender, data=mdata_nob4) %>% residuals(type='standardized') %>% 
       unclass() %>% as.data.frame() %>% mutate(IDs=mdata_nob4$IDs) %>%
       pivot_longer(cols=celltypes, names_to='celltype', values_to='residuals') %>% left_join(mdata_nob4, by=c('IDs')) %>% 
@@ -718,7 +903,17 @@ for (i in 1:length(conditions)){
     if (exists('compiled_dr_asthma')){
       compiled_dr_asthma <- rbind(compiled_dr_asthma, dr_m_coeffs)
     } else {compiled_dr_asthma <- dr_m_coeffs}
-    ## plot 
+    # compute RMSE
+    dr_m <- predict(DirichReg(Y~batch+age+gender+asthma, data=mdata)) %>% as.data.frame()
+    for (j in 1:length(celltypes)){
+      rmse_dr <- rmse(mdata[[15]][,celltypes[j]], dr_m[,j]) %>% as.data.frame() %>% 
+        mutate(condition=conditions[i], celltype=celltypes[j], batch4='yes', terms='asthmaYes') %>%
+        rename(rmse='.')
+      if (exists('rmse_compiled_dr_asthma')){
+        rmse_compiled_dr_asthma <- rbind(rmse_compiled_dr_asthma, rmse_dr)
+      } else {rmse_compiled_dr_asthma <- rmse_dr}
+    }
+    ## plot residuals     
     dr_res <- DirichReg(Y~batch+age+gender, data=mdata) %>% residuals(type='standardized') %>% 
       unclass() %>% as.data.frame() %>% mutate(IDs=mdata$IDs) %>%
       pivot_longer(cols=celltypes, names_to='celltype', values_to='residuals') %>% left_join(mdata, by=c('IDs')) %>% 
@@ -743,7 +938,17 @@ for (i in 1:length(conditions)){
     if (exists('compiled_dr_asthma_nob4')){
       compiled_dr_asthma_nob4 <- rbind(compiled_dr_asthma_nob4, dr_m_coeffs)
     } else {compiled_dr_asthma_nob4 <- dr_m_coeffs}
-    ## plot 
+    # compute RMSE
+    dr_m <- predict(DirichReg(Y~batch+age+gender+asthma, data=mdata_nob4)) %>% as.data.frame()
+    for (j in 1:length(celltypes)){
+      rmse_dr <- rmse(mdata_nob4[[15]][,celltypes[j]], dr_m[,j]) %>% as.data.frame() %>% 
+        mutate(condition=conditions[i], celltype=celltypes[j], batch4='no', terms='asthmaYes') %>%
+        rename(rmse='.')
+      if (exists('rmse_compiled_dr_asthma_nob4')){
+        rmse_compiled_dr_asthma_nob4 <- rbind(rmse_compiled_dr_asthma_nob4, rmse_dr)
+      } else {rmse_compiled_dr_asthma_nob4 <- rmse_dr}
+    }
+    ## plot residuals    
     dr_res <- DirichReg(Y~batch+age+gender, data=mdata_nob4) %>% residuals(type='standardized') %>% 
       unclass() %>% as.data.frame() %>% mutate(IDs=mdata_nob4$IDs) %>%
       pivot_longer(cols=celltypes, names_to='celltype', values_to='residuals') %>% left_join(mdata_nob4, by=c('IDs')) %>% 
@@ -794,7 +999,17 @@ for (i in 1:length(conditions)){
   if (exists('compiled_dr_infection')){
     compiled_dr_infection <- rbind(compiled_dr_infection, dr_m_coeffs)
   } else {compiled_dr_infection <- dr_m_coeffs}
-  ## plot 
+  # compute RMSE
+  dr_m <- predict(DirichReg(Y~batch+age+gender+condition, data=mdata)) %>% as.data.frame()
+  for (j in 1:length(celltypes)){
+    rmse_dr <- rmse(mdata[[15]][,celltypes[j]], dr_m[,j]) %>% as.data.frame() %>% 
+      mutate(condition=conditions[i], celltype=celltypes[j], batch4='yes', terms='infection') %>%
+      rename(rmse='.')
+    if (exists('rmse_compiled_dr_infection')){
+      rmse_compiled_dr_infection <- rbind(rmse_compiled_dr_infection, rmse_dr)
+    } else {rmse_compiled_dr_infection <- rmse_dr}
+  }
+  ## plot residuals    
   dr_res <- DirichReg(Y~batch+age+gender, data=mdata) %>% residuals(type='standardized') %>% 
     unclass() %>% as.data.frame() %>% mutate(IDs=mdata$IDs, condition=mdata$condition) %>%
     pivot_longer(cols=celltypes, names_to='celltype', values_to='residuals') %>% left_join(mdata, by=c('IDs', 'condition')) %>% 
@@ -816,10 +1031,20 @@ for (i in 1:length(conditions)){
            terms='infection') %>% select(terms, Estimate, `Pr(>|z|)`,
                                          condition, celltype, batch4) %>%
     rename(betas=Estimate, pvals=`Pr(>|z|)`)
-  if (exists('compiled_dr_infection')){
-    compiled_dr_infection <- rbind(compiled_dr_infection, dr_m_coeffs)
-  } else {compiled_dr_infection <- dr_m_coeffs}
-  ## plot 
+  if (exists('compiled_dr_infection_nob4')){
+    compiled_dr_infection_nob4 <- rbind(compiled_dr_infection_nob4, dr_m_coeffs)
+  } else {compiled_dr_infection_nob4 <- dr_m_coeffs}
+  # compute RMSE
+  dr_m <- predict(DirichReg(Y~batch+age+gender+condition, data=mdata_nob4)) %>% as.data.frame()
+  for (j in 1:length(celltypes)){
+    rmse_dr <- rmse(mdata_nob4[[15]][,celltypes[j]], dr_m[,j]) %>% as.data.frame() %>% 
+      mutate(condition=conditions[i], celltype=celltypes[j], batch4='no', terms='infection') %>%
+      rename(rmse='.')
+    if (exists('rmse_compiled_dr_infection_nob4')){
+      rmse_compiled_dr_infection_nob4 <- rbind(rmse_compiled_dr_infection_nob4, rmse_dr)
+    } else {rmse_compiled_dr_infection_nob4 <- rmse_dr}
+  }
+  ## plot residuals   
   dr_res <- DirichReg(Y~batch+age+gender, data=mdata_nob4) %>% residuals(type='standardized') %>% 
     unclass() %>% as.data.frame() %>% mutate(IDs=mdata_nob4$IDs, condition=mdata_nob4$condition) %>%
     pivot_longer(cols=celltypes, names_to='celltype', values_to='residuals') %>% left_join(mdata_nob4, by=c('IDs', 'condition')) %>% 
@@ -844,7 +1069,17 @@ for (i in 1:length(conditions)){
   if (exists('compiled_dr_interaction_income')){
     compiled_dr_interaction_income <- rbind(compiled_dr_interaction_income, dr_m_coeffs)
   } else {compiled_dr_interaction_income <- dr_m_coeffs}
-  ## plot 
+  # compute RMSE
+  dr_m <- predict(DirichReg(Y~batch+age+gender+condition*income, data=mdata)) %>% as.data.frame()
+  for (j in 1:length(celltypes)){
+    rmse_dr <- rmse(mdata[[15]][,celltypes[j]], dr_m[,j]) %>% as.data.frame() %>% 
+      mutate(condition=conditions[i], celltype=celltypes[j], batch4='yes', terms='condition'%&%conditions[i]%&%':incomeHigh') %>%
+      rename(rmse='.')
+    if (exists('rmse_compiled_dr_interaction_income')){
+      rmse_compiled_dr_interaction_income <- rbind(rmse_compiled_dr_interaction_income, rmse_dr)
+    } else {rmse_compiled_dr_interaction_income <- rmse_dr}
+  }
+  ## plot residuals  
   dr_res <- DirichReg(Y~batch+age+gender, data=mdata) %>% residuals(type='standardized') %>% 
     unclass() %>% as.data.frame() %>% mutate(IDs=mdata$IDs, condition=mdata$condition) %>%
     pivot_longer(cols=celltypes, names_to='celltype', values_to='residuals') %>% left_join(mdata, by=c('IDs', 'condition')) %>% 
@@ -871,7 +1106,17 @@ for (i in 1:length(conditions)){
   if (exists('compiled_dr_interaction_income_nob4')){
     compiled_dr_interaction_income_nob4 <- rbind(compiled_dr_interaction_income_nob4, dr_m_coeffs)
   } else {compiled_dr_interaction_income_nob4 <- dr_m_coeffs}
-  ## plot 
+  # compute RMSE
+  dr_m <- predict(DirichReg(Y~batch+age+gender+condition*income, data=mdata_nob4)) %>% as.data.frame()
+  for (j in 1:length(celltypes)){
+    rmse_dr <- rmse(mdata_nob4[[15]][,celltypes[j]], dr_m[,j]) %>% as.data.frame() %>% 
+      mutate(condition=conditions[i], celltype=celltypes[j], batch4='no', terms='condition'%&%conditions[i]%&%':incomeHigh') %>%
+      rename(rmse='.')
+    if (exists('rmse_compiled_dr_interaction_income_nob4')){
+      rmse_compiled_dr_interaction_income_nob4 <- rbind(rmse_compiled_dr_interaction_income_nob4, rmse_dr)
+    } else {rmse_compiled_dr_interaction_income_nob4 <- rmse_dr}
+  }
+  ## plot residuals  
   dr_res <- DirichReg(Y~batch+age+gender, data=mdata_nob4) %>% residuals(type='standardized') %>% 
     unclass() %>% as.data.frame() %>% mutate(IDs=mdata_nob4$IDs, condition=mdata_nob4$condition) %>%
     pivot_longer(cols=celltypes, names_to='celltype', values_to='residuals') %>% left_join(mdata_nob4, by=c('IDs', 'condition')) %>% 
@@ -898,7 +1143,17 @@ for (i in 1:length(conditions)){
   if (exists('compiled_dr_interaction_asthma')){
     compiled_dr_interaction_asthma <- rbind(compiled_dr_interaction_asthma, dr_m_coeffs)
   } else {compiled_dr_interaction_asthma <- dr_m_coeffs}
-  ## plot 
+  # compute RMSE
+  dr_m <- predict(DirichReg(Y~batch+age+gender+condition*asthma, data=mdata)) %>% as.data.frame()
+  for (j in 1:length(celltypes)){
+    rmse_dr <- rmse(mdata[[15]][,celltypes[j]], dr_m[,j]) %>% as.data.frame() %>% 
+      mutate(condition=conditions[i], celltype=celltypes[j], batch4='yes', terms='condition'%&%conditions[i]%&%':asthmaYes') %>%
+      rename(rmse='.')
+    if (exists('rmse_compiled_dr_interaction_asthma')){
+      rmse_compiled_dr_interaction_asthma <- rbind(rmse_compiled_dr_interaction_asthma, rmse_dr)
+    } else {rmse_compiled_dr_interaction_asthma <- rmse_dr}
+  }
+  ## plot residuals  
   dr_res <- DirichReg(Y~batch+age+gender, data=mdata) %>% residuals(type='standardized') %>% 
     unclass() %>% as.data.frame() %>% mutate(IDs=mdata$IDs, condition=mdata$condition) %>%
     pivot_longer(cols=celltypes, names_to='celltype', values_to='residuals') %>% left_join(mdata, by=c('IDs', 'condition')) %>% 
@@ -911,7 +1166,7 @@ for (i in 1:length(conditions)){
       stat_compare_means(comparisons=list(c('No', 'Yes'))) + 
       scale_y_continuous(expand=expansion(mult=.3)) + 
       labs(y=ctype%&%' proportion (residuals)')
-    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_dr_asthma.income.png', height=3, width=4)
+    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_dr_infection.asthma.png', height=3, width=4)
   }
   
   # fit Dirichlet model in asthma, without batch 4 
@@ -925,7 +1180,17 @@ for (i in 1:length(conditions)){
   if (exists('compiled_dr_interaction_asthma_nob4')){
     compiled_dr_interaction_asthma_nob4 <- rbind(compiled_dr_interaction_asthma_nob4, dr_m_coeffs)
   } else {compiled_dr_interaction_asthma_nob4 <- dr_m_coeffs}
-  ## plot 
+  # compute RMSE
+  dr_m <- predict(DirichReg(Y~batch+age+gender+condition*asthma, data=mdata_nob4)) %>% as.data.frame()
+  for (j in 1:length(celltypes)){
+    rmse_dr <- rmse(mdata_nob4[[15]][,celltypes[j]], dr_m[,j]) %>% as.data.frame() %>% 
+      mutate(condition=conditions[i], celltype=celltypes[j], batch4='no', terms='condition'%&%conditions[i]%&%':asthmaYes') %>%
+      rename(rmse='.')
+    if (exists('rmse_compiled_dr_interaction_asthma_nob4')){
+      rmse_compiled_dr_interaction_asthma_nob4 <- rbind(rmse_compiled_dr_interaction_asthma_nob4, rmse_dr)
+    } else {rmse_compiled_dr_interaction_asthma_nob4 <- rmse_dr}
+  }
+  ## plot residuals  
   dr_res <- DirichReg(Y~batch+age+gender, data=mdata_nob4) %>% residuals(type='standardized') %>% 
     unclass() %>% as.data.frame() %>% mutate(IDs=mdata_nob4$IDs, condition=mdata_nob4$condition) %>%
     pivot_longer(cols=celltypes, names_to='celltype', values_to='residuals') %>% left_join(mdata_nob4, by=c('IDs', 'condition')) %>% 
@@ -938,7 +1203,7 @@ for (i in 1:length(conditions)){
       stat_compare_means(comparisons=list(c('No', 'Yes'))) + 
       scale_y_continuous(expand=expansion(mult=.3)) + 
       labs(y=ctype%&%' proportion (residuals)')
-    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_dr_asthma.income_nob4.png', height=3, width=4)
+    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_dr_infection.asthma_nob4.png', height=3, width=4)
   }
 }
 
@@ -958,6 +1223,8 @@ single_results <- do.call(rbind, list_of_results) %>% rownames_to_column('regres
 single_results <- single_results %>% mutate(ultra_p_adj=p.adjust(pvals, method='fdr')) %>%
   arrange(terms, condition, celltype, batch4) 
 sig_single_resutls <- single_results %>% filter(p_adj<0.05)
+ultra_sig_single_resutls <- single_results %>% filter(ultra_p_adj<0.05)
+
 
 # sig. in DR but not in beta or linear:
 # asthma or income changes the relative composition of cell types (compositional dependencies captured by DR), 
@@ -970,3 +1237,39 @@ sig_single_resutls %>% filter(batch4=='yes') %>% ggplot(., aes(x=celltype, y=bet
   theme_bw() + facet_grid(cols=vars(terms), rows=vars(condition)) + ggtitle('batch4')
 sig_single_resutls %>% filter(batch4=='no') %>% ggplot(., aes(x=celltype, y=betas, color=regression)) + geom_point() +
   theme_bw() + facet_grid(cols=vars(terms), rows=vars(condition)) + ggtitle('no_batch4')
+
+# compare RMSE between models
+list_of_rmse <- mget(ls(pattern='^rmse_compiled'))
+all_RMSEs <- do.call(rbind, list_of_rmse) %>% rownames_to_column('regression') %>% 
+  mutate(regression = case_when(
+    grepl('_beta_', regression)   ~ 'beta',
+    grepl('_dr_', regression)     ~ 'DR',
+    grepl('_linear_', regression) ~ 'linear',
+    TRUE                          ~ NA_character_
+  ), terms = case_when(
+    grepl(':asthmaYes', terms)   ~ 'infection:asthmaYes',
+    grepl(':incomeHigh', terms)   ~ 'infection:incomeHigh',
+    grepl('asthmaYes', terms) ~ 'asthmaYes',
+    grepl('incomeHigh', terms) ~ 'incomeHigh',
+    grepl('infection', terms) ~ 'infection',
+    TRUE                          ~ NA_character_
+  )
+)
+all_RMSEs$regression <- factor(all_RMSEs$regression, levels=c('linear', 'beta', 'DR'))
+all_RMSEs$condition <- factor(all_RMSEs$condition, levels=c('NI', 'IVA', 'RV'))
+
+all_RMSEs %>% filter(batch4=='yes') %>% ggplot(., aes(x=celltype, y=rmse, fill=regression)) + geom_col(position='dodge') + theme_bw() +
+  facet_grid(cols=vars(terms), rows=vars(condition))
+ggsave('proportion_plots/RMSE_yesb4.png', height=5, width=12)
+all_RMSEs %>% filter(batch4=='no') %>% ggplot(., aes(x=celltype, y=rmse, fill=regression)) + geom_col(position='dodge') + theme_bw() +
+  facet_grid(cols=vars(terms), rows=vars(condition))
+ggsave('proportion_plots/RMSE_nob4.png', height=5, width=12)
+
+all_RMSEs %>% filter(batch4=='yes', regression!='DR') %>% 
+  ggplot(., aes(x=celltype, y=rmse, fill=regression)) + geom_col(position='dodge') + theme_bw() +
+  facet_grid(cols=vars(terms), rows=vars(condition))
+ggsave('proportion_plots/RMSE_noDR_yesb4.png', height=5, width=12)
+all_RMSEs %>% filter(batch4=='no', regression!='DR') %>% 
+  ggplot(., aes(x=celltype, y=rmse, fill=regression)) + geom_col(position='dodge') + theme_bw() +
+  facet_grid(cols=vars(terms), rows=vars(condition))
+ggsave('proportion_plots/RMSE_noDR_nob4.png', height=5, width=12)
