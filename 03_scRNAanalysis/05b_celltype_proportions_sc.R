@@ -272,7 +272,9 @@ for (cond in conditions){
     
     # construct KNN graph and nhoods
     subset_obj <- buildGraph(subset_obj, k=50, d=30) %>%
-      makeNhoods(k=50, d=30, refined=TRUE, prop=0.1, reduced_dims='INTEGRATED.RPCA')
+      makeNhoods(k=50, d=30, refined=TRUE, prop=0.1, reduced_dims='INTEGRATED.RPCA') %>%
+      buildNhoodGraph()
+    reducedDim(subset_obj, 'UMAP') <- reducedDim(subset_obj, 'RNA.UMAP')
     
     # count cells in nhoods
     subset_obj <- countCells(subset_obj, meta.data=data.frame(colData(subset_obj)), sample='IDs')
@@ -297,6 +299,10 @@ for (cond in conditions){
            aes(x=logFC), color='grey', alpha=0.5, orientation='y') + geom_quasirandom(data=filter(da_results, is.sig),
            aes(x=logFC), color='red', alpha=1, orientation='y') + theme_bw()
     ggsave('proportion_plots/miloR_'%&%cond%&%'_income_beeswarm_'%&%b%&%'b4_new.png', height=5, width=7)
+    
+    plotNhoodGraphDA(subset_obj, da_results, alpha=0.05)
+    ggsave('proportion_plots/miloR_'%&%cond%&%'_income_nhoodgraph_'%&%b%&%'b4_new.png', height=5, width=7)
+    
     ## save results
     if (exists('compiled_milo')){
       compiled_milo <- rbind(compiled_milo, da_results)
@@ -313,6 +319,10 @@ for (cond in conditions){
            aes(x=logFC), color='grey', alpha=0.5, orientation='y') + geom_quasirandom(data=filter(da_results, is.sig),
            aes(x=logFC), color='red', alpha=1, orientation='y') + theme_bw()
     ggsave('proportion_plots/miloR_'%&%cond%&%'_asthma_beeswarm_'%&%b%&%'b4_new.png', height=5, width=7)
+    
+    plotNhoodGraphDA(subset_obj, da_results, alpha=0.05)
+    ggsave('proportion_plots/miloR_'%&%cond%&%'_asthma_nhoodgraph_'%&%b%&%'b4_new.png', height=5, width=7)
+    
     ## save results
     compiled_milo <- rbind(compiled_milo, da_results)
     
@@ -327,7 +337,9 @@ for (cond in conditions){
       
       # construct KNN graph and nhoods
       subset_obj <- buildGraph(subset_obj, k=50, d=30) %>%
-        makeNhoods(k=50, d=30, refined=TRUE, prop=0.1, reduced_dims='INTEGRATED.RPCA')
+        makeNhoods(k=50, d=30, refined=TRUE, prop=0.1, reduced_dims='INTEGRATED.RPCA') %>%
+        buildNhoodGraph()
+      reducedDim(subset_obj, 'UMAP') <- reducedDim(subset_obj, 'RNA.UMAP')
       
       # count cells in nhoods per experimental condition (aka infection status)
       colData(subset_obj)$group <- colData(subset_obj)$IDs%&%'_'%&%colData(subset_obj)$condition
@@ -354,6 +366,10 @@ for (cond in conditions){
              aes(x=logFC), color='grey', alpha=0.5, orientation='y') + geom_quasirandom(data=filter(da_results, is.sig),
              aes(x=logFC), color='red', alpha=1, orientation='y') + theme_bw()
       ggsave('proportion_plots/miloR_'%&%cond%&%'_infection_beeswarm_'%&%b%&%'b4_new.png', height=5, width=7)
+      
+      plotNhoodGraphDA(subset_obj, da_results, alpha=0.05)
+      ggsave('proportion_plots/miloR_'%&%cond%&%'_infection_nhoodgraph_'%&%b%&%'b4_new.png', height=5, width=7)
+      
       ## save results
       compiled_milo <- rbind(compiled_milo, da_results)
       
@@ -368,6 +384,10 @@ for (cond in conditions){
              aes(x=logFC), color='grey', alpha=0.5, orientation='y') + geom_quasirandom(data=filter(da_results, is.sig),
              aes(x=logFC), color='red', alpha=1, orientation='y') + theme_bw()
       ggsave('proportion_plots/miloR_'%&%cond%&%'_interaction_income_beeswarm_'%&%b%&%'b4_new.png', height=5, width=7)
+      
+      plotNhoodGraphDA(subset_obj, da_results, alpha=0.05)
+      ggsave('proportion_plots/miloR_'%&%cond%&%'_interaction_income_nhoodgraph_'%&%b%&%'b4_new.png', height=5, width=7)
+      
       ## save results
       compiled_milo <- rbind(compiled_milo, da_results)
       
@@ -382,6 +402,10 @@ for (cond in conditions){
              aes(x=logFC), color='grey', alpha=0.5, orientation='y') + geom_quasirandom(data=filter(da_results, is.sig),
              aes(x=logFC), color='red', alpha=1, orientation='y') + theme_bw()
       ggsave('proportion_plots/miloR_'%&%cond%&%'_interaction_asthma_beeswarm_'%&%b%&%'b4_new.png', height=5, width=7)
+      
+      plotNhoodGraphDA(subset_obj, da_results, alpha=0.05)
+      ggsave('proportion_plots/miloR_'%&%cond%&%'_interaction_asthma_nhoodgraph_'%&%b%&%'b4_new.png', height=5, width=7)
+      
       ## save results
       compiled_milo <- rbind(compiled_milo, da_results)
     }
@@ -400,6 +424,7 @@ summary_sig_compiled_milo <- compiled_milo %>%
     n_sig = sum(is.sig),
     frac_sig = n_sig / n_nhoods,
     median_logFC_sig = median(logFC[is.sig], na.rm=TRUE),
+    mean_logFC_sig = mean(logFC[is.sig], na.rm=TRUE),
     direction = sign(sum(logFC[is.sig], na.rm=TRUE)),
     .groups = 'drop') %>% drop_na() %>%
   mutate(direction=ifelse(direction==1, 'Up', 'Down'))
@@ -411,9 +436,23 @@ summary_sig_compiled_milo %>% filter(batch4=='yes') %>%
   theme_bw() + facet_wrap(~condition)
 ggsave('proportion_plots/miloR_sigresults_yesb4_new.png', height=5, width=10)
 
+summary_sig_compiled_milo %>% filter(batch4=='yes') %>% 
+  ggplot(., aes(x=celltype, y=identity, size=frac_sig, color=mean_logFC_sig, shape=direction)) +
+  geom_point() + scale_color_gradient(low='blue', high='red') +  
+  labs(x='Cell type', y=NULL, size='Fraction of sig. nhoods', color='Mean LogFC', shape='Direction') +
+  theme_bw() + facet_wrap(~condition)
+ggsave('proportion_plots/miloR_sigresults_mean_yesb4_new.png', height=5, width=10)
+
 summary_sig_compiled_milo %>% filter(batch4=='no') %>% 
   ggplot(., aes(x=celltype, y=identity, size=frac_sig, color=median_logFC_sig, shape=direction)) +
   geom_point() + scale_color_gradient(low='blue', high='red') +  
   labs(x='Cell type', y=NULL, size='Fraction of sig. nhoods', color='Median LogFC', shape='Direction') +
+  theme_bw() + facet_wrap(~condition)
+ggsave('proportion_plots/miloR_sigresults_nob4_new.png', height=5, width=10)
+
+summary_sig_compiled_milo %>% filter(batch4=='no') %>% 
+  ggplot(., aes(x=celltype, y=identity, size=frac_sig, color=mean_logFC_sig, shape=direction)) +
+  geom_point() + scale_color_gradient(low='blue', high='red') +  
+  labs(x='Cell type', y=NULL, size='Fraction of sig. nhoods', color='Mean LogFC', shape='Direction') +
   theme_bw() + facet_wrap(~condition)
 ggsave('proportion_plots/miloR_sigresults_nob4_new.png', height=5, width=10)
