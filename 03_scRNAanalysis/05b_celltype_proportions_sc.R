@@ -12,7 +12,7 @@ conditions <- c('NI', 'IVA', 'RV')
 celltypes <- c('B','CD4-T','CD8-T','Mono','NK')
 
 # load seurat object
-obj <- readRDS('NI_IVA_RV.integrated.w_celltype.rds')
+obj <- readRDS('NI_IVA_RV.integrated.w_celltype_new.rds')
 
 # adjust metadata
 sample_m <- fread('../sample_metadata.txt')
@@ -42,7 +42,7 @@ for (cond in conditions){
       sample_1='Low', sample_2='High',
       sample_identity='income')
     permutation_plot(prop_test, order_clusters=F)
-    ggsave('proportion_plots/scProportionTest_'%&%cond%&%'_income_'%&%b%&%'b4.png', height=5, width=7)
+    ggsave('proportion_plots/scProportionTest_'%&%cond%&%'_income_'%&%b%&%'b4_new.png', height=5, width=7)
     prop_test <- prop_test@results %>% bind_rows() %>% 
       dplyr::rename(reference=Low, alternative=High) %>% 
       mutate(identity='income', condition=cond, batch4=b)
@@ -56,7 +56,7 @@ for (cond in conditions){
       sample_1='No', sample_2='Yes',
       sample_identity='asthma')
     permutation_plot(prop_test, order_clusters=F)
-    ggsave('proportion_plots/scProportionTest_'%&%cond%&%'_asthma_'%&%b%&%'b4.png', height=5, width=7)
+    ggsave('proportion_plots/scProportionTest_'%&%cond%&%'_asthma_'%&%b%&%'b4_new.png', height=5, width=7)
     prop_test <- prop_test@results %>% bind_rows() %>% 
       dplyr::rename(reference=No, alternative=Yes) %>% 
       mutate(identity='asthma', condition=cond, batch4=b)
@@ -76,7 +76,7 @@ for (cond in conditions){
         sample_1='NI', sample_2=cond,
         sample_identity='condition')
       permutation_plot(prop_test, order_clusters=F)
-      ggsave('proportion_plots/scProportionTest_'%&%cond%&%'_infection_'%&%b%&%'b4.png', height=5, width=7)
+      ggsave('proportion_plots/scProportionTest_'%&%cond%&%'_infection_'%&%b%&%'b4_new.png', height=5, width=7)
       prop_test <- prop_test@results %>% bind_rows() %>% 
         dplyr::rename(reference=NI, alternative=cond) %>% 
         mutate(identity='infection', condition=cond, batch4=b)
@@ -96,14 +96,14 @@ sig_compiled_scProp %>% filter(batch4=='yes') %>%
   geom_point() + scale_color_gradient(low='blue', high='red') +  
   labs(x='Cell type', y=NULL, size='-log10(FDR)', color='log2FD', shape='Direction') +
   theme_bw() + facet_wrap(~condition)
-ggsave('proportion_plots/scProportionTest_sigresults_yesb4.png', height=5, width=9)
+ggsave('proportion_plots/scProportionTest_sigresults_yesb4_new.png', height=5, width=9)
 
 sig_compiled_scProp %>% filter(batch4=='no') %>% 
   ggplot(., aes(x=clusters, y=identity, size=-log10(FDR), color=abs(obs_log2FD), shape=direction)) +
   geom_point() + scale_color_gradient(low='blue', high='red') +  
   labs(x='Cell type', y=NULL, size='-log10(FDR)', color='log2FD', shape='Direction') +
   theme_bw() + facet_wrap(~condition)
-ggsave('proportion_plots/scProportionTest_sigresults_nob4.png', height=5, width=9)
+ggsave('proportion_plots/scProportionTest_sigresults_nob4_new.png', height=5, width=9)
 
 ###############
 ### speckle ###
@@ -248,14 +248,14 @@ sig_compiled_speckle %>% filter(batch4=='yes') %>%
   geom_point() + scale_color_gradient(low='blue', high='red') +  
   labs(x='Cell type', y=NULL, size='-log10(FDR)', color='PropRatio', shape='Direction') +
   theme_bw() + facet_wrap(~condition)
-ggsave('proportion_plots/speckle_sigresults_yesb4.png', height=5, width=9)
+ggsave('proportion_plots/speckle_sigresults_yesb4_new.png', height=5, width=9)
 
 sig_compiled_speckle %>% filter(batch4=='no') %>% 
   ggplot(., aes(x=clusters, y=identity, size=-log10(FDR), color=PropRatio, shape=direction)) +
   geom_point() + scale_color_gradient(low='blue', high='red') +  
   labs(x='Cell type', y=NULL, size='-log10(FDR)', color='PropRatio', shape='Direction') +
   theme_bw() + facet_wrap(~condition)
-ggsave('proportion_plots/speckle_sigresults_nob4.png', height=5, width=9)
+ggsave('proportion_plots/speckle_sigresults_nob4_new.png', height=5, width=9)
 
 #############
 ### miloR ###
@@ -296,7 +296,7 @@ for (cond in conditions){
     ggplot(da_results, aes(y=celltype)) + geom_quasirandom(data=filter(da_results, !is.sig),
            aes(x=logFC), color='grey', alpha=0.5, orientation='y') + geom_quasirandom(data=filter(da_results, is.sig),
            aes(x=logFC), color='red', alpha=1, orientation='y') + theme_bw()
-    ggsave('proportion_plots/miloR_'%&%cond%&%'_income_beeswarm_'%&%b%&%'b4.png', height=5, width=7)
+    ggsave('proportion_plots/miloR_'%&%cond%&%'_income_beeswarm_'%&%b%&%'b4_new.png', height=5, width=7)
     ## save results
     if (exists('compiled_milo')){
       compiled_milo <- rbind(compiled_milo, da_results)
@@ -312,7 +312,7 @@ for (cond in conditions){
     ggplot(da_results, aes(y=celltype)) + geom_quasirandom(data=filter(da_results, !is.sig),
            aes(x=logFC), color='grey', alpha=0.5, orientation='y') + geom_quasirandom(data=filter(da_results, is.sig),
            aes(x=logFC), color='red', alpha=1, orientation='y') + theme_bw()
-    ggsave('proportion_plots/miloR_'%&%cond%&%'_asthma_beeswarm_'%&%b%&%'b4.png', height=5, width=7)
+    ggsave('proportion_plots/miloR_'%&%cond%&%'_asthma_beeswarm_'%&%b%&%'b4_new.png', height=5, width=7)
     ## save results
     compiled_milo <- rbind(compiled_milo, da_results)
     
@@ -353,7 +353,7 @@ for (cond in conditions){
       ggplot(da_results, aes(y=celltype)) + geom_quasirandom(data=filter(da_results, !is.sig),
              aes(x=logFC), color='grey', alpha=0.5, orientation='y') + geom_quasirandom(data=filter(da_results, is.sig),
              aes(x=logFC), color='red', alpha=1, orientation='y') + theme_bw()
-      ggsave('proportion_plots/miloR_'%&%cond%&%'_infection_beeswarm_'%&%b%&%'b4.png', height=5, width=7)
+      ggsave('proportion_plots/miloR_'%&%cond%&%'_infection_beeswarm_'%&%b%&%'b4_new.png', height=5, width=7)
       ## save results
       compiled_milo <- rbind(compiled_milo, da_results)
       
@@ -367,7 +367,7 @@ for (cond in conditions){
       ggplot(da_results, aes(y=celltype)) + geom_quasirandom(data=filter(da_results, !is.sig),
              aes(x=logFC), color='grey', alpha=0.5, orientation='y') + geom_quasirandom(data=filter(da_results, is.sig),
              aes(x=logFC), color='red', alpha=1, orientation='y') + theme_bw()
-      ggsave('proportion_plots/miloR_'%&%cond%&%'_interaction_income_beeswarm_'%&%b%&%'b4.png', height=5, width=7)
+      ggsave('proportion_plots/miloR_'%&%cond%&%'_interaction_income_beeswarm_'%&%b%&%'b4_new.png', height=5, width=7)
       ## save results
       compiled_milo <- rbind(compiled_milo, da_results)
       
@@ -381,7 +381,7 @@ for (cond in conditions){
       ggplot(da_results, aes(y=celltype)) + geom_quasirandom(data=filter(da_results, !is.sig),
              aes(x=logFC), color='grey', alpha=0.5, orientation='y') + geom_quasirandom(data=filter(da_results, is.sig),
              aes(x=logFC), color='red', alpha=1, orientation='y') + theme_bw()
-      ggsave('proportion_plots/miloR_'%&%cond%&%'_interaction_asthma_beeswarm_'%&%b%&%'b4.png', height=5, width=7)
+      ggsave('proportion_plots/miloR_'%&%cond%&%'_interaction_asthma_beeswarm_'%&%b%&%'b4_new.png', height=5, width=7)
       ## save results
       compiled_milo <- rbind(compiled_milo, da_results)
     }
@@ -409,11 +409,11 @@ summary_sig_compiled_milo %>% filter(batch4=='yes') %>%
   geom_point() + scale_color_gradient(low='blue', high='red') +  
   labs(x='Cell type', y=NULL, size='Fraction of sig. nhoods', color='Median LogFC', shape='Direction') +
   theme_bw() + facet_wrap(~condition)
-ggsave('proportion_plots/miloR_sigresults_yesb4.png', height=5, width=10)
+ggsave('proportion_plots/miloR_sigresults_yesb4_new.png', height=5, width=10)
 
 summary_sig_compiled_milo %>% filter(batch4=='no') %>% 
   ggplot(., aes(x=celltype, y=identity, size=frac_sig, color=median_logFC_sig, shape=direction)) +
   geom_point() + scale_color_gradient(low='blue', high='red') +  
   labs(x='Cell type', y=NULL, size='Fraction of sig. nhoods', color='Median LogFC', shape='Direction') +
   theme_bw() + facet_wrap(~condition)
-ggsave('proportion_plots/miloR_sigresults_nob4.png', height=5, width=10)
+ggsave('proportion_plots/miloR_sigresults_nob4_new.png', height=5, width=10)

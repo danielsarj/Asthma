@@ -19,6 +19,7 @@ markers_seurat <- FindAllMarkers(obj, only.pos=TRUE, min.pct=0.10)
 # find top markers for seurat clusters
 top_seurat <- markers_seurat %>% group_by(cluster) %>% slice_min(p_val_adj, n=100) %>% slice_max(avg_log2FC, n=20)
 DimPlot(obj, reduction='rna.umap', label=T, repel=T, shuffle=T)
+ggsave(filename='UMAP_NI_IVA_RV_seurat_clusters.pdf', height=6, width=8)
 
 # annotate using different references using SingleR
 ref_list <- list(celldex::BlueprintEncodeData(), celldex::DatabaseImmuneCellExpressionData(), 
@@ -150,14 +151,70 @@ for (i in seq(length(ref_list)+2)){
   }
 }
 
+# FINAL CLUSTER ANNOTATION
+labels <- data.frame(
+  seurat_clusters = factor(0:35, levels = 0:35),
+  celltype = c(
+    'CD4-T', #0 - consensus btwn all refs
+    'CD4-T', #1 - consensus btwn all refs
+    'CD4-T', #2 - consensus btwn all refs
+    'CD4-T', #3 - low CD4, but clusters close to CD4+ and expresses Tcell markers
+    'CD8-T', #4 - CD8A+/CD3D+/CCR7+/TRAC+
+    'CD8-T', #5 - CD8A+/CD3D+/CCR7+/TRAC+
+    'NK', #6 - CD3D-/TRAC-/KLRB1+/NKG7+
+    'B', #7 - consensus btwn all refs
+    'CD4-T', #8 - low CD4, but clusters close to CD4+ and expresses Tcell markers
+    'CD8-T', #9 - CD8A+/CD3D+/CCR7+/TRAC+
+    NA, #10 - TRDV1+/TRAC+, likely a cluster of mixed CD8+ and gamma-delta T cells
+    'CD4-T', #11 - low CD4, but clusters close to CD4+ and expresses Tcell markers
+    'CD8-T', #12 CD3D+/CD8A+/NCAM1-/FCGR3A- 
+    'B', #13 - consensus btwn all refs
+    'CD4-T', #14 CD4+/FOXP3- 
+    'MAIT', #15 CD3D+/CD8A+/NCAM1-/TRAC+/CXCR6+
+    'DN-T', #16 CD3D+/TRAC+/CD8A-/CD4-/FOXP3- 
+    'CD4-Treg', #17 CD3D+/CD4+/FOXP3+
+    'Lymphoid_progenitors', #18 TRAC-/TRBC1-/CD3D-/FOXP3-/CCR7+/LTB+/IL7R+
+    'Mono', #19 - consensus btwn all refs
+    'B', #20 - consensus btwn all refs
+    NA, #21 CD3D+/TRAC+/CD8A+/CD4-/FOXP3-/IRF4+/lowFOS+; looks like a cluster of CD8+ and cells
+    # that look like DN-T and progenitors (based on UMAP )
+    NA, #22 although CD8A- and low CD4+, it clusters with CD8+ and CD4+ cells (including Tregs)
+    # likely a functional / transcriptional program cluster, not a strict lineage cluster
+    'Immature_neutrophils', #23 CD3D-/S100A8+/S100A9+/MPO-/CD47–/CXCR4–/IL1B+/CXCL8+
+    'NK', #24 CD3D-/CCR7-/CD8A-/KLRB1+/NKG7+
+    'Mono', #25 - consensus btwn all refs
+    'B', #26 - consensus btwn all refs
+    'NK', #27 CD3D-/CCR7-/CD8A+/KLRB1+/NKG7+/GNLY+/GZMB+/FCGR3A+
+    'NK', #28 - consensus btwn all refs
+    'CD8-T', #29 CD3D+/CD4-/CD8A+/FOXP3-/TRAC+/TRDV1-
+    NA, #30 - TRDV1+/TRAC+, likely a cluster of mixed CD8+ and gamma-delta T cells
+    NA, #31 - TRDV1+/TRAC+, likely a cluster of mixed CD8+ and gamma-delta T cells
+    'B', #32 - consensus btwn all refs
+    'GD-T', #33 CD3D+/CD4-/low CD8A+/TRAC+/TRDV1-/TRDV2+/TRGV9+/ZBTB16+/KLRB1+
+    'CD4-T', #34 CD3D+/CD4+/CD8A-/FOXP3-
+    NA  #35 CD3D-/CD4-/CD8A-/FOXP3-/PTPRC+/MS4A1-/NKG7-/TGFBR3+.. 
+    # rare stromal/endothelial/circulating non-hematopoietic contaminants?
+  ),
+  stringsAsFactors = FALSE
+)
+obj@meta.data <- left_join(obj@meta.data, labels, by=c('seurat_clusters'))
+
+# fix metadata missing cell IDs as row names
+rownames(obj@meta.data) <- rownames(obj@reductions$rna.umap@cell.embeddings)
+DimPlot(obj, reduction='rna.umap', group.by='celltype', label=T, repel=T, shuffle=T) + NoLegend()
+ggsave(filename='UMAP_NI_IVA_RV_manual_celltypes.pdf', height=6, width=8) 
+
 # remove non-annotated clusters
 meta_df <- obj@meta.data
-filtered_meta <- meta_df %>% filter(!is.na(celltype))
+filtered_meta <- meta_df %>% filter(celltype %in% c('B','CD4-T','CD8-T','Mono','NK'))
 matching_cells <- rownames(filtered_meta)
 obj <- subset(obj, cells=matching_cells)
 obj$condition <- factor(obj$condition, levels=c('NI', 'IVA', 'RV'))
 
 # visualize new UMAP
+DimPlot(obj, reduction='rna.umap', group.by='celltype', label=T, repel=T, shuffle=T) + NoLegend()
+ggsave(filename='UMAP_NI_IVA_RV_manual_filtered_celltypes.pdf', height=6, width=8) 
+
 DimPlot(obj, reduction='rna.umap', group.by='celltype', split.by='condition', 
         label=TRUE, label.size=5, repel=TRUE)
 ggsave(filename='UMAP_NI_IVA_RV_celltypes.pdf', height=4, width=9)
@@ -167,6 +224,7 @@ ggsave(filename='UMAP_NI_IVA_RV_celltypes.png', height=4, width=9)
 ## proportion of celltype per condition
 summ_condition <- filtered_meta %>% select(condition, celltype) %>%
   group_by(condition, celltype) %>% summarise(n=n())
+summ_condition$condition <- factor(summ_condition$condition, levels=c('NI', 'IVA', 'RV'))
 (ggplot(summ_condition) + geom_col(aes(x=condition, y=n, fill=celltype), position='dodge') +
   theme_bw() + guides(fill='none')) +
 (ggplot(summ_condition) + geom_col(aes(x=condition, y=n, fill=celltype), position='fill') +
@@ -195,18 +253,28 @@ ggsave(filename='BarPlot_NI_IVA_RV_absolute.celltypes.perIDandCond.pdf', height=
    theme(axis.text.y = element_blank(), axis.ticks.y = element_blank()))
 ggsave(filename='BarPlot_NI_IVA_RV_absolute.proportion.celltypes.perCond.pdf', height=5, width=10)
 
+# remove unnecessary columns from metadata
+meta_df <- obj@meta.data %>% select(-contains('_ct'), -contains('RNA_snn'), -hannah, -onek1k)
+obj@meta.data <- meta_df
+obj$condition <- factor(obj$condition, levels=c('NI', 'IVA', 'RV'))
+
 # save object
-saveRDS(obj, file='NI_IVA_RV.integrated.w_celltype.rds')
+saveRDS(obj, file='NI_IVA_RV.integrated.w_celltype_new.rds')
 
 # get pseudobulk counts per individual per condition 
 bulk_obj <- AggregateExpression(obj, group.by=c('IDs','condition','celltype'), 
                                 slot='counts', assays='RNA', return.seurat=T)
 
-# add number of cells to pseudobulk metadata
+# add number of cells, proportion, and avg_mt to pseudobulk metadata
 summ_indv_condition <- inner_join(bulk_obj@meta.data, summ_indv_condition, 
                                   by=c('condition', 'IDs', 'celltype')) %>% select(-c(batch_ID))
+ct_prop <- summ_indv_condition %>% select(IDs, condition, celltype, n) %>%
+  group_by(IDs, condition) %>% mutate(total_cells=sum(n), prop=n/total_cells) %>%
+  ungroup() %>% select(-total_cells)
+summ_indv_condition <- left_join(summ_indv_condition, ct_prop)
 rownames(summ_indv_condition) <- summ_indv_condition$orig.ident
+
 bulk_obj@meta.data <- summ_indv_condition
 
 # save object
-saveRDS(bulk_obj, file='NI_IVA_RV.integrated.pseudobulks.rds')
+saveRDS(bulk_obj, file='NI_IVA_RV.integrated.pseudobulks_new.rds')

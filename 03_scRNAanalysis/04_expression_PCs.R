@@ -7,7 +7,7 @@ library(data.table)
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/scRNAanalysis')
 
 # load seurat object
-obj <- readRDS('NI_IVA_RV.integrated.pseudobulks.rds')
+obj <- readRDS('NI_IVA_RV.integrated.pseudobulks_new.rds')
 
 # load sample metadata and add to seurat's metadata
 sample_m <- fread('../sample_metadata.txt')
@@ -15,15 +15,6 @@ mdata <- inner_join(obj@meta.data, sample_m, by=c('IDs'='ID'))
 rownames(mdata) <- mdata$orig.ident
 obj@meta.data <- mdata
 rm(sample_m, mdata)
-
-# compute cell type proportions
-#ct_prop <- obj@meta.data %>% select(IDs, condition, celltype, n) %>%
-#  group_by(IDs, condition) %>% mutate(total_cells=sum(n), prop=n/total_cells)
-#mdata <- inner_join(obj@meta.data, ct_prop)
-#rownames(mdata) <- mdata$orig.ident
-#obj@meta.data <- mdata
-#rm(ct_prop, mdata)
-# saveRDS(obj, file='NI_IVA_RV.integrated.pseudobulks.rds')
 
 # load gene annotation from ensembl
 annotations <- fread('../DEanalysis/ensembl_genes.txt') %>% filter(gene_biotype=='protein_coding',
@@ -133,5 +124,5 @@ for (ct in c(unique(obj@meta.data$celltype), 'PBMC')){
   geom_text(aes(label=sig), color='black', size=2) + ggtitle(ct)
 
   (pc1pc2 + pc1pc3) / (elbowp + hmap)
-  ggsave(ct%&%'_expPCs_corr.pdf', height=6, width=12)
+  ggsave(ct%&%'_expPCs_corr_new.pdf', height=6, width=12)
 }

@@ -18,7 +18,14 @@ rmse <- function(obs, pred) {
 }
 
 # load seurat object
-obj <- readRDS('NI_IVA_RV.integrated.pseudobulks.rds')
+obj <- readRDS('NI_IVA_RV.integrated.pseudobulks_new.rds')
+
+# load sample metadata and add to seurat's metadata
+sample_m <- fread('../sample_metadata.txt')
+mdata <- inner_join(obj@meta.data, sample_m, by=c('IDs'='ID'))
+rownames(mdata) <- mdata$orig.ident
+obj@meta.data <- mdata
+rm(sample_m, mdata)
 
 # low level comparisons
 mdata <- obj@meta.data %>% select(IDs, batch, condition, celltype, prop, asthma, income) 
@@ -37,7 +44,7 @@ ggplot(joint_df, aes(x=condition, y=prop, group=IDs)) + geom_point(alpha=0.2) + 
   geom_line(data=avg_df, aes(group=1, color='red'), linewidth=2) +
   geom_point(data=avg_df, aes(x=condition, y=prop), color='red', size=3, inherit.aes=FALSE) +
   facet_grid(rows=vars(celltype), cols=vars(infection), scales='free') + theme_bw() + theme(legend.position='none')
-ggsave('proportion_plots/celltype_prop_simple.png', height=5, width=5)
+ggsave('proportion_plots/celltype_prop_simple_new.png', height=5, width=5)
 #ggsave('proportion_plots/celltype_prop_simple.pdf', height=5, width=5)
 
 ## same thing, but without batch 4
@@ -48,7 +55,7 @@ joint_df %>% filter(batch!='B4') %>% ggplot(., aes(x=condition, y=prop, group=ID
   geom_line(data=avg_df, aes(group=1, color='red'), linewidth=2) +
   geom_point(data=avg_df, aes(x=condition, y=prop), color='red', size=3, inherit.aes=FALSE) +
   facet_grid(rows=vars(celltype), cols=vars(infection), scales='free') + theme_bw() + theme(legend.position='none')
-ggsave('proportion_plots/celltype_prop_simple_noB4.png', height=5, width=5)
+ggsave('proportion_plots/celltype_prop_simple_noB4_new.png', height=5, width=5)
 #ggsave('proportion_plots/celltype_prop_simple_noB4.pdf', height=5, width=5)
 
 # proportion of each cell type per NI or Inf group per asthma status
@@ -58,13 +65,13 @@ ggplot(joint_df, aes(x=condition, y=prop, group=IDs, color=asthma)) + geom_point
   geom_line(data=avg_df, aes(group=asthma, color=asthma), linewidth=2) +
   geom_point(data=avg_df, aes(x=condition, y=prop, color=asthma), size=3, inherit.aes=FALSE) +
   facet_grid(rows=vars(celltype), cols=vars(infection), scales='free') + theme_bw() 
-ggsave('proportion_plots/celltype_prop_simple_asthma.png', height=5, width=5)
+ggsave('proportion_plots/celltype_prop_simple_asthma_new.png', height=5, width=5)
 #ggsave('proportion_plots/celltype_prop_simple_asthma.pdf', height=5, width=5)
 
 # test if there are differences in proportion
 joint_df %>% group_by(condition, celltype, infection) %>% filter(n_distinct(asthma) == 2) %>% 
   do(tidy(t.test(prop ~ asthma, data = .))) %>% ungroup() %>% mutate(p_adj=p.adjust(p.value, method='fdr')) %>%
-  filter(p.value<0.05)
+  filter(p_adj<0.05)
 
 ## same thing, but without batch 4
 # proportion of each cell type per NI or Inf group per asthma status
@@ -75,13 +82,13 @@ joint_df %>% filter(batch!='B4') %>% ggplot(., aes(x=condition, y=prop, group=ID
   geom_line(data=avg_df, aes(group=asthma, color=asthma), linewidth=2) +
   geom_point(data=avg_df, aes(x=condition, y=prop, color=asthma), size=3, inherit.aes=FALSE) +
   facet_grid(rows=vars(celltype), cols=vars(infection), scales='free') + theme_bw() 
-ggsave('proportion_plots/celltype_prop_simple_asthma_noB4.png', height=5, width=5)
+ggsave('proportion_plots/celltype_prop_simple_asthma_noB4_new.png', height=5, width=5)
 #ggsave('proportion_plots/celltype_prop_simple_asthma_noB4.pdf', height=5, width=5)
 
 # test if there are differences in proportion
 joint_df %>% filter(batch!='B4') %>% group_by(condition, celltype, infection) %>% filter(n_distinct(asthma)==2) %>% 
   do(tidy(t.test(prop ~ asthma, data = .))) %>% ungroup() %>% mutate(p_adj=p.adjust(p.value, method='fdr')) %>%
-  filter(p.value<0.05)
+  filter(p_adj<0.05)
 
 # proportion of each cell type per NI or Inf group per income status
 joint_df$income <- ifelse(joint_df$income %in% c('< $10,000', '$10,000-$29,999', '$30,000-$49,999'), 'Low', 'High')
@@ -93,13 +100,13 @@ ggplot(joint_df, aes(x=condition, y=prop, group=IDs, color=income)) + geom_point
   geom_line(data=avg_df, aes(group=income, color=income), linewidth=2) +
   geom_point(data=avg_df, aes(x=condition, y=prop, color=income), size=3, inherit.aes=FALSE) +
   facet_grid(rows=vars(celltype), cols=vars(infection), scales='free') + theme_bw() 
-ggsave('proportion_plots/celltype_prop_simple_income.png', height=5, width=5)
+ggsave('proportion_plots/celltype_prop_simple_income_new.png', height=5, width=5)
 #ggsave('proportion_plots/celltype_prop_simple_income.pdf', height=5, width=5)
 
 # test if there are differences in proportion
 joint_df %>% group_by(condition, celltype, infection) %>% filter(n_distinct(income) == 2) %>% 
   do(tidy(t.test(prop ~ income, data = .))) %>% ungroup() %>% mutate(p_adj=p.adjust(p.value, method='fdr')) %>%
-  filter(p.value<0.05)
+  filter(p_adj<0.05)
 
 ## same thing, but without batch 4
 # proportion of each cell type per NI or Inf group per asthma status
@@ -110,13 +117,13 @@ joint_df %>% filter(batch!='B4') %>% ggplot(., aes(x=condition, y=prop, group=ID
   geom_line(data=avg_df, aes(group=income, color=income), linewidth=2) +
   geom_point(data=avg_df, aes(x=condition, y=prop, color=income), size=3, inherit.aes=FALSE) +
   facet_grid(rows=vars(celltype), cols=vars(infection), scales='free') + theme_bw() 
-ggsave('proportion_plots/celltype_prop_simple_income_noB4.png', height=5, width=5)
+ggsave('proportion_plots/celltype_prop_simple_income_noB4_new.png', height=5, width=5)
 #ggsave('proportion_plots/celltype_prop_simple_income_noB4.pdf', height=5, width=5)
 
 # test if there are differences in proportion
 joint_df %>% filter(batch!='B4') %>% group_by(condition, celltype, infection) %>% filter(n_distinct(income)==2) %>% 
   do(tidy(t.test(prop ~ income, data = .))) %>% ungroup() %>% mutate(p_adj=p.adjust(p.value, method='fdr')) %>%
-  filter(p.value<0.05)
+  filter(p_adj<0.05)
 
 ########################################
 ### MULTIPLE LINEAR REGRESSION MODEL ###
@@ -162,7 +169,7 @@ for (i in 1:length(conditions)){
       stat_compare_means(comparisons=list(c('Low', 'High'))) + 
       scale_y_continuous(expand=expansion(mult=.3)) + 
       labs(y=ctype%&%' proportion (residuals)')
-    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_linear_income.png', height=3, width=4)
+    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_linear_income_new.png', height=3, width=4)
     
     # fit linear model in income, without batch 4 
     linear_m <- lm(prop~batch+age+gender+income, data=mdata_nob4) %>% summary()
@@ -191,7 +198,7 @@ for (i in 1:length(conditions)){
       stat_compare_means(comparisons=list(c('Low', 'High'))) + 
       scale_y_continuous(expand=expansion(mult=.3)) + 
       labs(y=ctype%&%' proportion (residuals)')
-    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_linear_income_nob4.png', height=3, width=4)
+    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_linear_income_nob4_new.png', height=3, width=4)
     
     # fit linear model in asthma, with batch 4 
     linear_m <- lm(prop~batch+age+gender+asthma, data=mdata) %>% summary()
@@ -220,7 +227,7 @@ for (i in 1:length(conditions)){
       stat_compare_means(comparisons=list(c('No', 'Yes'))) + 
       scale_y_continuous(expand=expansion(mult=.3)) + 
       labs(y=ctype%&%' proportion (residuals)')
-    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_linear_asthma.png', height=3, width=4)
+    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_linear_asthma_new.png', height=3, width=4)
     
     # fit linear model in asthma, without batch 4 
     linear_m <- lm(prop~batch+age+gender+asthma, data=mdata_nob4) %>% summary()
@@ -249,7 +256,7 @@ for (i in 1:length(conditions)){
       stat_compare_means(comparisons=list(c('No', 'Yes'))) + 
       scale_y_continuous(expand=expansion(mult=.3)) + 
       labs(y=ctype%&%' proportion (residuals)')
-    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_linear_asthma_nob4.png', height=3, width=4)
+    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_linear_asthma_nob4_new.png', height=3, width=4)
   }
 }
 
@@ -300,7 +307,7 @@ for (i in 1:length(conditions)){
       stat_compare_means(comparisons=list(c('NI', conditions[i]))) + 
       scale_y_continuous(expand=expansion(mult=.3)) + 
       labs(y=ctype%&%' proportion (residuals)')
-    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_linear_infection.png', height=3, width=4)
+    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_linear_infection_new.png', height=3, width=4)
     
     # fit linear model in infection, without batch 4 
     linear_m <- lm(prop~batch+age+gender+condition, data=mdata_nob4) %>% summary()
@@ -329,7 +336,7 @@ for (i in 1:length(conditions)){
       stat_compare_means(comparisons=list(c('NI', conditions[i]))) + 
       scale_y_continuous(expand=expansion(mult=.3)) + 
       labs(y=ctype%&%' proportion (residuals)')
-    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_linear_infection_nob4.png', height=3, width=4)
+    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_linear_infection_nob4_new.png', height=3, width=4)
     
     # fit linear model in income, with batch 4 
     linear_m <- lm(prop~batch+age+gender+condition*income, data=mdata) %>% summary()
@@ -360,7 +367,7 @@ for (i in 1:length(conditions)){
       stat_compare_means(comparisons=list(c('Low', 'High'))) + 
       scale_y_continuous(expand=expansion(mult=.3)) + 
       labs(y='Delta '%&%ctype%&%' proportion (residualsINF - residualsNI)')
-    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_linear_infection.income.png', height=3, width=4)
+    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_linear_infection.income_new.png', height=3, width=4)
     
     # fit linear model in income, without batch 4 
     linear_m <- lm(prop~batch+age+gender+condition*income, data=mdata_nob4) %>% summary()
@@ -391,7 +398,7 @@ for (i in 1:length(conditions)){
       stat_compare_means(comparisons=list(c('Low', 'High'))) + 
       scale_y_continuous(expand=expansion(mult=.3)) + 
       labs(y='Delta '%&%ctype%&%' proportion (residualsINF - residualsNI)')
-    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_linear_infection.income_nob4.png', height=3, width=4)
+    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_linear_infection.income_nob4_new.png', height=3, width=4)
     
     # fit linear model in asthma, with batch 4 
     linear_m <- lm(prop~batch+age+gender+condition*asthma, data=mdata)%>% summary()
@@ -422,7 +429,7 @@ for (i in 1:length(conditions)){
       stat_compare_means(comparisons=list(c('No', 'Yes'))) + 
       scale_y_continuous(expand=expansion(mult=.3)) + 
       labs(y='Delta '%&%ctype%&%' proportion (residualsINF - residualsNI)')
-    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_linear_infection.asthma.png', height=3, width=4)
+    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_linear_infection.asthma_new.png', height=3, width=4)
     
     # fit linear model in asthma, without batch 4 
     linear_m <- lm(prop~batch+age+gender+condition*asthma, data=mdata_nob4) %>% summary()
@@ -453,7 +460,7 @@ for (i in 1:length(conditions)){
       stat_compare_means(comparisons=list(c('No', 'Yes'))) + 
       scale_y_continuous(expand=expansion(mult=.3)) + 
       labs(y='Delta '%&%ctype%&%' proportion (residualsINF - residualsNI)')
-    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_linear_infection.asthma_nob4.png', height=3, width=4)
+    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_linear_infection.asthma_nob4_new.png', height=3, width=4)
   }
 }
 
@@ -502,7 +509,7 @@ for (i in 1:length(conditions)){
       stat_compare_means(comparisons=list(c('Low', 'High'))) + 
       scale_y_continuous(expand=expansion(mult=.3)) + 
       labs(y=ctype%&%' proportion (residuals)')
-    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_beta_income.png', height=3, width=4)
+    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_beta_income_new.png', height=3, width=4)
     
     # fit beta model in income, without batch 4 
     beta_m <- betareg(prop~batch+age+gender+income, data=mdata_nob4, link='logit') %>% summary()
@@ -531,7 +538,7 @@ for (i in 1:length(conditions)){
       stat_compare_means(comparisons=list(c('Low', 'High'))) + 
       scale_y_continuous(expand=expansion(mult=.3)) + 
       labs(y=ctype%&%' proportion (residuals)')
-    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_beta_income_nob4.png', height=3, width=4)
+    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_beta_income_nob4_new.png', height=3, width=4)
     
     # fit beta model in asthma, with batch 4 
     beta_m <- betareg(prop~batch+age+gender+asthma, data=mdata, link='logit') %>% summary()
@@ -560,7 +567,7 @@ for (i in 1:length(conditions)){
       stat_compare_means(comparisons=list(c('No', 'Yes'))) + 
       scale_y_continuous(expand=expansion(mult=.3)) + 
       labs(y=ctype%&%' proportion (residuals)')
-    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_beta_asthma.png', height=3, width=4)
+    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_beta_asthma_new.png', height=3, width=4)
     
     # fit beta model in asthma, without batch 4 
     beta_m <- betareg(prop~batch+age+gender+asthma, data=mdata_nob4, link='logit') %>% summary()
@@ -589,7 +596,7 @@ for (i in 1:length(conditions)){
       stat_compare_means(comparisons=list(c('No', 'Yes'))) + 
       scale_y_continuous(expand=expansion(mult=.3)) + 
       labs(y=ctype%&%' proportion (residuals)')
-    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_beta_asthma_nob4.png', height=3, width=4)
+    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_beta_asthma_nob4_new.png', height=3, width=4)
   }
 }
 
@@ -640,7 +647,7 @@ for (i in 1:length(conditions)){
       stat_compare_means(comparisons=list(c('NI', conditions[i]))) + 
       scale_y_continuous(expand=expansion(mult=.3)) + 
       labs(y=ctype%&%' proportion (residuals)')
-    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_beta_infection.png', height=3, width=4)
+    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_beta_infection_new.png', height=3, width=4)
     
     # fit beta model in infection, without batch 4 
     beta_m <- betareg(prop~batch+age+gender+condition, data=mdata_nob4, link='logit') %>% summary()
@@ -669,7 +676,7 @@ for (i in 1:length(conditions)){
       stat_compare_means(comparisons=list(c('NI', conditions[i]))) + 
       scale_y_continuous(expand=expansion(mult=.3)) + 
       labs(y=ctype%&%' proportion (residuals)')
-    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_beta_infection_nob4.png', height=3, width=4)
+    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_beta_infection_nob4_new.png', height=3, width=4)
     
     # fit beta model in income, with batch 4 
     beta_m <- betareg(prop~batch+age+gender+condition*income, data=mdata, link='logit') %>% summary()
@@ -700,7 +707,7 @@ for (i in 1:length(conditions)){
       stat_compare_means(comparisons=list(c('Low', 'High'))) + 
       scale_y_continuous(expand=expansion(mult=.3)) + 
       labs(y='Delta '%&%ctype%&%' proportion (residualsINF - residualsNI)')
-    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_beta_infection.income.png', height=3, width=4)
+    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_beta_infection.income_new.png', height=3, width=4)
     
     # fit beta model in income, without batch 4 
     beta_m <- betareg(prop~batch+age+gender+condition*income, data=mdata_nob4, link='logit') %>% summary()
@@ -731,7 +738,7 @@ for (i in 1:length(conditions)){
       stat_compare_means(comparisons=list(c('Low', 'High'))) + 
       scale_y_continuous(expand=expansion(mult=.3)) + 
       labs(y='Delta '%&%ctype%&%' proportion (residualsINF - residualsNI)')
-    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_beta_infection.income_nob4.png', height=3, width=4)
+    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_beta_infection.income_nob4_new.png', height=3, width=4)
     
     # fit beta model in asthma, with batch 4 
     beta_m <- betareg(prop~batch+age+gender+condition*asthma, data=mdata, link='logit') %>% summary()
@@ -762,7 +769,7 @@ for (i in 1:length(conditions)){
       stat_compare_means(comparisons=list(c('No', 'Yes'))) + 
       scale_y_continuous(expand=expansion(mult=.3)) + 
       labs(y='Delta '%&%ctype%&%' proportion (residualsINF - residualsNI)')
-    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_beta_infection.asthma.png', height=3, width=4)
+    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_beta_infection.asthma_new.png', height=3, width=4)
     
     # fit beta model in asthma, without batch 4 
     beta_m <- betareg(prop~batch+age+gender+condition*asthma, data=mdata_nob4, link='logit') %>% summary()
@@ -793,7 +800,7 @@ for (i in 1:length(conditions)){
       stat_compare_means(comparisons=list(c('No', 'Yes'))) + 
       scale_y_continuous(expand=expansion(mult=.3)) + 
       labs(y='Delta '%&%ctype%&%' proportion (residualsINF - residualsNI)')
-    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_beta_infection.asthma_nob4.png', height=3, width=4)
+    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_beta_infection.asthma_nob4_new.png', height=3, width=4)
   }
 }
 
@@ -811,7 +818,7 @@ for (i in 1:length(conditions)){
     # add small pseudocount to 0s and renormalize
     mdata[celltypes] <- mdata[celltypes] + eps
     mdata[celltypes] <- mdata[celltypes] / rowSums(mdata[celltypes])
-    mdata$Y <- DR_data(mdata[,10:ncol(mdata)])
+    mdata$Y <- DR_data(mdata[,9:ncol(mdata)])
     mdata$gender <- factor(mdata$gender, levels=c('Male','Female'))
     mdata$albuterol <- na_if(mdata$albuterol, '')
     mdata$albuterol <- factor(mdata$albuterol, levels=c('No', 'Yes'))
@@ -836,7 +843,7 @@ for (i in 1:length(conditions)){
     # compute RMSE
     dr_m <- predict(DirichReg(Y~batch+age+gender+income, data=mdata)) %>% as.data.frame()
     for (j in 1:length(celltypes)){
-      rmse_dr <- rmse(mdata[[15]][,celltypes[j]], dr_m[,j]) %>% as.data.frame() %>% 
+      rmse_dr <- rmse(mdata[[14]][,celltypes[j]], dr_m[,j]) %>% as.data.frame() %>% 
         mutate(condition=conditions[i], celltype=celltypes[j], batch4='yes', terms='incomeHigh') %>%
         rename(rmse='.')
       if (exists('rmse_compiled_dr_income')){
@@ -854,7 +861,7 @@ for (i in 1:length(conditions)){
         stat_compare_means(comparisons=list(c('Low', 'High'))) + 
         scale_y_continuous(expand=expansion(mult=.3)) + 
         labs(y=ctype%&%' proportion (residuals)')
-      ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_dr_income.png', height=3, width=4)
+      ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_dr_income_new.png', height=3, width=4)
     }
 
     # fit Dirichlet model in income, without batch 4 
@@ -871,7 +878,7 @@ for (i in 1:length(conditions)){
     # compute RMSE
     dr_m <- predict(DirichReg(Y~batch+age+gender+income, data=mdata_nob4)) %>% as.data.frame()
     for (j in 1:length(celltypes)){
-      rmse_dr <- rmse(mdata_nob4[[15]][,celltypes[j]], dr_m[,j]) %>% as.data.frame() %>% 
+      rmse_dr <- rmse(mdata_nob4[[14]][,celltypes[j]], dr_m[,j]) %>% as.data.frame() %>% 
         mutate(condition=conditions[i], celltype=celltypes[j], batch4='no', terms='incomeHigh') %>%
         rename(rmse='.')
       if (exists('rmse_compiled_dr_income_nob4')){
@@ -889,7 +896,7 @@ for (i in 1:length(conditions)){
         stat_compare_means(comparisons=list(c('Low', 'High'))) + 
         scale_y_continuous(expand=expansion(mult=.3)) + 
         labs(y=ctype%&%' proportion (residuals)')
-      ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_dr_income_nob4.png', height=3, width=4)
+      ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_dr_income_nob4_new.png', height=3, width=4)
     }
 
     # fit Dirichlet model in asthma, with batch 4 
@@ -906,7 +913,7 @@ for (i in 1:length(conditions)){
     # compute RMSE
     dr_m <- predict(DirichReg(Y~batch+age+gender+asthma, data=mdata)) %>% as.data.frame()
     for (j in 1:length(celltypes)){
-      rmse_dr <- rmse(mdata[[15]][,celltypes[j]], dr_m[,j]) %>% as.data.frame() %>% 
+      rmse_dr <- rmse(mdata[[14]][,celltypes[j]], dr_m[,j]) %>% as.data.frame() %>% 
         mutate(condition=conditions[i], celltype=celltypes[j], batch4='yes', terms='asthmaYes') %>%
         rename(rmse='.')
       if (exists('rmse_compiled_dr_asthma')){
@@ -924,7 +931,7 @@ for (i in 1:length(conditions)){
         stat_compare_means(comparisons=list(c('No', 'Yes'))) + 
         scale_y_continuous(expand=expansion(mult=.3)) + 
         labs(y=ctype%&%' proportion (residuals)')
-      ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_dr_asthma.png', height=3, width=4)
+      ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_dr_asthma_new.png', height=3, width=4)
     }
     
     # fit Dirichlet model in asthma, without batch 4 
@@ -941,7 +948,7 @@ for (i in 1:length(conditions)){
     # compute RMSE
     dr_m <- predict(DirichReg(Y~batch+age+gender+asthma, data=mdata_nob4)) %>% as.data.frame()
     for (j in 1:length(celltypes)){
-      rmse_dr <- rmse(mdata_nob4[[15]][,celltypes[j]], dr_m[,j]) %>% as.data.frame() %>% 
+      rmse_dr <- rmse(mdata_nob4[[14]][,celltypes[j]], dr_m[,j]) %>% as.data.frame() %>% 
         mutate(condition=conditions[i], celltype=celltypes[j], batch4='no', terms='asthmaYes') %>%
         rename(rmse='.')
       if (exists('rmse_compiled_dr_asthma_nob4')){
@@ -959,7 +966,7 @@ for (i in 1:length(conditions)){
         stat_compare_means(comparisons=list(c('No', 'Yes'))) + 
         scale_y_continuous(expand=expansion(mult=.3)) + 
         labs(y=ctype%&%' proportion (residuals)')
-      ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_dr_asthma_nob4.png', height=3, width=4)
+      ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_dr_asthma_nob4_new.png', height=3, width=4)
     }
 }
 
@@ -977,7 +984,7 @@ for (i in 1:length(conditions)){
   # add small pseudocount to 0s and renormalize
   mdata[celltypes] <- mdata[celltypes] + eps
   mdata[celltypes] <- mdata[celltypes] / rowSums(mdata[celltypes])
-  mdata$Y <- DR_data(mdata[,10:ncol(mdata)])
+  mdata$Y <- DR_data(mdata[,9:ncol(mdata)])
   mdata$gender <- factor(mdata$gender, levels=c('Male','Female'))
   mdata$condition <- factor(mdata$condition, levels=c('NI', conditions[i]))
   mdata$asthma <- factor(mdata$asthma, levels=c('No', 'Yes'))
@@ -1002,7 +1009,7 @@ for (i in 1:length(conditions)){
   # compute RMSE
   dr_m <- predict(DirichReg(Y~batch+age+gender+condition, data=mdata)) %>% as.data.frame()
   for (j in 1:length(celltypes)){
-    rmse_dr <- rmse(mdata[[15]][,celltypes[j]], dr_m[,j]) %>% as.data.frame() %>% 
+    rmse_dr <- rmse(mdata[[14]][,celltypes[j]], dr_m[,j]) %>% as.data.frame() %>% 
       mutate(condition=conditions[i], celltype=celltypes[j], batch4='yes', terms='infection') %>%
       rename(rmse='.')
     if (exists('rmse_compiled_dr_infection')){
@@ -1020,7 +1027,7 @@ for (i in 1:length(conditions)){
       stat_compare_means(comparisons=list(c('NI', conditions[i]))) + 
       scale_y_continuous(expand=expansion(mult=.3)) + 
       labs(y=ctype%&%' proportion (residuals)')
-    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_dr_infection.png', height=3, width=4)
+    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_dr_infection_new.png', height=3, width=4)
   }
   
   # fit Dirichlet model in infection, without batch 4 
@@ -1037,7 +1044,7 @@ for (i in 1:length(conditions)){
   # compute RMSE
   dr_m <- predict(DirichReg(Y~batch+age+gender+condition, data=mdata_nob4)) %>% as.data.frame()
   for (j in 1:length(celltypes)){
-    rmse_dr <- rmse(mdata_nob4[[15]][,celltypes[j]], dr_m[,j]) %>% as.data.frame() %>% 
+    rmse_dr <- rmse(mdata_nob4[[14]][,celltypes[j]], dr_m[,j]) %>% as.data.frame() %>% 
       mutate(condition=conditions[i], celltype=celltypes[j], batch4='no', terms='infection') %>%
       rename(rmse='.')
     if (exists('rmse_compiled_dr_infection_nob4')){
@@ -1055,7 +1062,7 @@ for (i in 1:length(conditions)){
       stat_compare_means(comparisons=list(c('NI', conditions[i]))) + 
       scale_y_continuous(expand=expansion(mult=.3)) + 
       labs(y=ctype%&%' proportion (residuals)')
-    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_dr_infection_nob4.png', height=3, width=4)
+    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_dr_infection_nob4_new.png', height=3, width=4)
   }
 
   # fit Dirichlet model in income, with batch 4 
@@ -1072,7 +1079,7 @@ for (i in 1:length(conditions)){
   # compute RMSE
   dr_m <- predict(DirichReg(Y~batch+age+gender+condition*income, data=mdata)) %>% as.data.frame()
   for (j in 1:length(celltypes)){
-    rmse_dr <- rmse(mdata[[15]][,celltypes[j]], dr_m[,j]) %>% as.data.frame() %>% 
+    rmse_dr <- rmse(mdata[[14]][,celltypes[j]], dr_m[,j]) %>% as.data.frame() %>% 
       mutate(condition=conditions[i], celltype=celltypes[j], batch4='yes', terms='condition'%&%conditions[i]%&%':incomeHigh') %>%
       rename(rmse='.')
     if (exists('rmse_compiled_dr_interaction_income')){
@@ -1092,7 +1099,7 @@ for (i in 1:length(conditions)){
       stat_compare_means(comparisons=list(c('Low', 'High'))) + 
       scale_y_continuous(expand=expansion(mult=.3)) + 
       labs(y=ctype%&%' proportion (residuals)')
-    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_dr_infection.income.png', height=3, width=4)
+    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_dr_infection.income_new.png', height=3, width=4)
   }
   
   # fit Dirichlet model in income, without batch 4 
@@ -1109,7 +1116,7 @@ for (i in 1:length(conditions)){
   # compute RMSE
   dr_m <- predict(DirichReg(Y~batch+age+gender+condition*income, data=mdata_nob4)) %>% as.data.frame()
   for (j in 1:length(celltypes)){
-    rmse_dr <- rmse(mdata_nob4[[15]][,celltypes[j]], dr_m[,j]) %>% as.data.frame() %>% 
+    rmse_dr <- rmse(mdata_nob4[[14]][,celltypes[j]], dr_m[,j]) %>% as.data.frame() %>% 
       mutate(condition=conditions[i], celltype=celltypes[j], batch4='no', terms='condition'%&%conditions[i]%&%':incomeHigh') %>%
       rename(rmse='.')
     if (exists('rmse_compiled_dr_interaction_income_nob4')){
@@ -1129,7 +1136,7 @@ for (i in 1:length(conditions)){
       stat_compare_means(comparisons=list(c('Low', 'High'))) + 
       scale_y_continuous(expand=expansion(mult=.3)) + 
       labs(y=ctype%&%' proportion (residuals)')
-    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_dr_infection.income_nob4.png', height=3, width=4)
+    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_dr_infection.income_nob4_new.png', height=3, width=4)
   }
   
   # fit Dirichlet model in asthma, with batch 4 
@@ -1146,7 +1153,7 @@ for (i in 1:length(conditions)){
   # compute RMSE
   dr_m <- predict(DirichReg(Y~batch+age+gender+condition*asthma, data=mdata)) %>% as.data.frame()
   for (j in 1:length(celltypes)){
-    rmse_dr <- rmse(mdata[[15]][,celltypes[j]], dr_m[,j]) %>% as.data.frame() %>% 
+    rmse_dr <- rmse(mdata[[14]][,celltypes[j]], dr_m[,j]) %>% as.data.frame() %>% 
       mutate(condition=conditions[i], celltype=celltypes[j], batch4='yes', terms='condition'%&%conditions[i]%&%':asthmaYes') %>%
       rename(rmse='.')
     if (exists('rmse_compiled_dr_interaction_asthma')){
@@ -1166,7 +1173,7 @@ for (i in 1:length(conditions)){
       stat_compare_means(comparisons=list(c('No', 'Yes'))) + 
       scale_y_continuous(expand=expansion(mult=.3)) + 
       labs(y=ctype%&%' proportion (residuals)')
-    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_dr_infection.asthma.png', height=3, width=4)
+    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_dr_infection.asthma_new.png', height=3, width=4)
   }
   
   # fit Dirichlet model in asthma, without batch 4 
@@ -1183,7 +1190,7 @@ for (i in 1:length(conditions)){
   # compute RMSE
   dr_m <- predict(DirichReg(Y~batch+age+gender+condition*asthma, data=mdata_nob4)) %>% as.data.frame()
   for (j in 1:length(celltypes)){
-    rmse_dr <- rmse(mdata_nob4[[15]][,celltypes[j]], dr_m[,j]) %>% as.data.frame() %>% 
+    rmse_dr <- rmse(mdata_nob4[[14]][,celltypes[j]], dr_m[,j]) %>% as.data.frame() %>% 
       mutate(condition=conditions[i], celltype=celltypes[j], batch4='no', terms='condition'%&%conditions[i]%&%':asthmaYes') %>%
       rename(rmse='.')
     if (exists('rmse_compiled_dr_interaction_asthma_nob4')){
@@ -1203,7 +1210,7 @@ for (i in 1:length(conditions)){
       stat_compare_means(comparisons=list(c('No', 'Yes'))) + 
       scale_y_continuous(expand=expansion(mult=.3)) + 
       labs(y=ctype%&%' proportion (residuals)')
-    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_dr_infection.asthma_nob4.png', height=3, width=4)
+    ggsave('proportion_plots/'%&%conditions[i]%&%'_'%&%ctype%&%'_dr_infection.asthma_nob4_new.png', height=3, width=4)
   }
 }
 
@@ -1260,16 +1267,16 @@ all_RMSEs$condition <- factor(all_RMSEs$condition, levels=c('NI', 'IVA', 'RV'))
 
 all_RMSEs %>% filter(batch4=='yes') %>% ggplot(., aes(x=celltype, y=rmse, fill=regression)) + geom_col(position='dodge') + theme_bw() +
   facet_grid(cols=vars(terms), rows=vars(condition))
-ggsave('proportion_plots/RMSE_yesb4.png', height=5, width=12)
+ggsave('proportion_plots/RMSE_yesb4_new.png', height=5, width=12)
 all_RMSEs %>% filter(batch4=='no') %>% ggplot(., aes(x=celltype, y=rmse, fill=regression)) + geom_col(position='dodge') + theme_bw() +
   facet_grid(cols=vars(terms), rows=vars(condition))
-ggsave('proportion_plots/RMSE_nob4.png', height=5, width=12)
+ggsave('proportion_plots/RMSE_nob4_new.png', height=5, width=12)
 
 all_RMSEs %>% filter(batch4=='yes', regression!='DR') %>% 
   ggplot(., aes(x=celltype, y=rmse, fill=regression)) + geom_col(position='dodge') + theme_bw() +
   facet_grid(cols=vars(terms), rows=vars(condition))
-ggsave('proportion_plots/RMSE_noDR_yesb4.png', height=5, width=12)
+ggsave('proportion_plots/RMSE_noDR_yesb4_new.png', height=5, width=12)
 all_RMSEs %>% filter(batch4=='no', regression!='DR') %>% 
   ggplot(., aes(x=celltype, y=rmse, fill=regression)) + geom_col(position='dodge') + theme_bw() +
   facet_grid(cols=vars(terms), rows=vars(condition))
-ggsave('proportion_plots/RMSE_noDR_nob4.png', height=5, width=12)
+ggsave('proportion_plots/RMSE_noDR_nob4_new.png', height=5, width=12)
