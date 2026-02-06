@@ -165,19 +165,19 @@ labels <- data.frame(
     'B', #7 - consensus btwn all refs
     'CD4-T', #8 - low CD4, but clusters close to CD4+ and expresses Tcell markers
     'CD8-T', #9 - CD8A+/CD3D+/CCR7+/TRAC+
-    NA, #10 - TRDV1+/TRAC+, likely a cluster of mixed CD8+ and gamma-delta T cells
+    'GD-T', #10 - TRDV1+ (Vdelta1 T Cells)
     'CD4-T', #11 - low CD4, but clusters close to CD4+ and expresses Tcell markers
     'CD8-T', #12 CD3D+/CD8A+/NCAM1-/FCGR3A- 
     'B', #13 - consensus btwn all refs
     'CD4-T', #14 CD4+/FOXP3- 
-    'MAIT', #15 CD3D+/CD8A+/NCAM1-/TRAC+/CXCR6+
+    'MAIT', #15 CD3D+/CD8A+/NCAM1-/TRAC+/CXCR6+/TRAV1-2+
     'DN-T', #16 CD3D+/TRAC+/CD8A-/CD4-/FOXP3- 
-    'CD4-Treg', #17 CD3D+/CD4+/FOXP3+
+    'CD4-T', #17 CD3D+/CD4+/FOXP3+ (Tregs)
     'Lymphoid_progenitors', #18 TRAC-/TRBC1-/CD3D-/FOXP3-/CCR7+/LTB+/IL7R+
     'Mono', #19 - consensus btwn all refs
     'B', #20 - consensus btwn all refs
     NA, #21 CD3D+/TRAC+/CD8A+/CD4-/FOXP3-/IRF4+/lowFOS+; looks like a cluster of CD8+ and cells
-    # that look like DN-T and progenitors (based on UMAP )
+    # that look like DN-T and progenitors (based on UMAP)
     NA, #22 although CD8A- and low CD4+, it clusters with CD8+ and CD4+ cells (including Tregs)
     # likely a functional / transcriptional program cluster, not a strict lineage cluster
     'Immature_neutrophils', #23 CD3D-/S100A8+/S100A9+/MPO-/CD47–/CXCR4–/IL1B+/CXCL8+
@@ -187,10 +187,10 @@ labels <- data.frame(
     'NK', #27 CD3D-/CCR7-/CD8A+/KLRB1+/NKG7+/GNLY+/GZMB+/FCGR3A+
     'NK', #28 - consensus btwn all refs
     'CD8-T', #29 CD3D+/CD4-/CD8A+/FOXP3-/TRAC+/TRDV1-
-    NA, #30 - TRDV1+/TRAC+, likely a cluster of mixed CD8+ and gamma-delta T cells
-    NA, #31 - TRDV1+/TRAC+, likely a cluster of mixed CD8+ and gamma-delta T cells
+    'GD-T', #30 - TRDV1+ (Vdelta1 T Cells)
+    'GD-T', #31 - TRDV1+ (Vdelta1 T Cells)
     'B', #32 - consensus btwn all refs
-    'GD-T', #33 CD3D+/CD4-/low CD8A+/TRAC+/TRDV1-/TRDV2+/TRGV9+/ZBTB16+/KLRB1+
+    'GD-T', #33 CD3D+/CD4-/low CD8A+/TRAC+/TRDV1-/TRDV2+/TRGV9+/ZBTB16+/KLRB1+ (Vdelta2Vgamma9 T Cells)
     'CD4-T', #34 CD3D+/CD4+/CD8A-/FOXP3-
     NA  #35 CD3D-/CD4-/CD8A-/FOXP3-/PTPRC+/MS4A1-/NKG7-/TGFBR3+.. 
     # rare stromal/endothelial/circulating non-hematopoietic contaminants?
@@ -216,9 +216,13 @@ DimPlot(obj, reduction='rna.umap', group.by='celltype', label=T, repel=T, shuffl
 ggsave(filename='UMAP_NI_IVA_RV_manual_filtered_celltypes.pdf', height=6, width=8) 
 
 DimPlot(obj, reduction='rna.umap', group.by='celltype', split.by='condition', 
-        label=TRUE, label.size=5, repel=TRUE)
+        label=TRUE, label.size=5, repel=TRUE) + NoLegend()
 ggsave(filename='UMAP_NI_IVA_RV_celltypes.pdf', height=4, width=9)
 ggsave(filename='UMAP_NI_IVA_RV_celltypes.png', height=4, width=9)
+
+# check if batches are concordant
+DimPlot(obj, reduction='rna.umap', group.by='celltype', split.by='batch', label=T, repel=T) + NoLegend()
+ggsave(filename='UMAP_NI_IVA_RV_batches_celltypes.pdf', height=4, width=9) 
 
 # analyze meta.data
 ## proportion of celltype per condition
