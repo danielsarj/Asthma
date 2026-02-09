@@ -46,7 +46,10 @@ annotations <- annotations$hgnc_symbol[
     !grepl('^MT-', annotations$hgnc_symbol)]
 
 # load pseudobulk object
-obj <- readRDS('../scRNAanalysis/NI_IVA_RV.integrated.pseudobulks.rds')
+obj <- readRDS('../scRNAanalysis/NI_IVA_RV.integrated.pseudobulks_new.rds')
+
+# remove batch 4
+obj <- subset(obj, subset= batch!='B4')
 
 for (i in 1:length(conditions)){
   print(conditions[i])
@@ -104,7 +107,7 @@ for (i in 1:length(conditions)){
       tmp_colnames <- colnames(adj_expression)
       tmp_colnames <- gsub('_'%&%conditions[i]%&%'_'%&%celltypes[j], '', tmp_colnames)
       colnames(adj_expression) <- tmp_colnames
-      fwrite(adj_expression, conditions[i]%&%'_'%&%celltypes[j]%&%'_'%&%k%&%'PCs.txt', col.names=T, sep='\t')
+      fwrite(adj_expression, conditions[i]%&%'_'%&%celltypes[j]%&%'_'%&%k%&%'PCs_new.txt', col.names=T, sep='\t')
     }
   }
 }

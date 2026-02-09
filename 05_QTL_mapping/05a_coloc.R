@@ -32,11 +32,11 @@ if (args$gwas=='FerreiraMAR_COA.h.tsv.gz'){
 }
   
 # load matrixeqtl output
-matrix_out <- fread('../matrixEQTL_results/'%&%args$eqtl%&%'PCs_cisQTL_sumstats.txt') %>% 
+matrix_out <- fread('../matrixEQTL_results/'%&%args$eqtl%&%'PCs_cisQTL_sumstats_new.txt') %>% 
   filter(!is.na(SE)) %>% separate(snps, into=c('snp_id', 'effectallele'), sep='_')
   
 # find sdY per gene
-exp_matrix <- fread('../'%&%args$eqtl%&%'PCs.txt') %>% pivot_longer(cols=c(-GENES)) %>% group_by(GENES) %>% 
+exp_matrix <- fread('../'%&%args$eqtl%&%'PCs_new.txt') %>% pivot_longer(cols=c(-GENES)) %>% group_by(GENES) %>% 
   summarise(sdY=sd(value)) 
   
 # merge info
@@ -121,4 +121,4 @@ for (wk_gene in (unique(matrix_out$gene))){
 eqtl_base <- sub('_[^_]+$', '', args$eqtl)
 gwas_base <- sub('_[^_]+$', '', args$gwas)
 
-fwrite(coloc.results, eqtl_base%&%'_'%&%gwas_base%&%'_coloc_results.txt', sep=' ')
+fwrite(coloc.results, eqtl_base%&%'_'%&%gwas_base%&%'_coloc_results_new.txt', sep=' ')

@@ -11,7 +11,10 @@ setwd('/project/lbarreiro/USERS/daniel/asthma_project/DEanalysis')
 sample_m <- fread('../sample_metadata.txt')
 
 # load pseudobulk seurat object
-bulk_obj <- readRDS('../scRNAanalysis/NI_IVA_RV.integrated.pseudobulks.rds') 
+bulk_obj <- readRDS('../scRNAanalysis/NI_IVA_RV.integrated.pseudobulks_new.rds')
+
+# remove batch 4
+bulk_obj <- subset(bulk_obj, subset= batch!='B4')
 bulk_obj@meta.data$condition <- factor(bulk_obj@meta.data$condition, levels=c('NI','IVA','RV'))
 
 # merge metadata
@@ -37,7 +40,7 @@ for (int in c('none','asthma','income')){
     sub_mdata$gender <- factor(sub_mdata$gender, levels=c('Male','Female'))
       
     # get samples/genes from voom expression dataframe (easier to filter stuff)
-    v <- fread('../scRNAanalysis/NI_'%&%cond%&%'_'%&%ctype%&%'_voom_expression.txt') %>% 
+    v <- fread('../scRNAanalysis/NI_'%&%cond%&%'_'%&%ctype%&%'_voom_expression_new.txt') %>% 
       column_to_rownames('Gene')
     v_samples <- colnames(v)
     v_genes <- rownames(v)
@@ -52,7 +55,7 @@ for (int in c('none','asthma','income')){
     count <- DGEList(counts=count) %>% calcNormFactors()
       
     # create design matrix
-    design <- model.matrix(~batch+age+gender+n+avg_mt, data=sub_mdata)
+    design <- model.matrix(~batch+age+gender+n+avg_mt+prop, data=sub_mdata)
       
     # fit linear model
     voom_obj <- voom(count, design, plot=F)
@@ -82,7 +85,7 @@ for (int in c('none','asthma','income')){
         geom_density(aes(y=after_stat(count)), alpha=.4) + geom_rug() + theme_bw() + ggtitle('IFNa - ' %&% cond %&% ' - ' %&% ctype)) + 
       (rank_genes %>% filter(Gene %in% ifn_genes[[2]]) %>% ggplot(., aes(x=rank, fill=type, color=type)) + 
          geom_density(aes(y=after_stat(count)), alpha=.4) + geom_rug() + theme_bw() + ggtitle('IFNy - ' %&% cond %&% ' - ' %&% ctype))
-    ggsave('IFN_gene_ranks_'%&%cond%&%'_infection_'%&%ctype%&%'_densityplots.pdf', height=4, width=9)
+    ggsave('IFN_gene_ranks_'%&%cond%&%'_infection_'%&%ctype%&%'_densityplots_new.pdf', height=4, width=9)
       
     (rank_genes %>% filter(Gene %in% ifn_genes[[1]]) %>% select(-rank) %>% ggplot(., aes(x=type, y=mean_value, fill=type)) + 
         geom_violin(alpha=0.5) + geom_boxplot(alpha=0.5, width=0.3) + stat_compare_means(aes(group=Gene), method='t.test', 
@@ -94,7 +97,7 @@ for (int in c('none','asthma','income')){
                                                                                           label='p.format', paired=T, 
                                                                                           comparisons=list(c('NI', cond))) + 
          theme_bw() + ggtitle('IFNy - ' %&% cond %&% ' - ' %&% ctype) + guides(fill='none'))
-    ggsave('IFN_gene_ranks_'%&%cond%&%'_infection_'%&%ctype%&%'_violinplots.pdf', height=4, width=9)
+    ggsave('IFN_gene_ranks_'%&%cond%&%'_infection_'%&%ctype%&%'_violinplots_new.pdf', height=4, width=9)
       
   } else if (int == 'asthma'){
     
@@ -105,7 +108,7 @@ for (int in c('none','asthma','income')){
     sub_mdata$albuterol <- factor(sub_mdata$albuterol, levels=c('No', 'Yes'))
     
     # get samples/genes from voom expression dataframe (easier to filter stuff)
-    v <- fread('../scRNAanalysis/NI_'%&%cond%&%'_'%&%ctype%&%'_asthma_alb_voom_expression.txt') %>% 
+    v <- fread('../scRNAanalysis/NI_'%&%cond%&%'_'%&%ctype%&%'_asthma_alb_voom_expression_new.txt') %>% 
       column_to_rownames('Gene')
     v_samples <- colnames(v)
     v_genes <- rownames(v)
@@ -120,7 +123,7 @@ for (int in c('none','asthma','income')){
     count <- DGEList(counts=count) %>% calcNormFactors()
     
     # create design matrix
-    design <- model.matrix(~batch+age+gender+n+avg_mt+albuterol, data=sub_mdata)
+    design <- model.matrix(~batch+age+gender+n+avg_mt+prop+albuterol, data=sub_mdata)
     
     # fit linear model
     voom_obj <- voom(count, design, plot=F)
@@ -154,7 +157,7 @@ for (int in c('none','asthma','income')){
         geom_density(aes(y=after_stat(count)), alpha=.4) + geom_rug() + theme_bw() + ggtitle('IFNa - ' %&% cond %&% ' - ' %&% ctype)) + 
       (rank_genes %>% filter(Gene %in% ifn_genes[[2]]) %>% ggplot(., aes(x=rank, fill=type, color=type)) + 
          geom_density(aes(y=after_stat(count)), alpha=.4) + geom_rug() + theme_bw() + ggtitle('IFNy - ' %&% cond %&% ' - ' %&% ctype))
-    ggsave('IFN_gene_ranks_'%&%cond%&%'_asthma_'%&%ctype%&%'_densityplots.pdf', height=4, width=9)
+    ggsave('IFN_gene_ranks_'%&%cond%&%'_asthma_'%&%ctype%&%'_densityplots_new.pdf', height=4, width=9)
     
     (rank_genes %>% filter(Gene %in% ifn_genes[[1]]) %>% ggplot(., aes(x=type, y=delta_value, fill=type)) + 
         geom_violin(alpha=0.5) + geom_boxplot(alpha=0.5, width=0.3) + stat_compare_means(method='t.test', label='p.format', 
@@ -164,7 +167,7 @@ for (int in c('none','asthma','income')){
          geom_violin(alpha=0.5) + geom_boxplot(alpha=0.5, width=0.3) + stat_compare_means(method='t.test', label='p.format', 
                                                                                           comparisons=list(c('asthmaNo', 'asthmaYes'))) + 
          theme_bw() + ggtitle('IFNy - ' %&% cond %&% ' - ' %&% ctype) + guides(fill='none'))
-    ggsave('IFN_gene_ranks_'%&%cond%&%'_asthma_'%&%ctype%&%'_violinplots.pdf', height=4, width=9)
+    ggsave('IFN_gene_ranks_'%&%cond%&%'_asthma_'%&%ctype%&%'_violinplots_new.pdf', height=4, width=9)
     
   } else {
 
@@ -177,7 +180,7 @@ for (int in c('none','asthma','income')){
     sub_mdata$income <- factor(sub_mdata$income, levels=c('Lower','Higher'))
     
     # get samples/genes from voom expression dataframe (easier to filter stuff)
-    v <- fread('../scRNAanalysis/NI_'%&%cond%&%'_'%&%ctype%&%'_income_voom_expression.txt') %>% 
+    v <- fread('../scRNAanalysis/NI_'%&%cond%&%'_'%&%ctype%&%'_income_voom_expression_new.txt') %>% 
       column_to_rownames('Gene')
     v_samples <- colnames(v)
     v_genes <- rownames(v)
@@ -192,7 +195,7 @@ for (int in c('none','asthma','income')){
     count <- DGEList(counts=count) %>% calcNormFactors()
       
     # create design matrix
-    design <- model.matrix(~batch+age+gender+n+avg_mt, data=sub_mdata)
+    design <- model.matrix(~batch+age+gender+n+avg_mt+prop, data=sub_mdata)
       
     # fit linear model
     voom_obj <- voom(count, design, plot=F)
@@ -226,7 +229,7 @@ for (int in c('none','asthma','income')){
         geom_density(aes(y=after_stat(count)), alpha=.4) + geom_rug() + theme_bw() + ggtitle('IFNa - ' %&% cond %&% ' - ' %&% ctype)) + 
       (rank_genes %>% filter(Gene %in% ifn_genes[[2]]) %>% ggplot(., aes(x=rank, fill=type, color=type)) + 
          geom_density(aes(y=after_stat(count)), alpha=.4) + geom_rug() + theme_bw() + ggtitle('IFNy - ' %&% cond %&% ' - ' %&% ctype))
-    ggsave('IFN_gene_ranks_'%&%cond%&%'_income_'%&%ctype%&%'_densityplots.pdf', height=4, width=9)
+    ggsave('IFN_gene_ranks_'%&%cond%&%'_income_'%&%ctype%&%'_densityplots_new.pdf', height=4, width=9)
       
     (rank_genes %>% filter(Gene %in% ifn_genes[[1]]) %>% ggplot(., aes(x=type, y=delta_value, fill=type)) + 
         geom_violin(alpha=0.5) + geom_boxplot(alpha=0.5, width=0.3) + stat_compare_means(method='t.test', label='p.format', 
@@ -236,7 +239,7 @@ for (int in c('none','asthma','income')){
          geom_violin(alpha=0.5) + geom_boxplot(alpha=0.5, width=0.3) + stat_compare_means(method='t.test', label='p.format', 
                                                                                           comparisons=list(c('incomeLower', 'incomeHigher'))) + 
           theme_bw() + ggtitle('IFNy - ' %&% cond %&% ' - ' %&% ctype) + guides(fill='none'))
-    ggsave('IFN_gene_ranks_'%&%cond%&%'_income_'%&%ctype%&%'_violinplots.pdf', height=4, width=9)
+    ggsave('IFN_gene_ranks_'%&%cond%&%'_income_'%&%ctype%&%'_violinplots_new.pdf', height=4, width=9)
       
     }
     }

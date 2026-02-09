@@ -5,14 +5,26 @@ library(janitor)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/mashr')
 conditions <- c('NI', 'RV', 'IVA')
-input_prefix <- c('IVA_B_17','NI_B_13','RV_B_17','IVA_CD4-T_8','NI_CD4-T_4','RV_CD4-T_5',
-                  'IVA_CD8-T_1','NI_CD8-T_6','RV_CD8-T_2','IVA_Mono_1','NI_Mono_0','RV_Mono_20','IVA_NK_5','NI_NK_2','RV_NK_2')
-
+input_prefix <- c('IVA_B_4',
+                  'NI_B_5',
+                  'RV_B_4',
+                  'IVA_CD4-T_0',
+                  'NI_CD4-T_0',
+                  'RV_CD4-T_1',
+                  'IVA_CD8-T_1',
+                  'NI_CD8-T_0',
+                  'RV_CD8-T_2',
+                  'IVA_Mono_14',
+                  'NI_Mono_19',
+                  'RV_Mono_0',
+                  'IVA_NK_0',
+                  'NI_NK_2',
+                  'RV_NK_0')
 # load dosage file
 dos_matrix <- fread('../../genotypes/imputed_vcfs/imputed_dosage.txt')
 
 # read mashr dfs
-mash_df <- fread('mashr_out_allstats_df.txt')
+mash_df <- fread('mashr_out_allstats_df_new.txt')
 
 # remove snps in which all lfsr are >0.05 for a given gene
 mash_df <- mash_df %>% group_by(gene) %>% filter(sum(lfsr<0.05)<15) %>% ungroup()
@@ -24,7 +36,7 @@ mash_total$condition <- factor(mash_total$condition, levels=c('NI','IVA','RV'))
 
 ggplot(mash_total, aes(x=celltype, y=n_eGenes, fill=condition)) + geom_col(position='dodge') +
   theme_bw() + ggtitle('Sig. eGenes')
-ggsave('sig_eGenes_per_cond.ctype.pdf', height=4, width=5)
+ggsave('sig_eGenes_per_cond.ctype_new.pdf', height=4, width=5)
 
 # unique eQTLs per infection 
 mash_unique_inf <- mash_df %>% group_by(gene, celltype) %>% filter(sum(lfsr<0.05)==1) %>% 
@@ -33,7 +45,7 @@ mash_unique_inf$condition <- factor(mash_unique_inf$condition, levels=c('NI','IV
 
 ggplot(mash_unique_inf, aes(x=celltype, y=n_eGenes, fill=condition)) + geom_col(position='dodge') +
   theme_bw() + ggtitle('Sig. eGenes that are unique per infection status')
-ggsave('sig_eGenes_per_ctype.unique.condition.pdf', height=4, width=5)
+ggsave('sig_eGenes_per_ctype.unique.condition_new.pdf', height=4, width=5)
 
 # unique eQTLs per celltype
 mash_unique_ct <- mash_df %>% group_by(gene, condition) %>% filter(sum(lfsr<0.05)==1) %>% 
@@ -42,7 +54,7 @@ mash_unique_ct$condition <- factor(mash_unique_ct$condition, levels=c('NI','IVA'
 
 ggplot(mash_unique_ct, aes(x=celltype, y=n_eGenes, fill=condition)) + geom_col(position='dodge') +
   theme_bw() + ggtitle('Sig. eGenes that are unique per celltype')
-ggsave('sig_eGenes_per_cond.unique.ctype.pdf', height=4, width=5)
+ggsave('sig_eGenes_per_cond.unique.ctype_new.pdf', height=4, width=5)
 
 (ggplot(mash_total, aes(x=celltype, y=n_eGenes, fill=condition)) + geom_col(position='dodge') +
     theme_bw() + ggtitle('eGenes') + guides(fill='none')) +
@@ -50,8 +62,8 @@ ggsave('sig_eGenes_per_cond.unique.ctype.pdf', height=4, width=5)
      theme_bw() + ggtitle('Unique eGenes per celltype') + ylab(NULL) + guides(fill='none')) +
   (ggplot(mash_unique_inf, aes(x=celltype, y=n_eGenes, fill=condition)) + geom_col(position='dodge') +
      theme_bw() + ggtitle('Unique eGenes per infection status') + ylab(NULL))
-ggsave(filename='sig_eGenes_allbarplots.pdf', height=3, width=10)
-ggsave(filename='sig_eGenes_allbarplots.png', height=3, width=10)
+ggsave(filename='sig_eGenes_allbarplots_new.pdf', height=3, width=10)
+ggsave(filename='sig_eGenes_allbarplots_new.png', height=3, width=10)
 rm(mash_total, mash_unique_ct, mash_unique_inf)
 
 # box plots of significant eGenes per celltype (significant in the celltype in at least one infection status)
@@ -67,7 +79,7 @@ for (i in 1:nrow(mash_reduced)){
   for (cond in c('NI','IVA','RV')){
     pc <- str_extract(input_prefix[str_detect(input_prefix, paste0('^', cond, '_', mash_reduced$celltype[i], '_'))],'(?<=_)\\d+$')
     
-    expression <- fread('../'%&%cond%&%'_'%&%mash_reduced$celltype[i]%&%'_'%&%pc%&%'PCs.txt') %>%
+    expression <- fread('../'%&%cond%&%'_'%&%mash_reduced$celltype[i]%&%'_'%&%pc%&%'PCs_new.txt') %>%
       filter(GENES==mash_reduced$gene[i]) %>% t() %>% as.data.frame() %>% rownames_to_column() %>% 
       row_to_names(row_number=1) %>% rename(ID=GENES) %>% mutate(condition=cond)
     
@@ -90,7 +102,7 @@ for (i in 1:nrow(mash_reduced)){
     xlab(mash_reduced$snps[i]) + ylab(mash_reduced$gene[i]) + theme_bw() + facet_wrap(~condition)
   
   # save plots
-  ggsave('QTL_boxplots/'%&%mash_reduced$celltype[i]%&%'_'%&%mash_reduced$gene[i]%&%'_QTL_boxplot.pdf', 
+  ggsave('QTL_boxplots/'%&%mash_reduced$celltype[i]%&%'_'%&%mash_reduced$gene[i]%&%'_QTL_boxplot_new.pdf', 
          height=3, width=6)
   
   rm(compiled.exp)

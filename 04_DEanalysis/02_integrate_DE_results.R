@@ -33,28 +33,28 @@ for (int in interactions){
 full_results <- full_results %>% mutate(direction=ifelse(logFC>0, 'UP', 'DOWN'),
                                         sig=ifelse(qvals<0.05, TRUE, FALSE))
 full_results$interaction <- gsub('asthma_alb', 'asthma', full_results$interaction)
-fwrite(full_results, 'NI_IVAxRV_integrated_limma_results.txt', sep=' ')
+fwrite(full_results, 'NI_IVAxRV_integrated_limma_results_new.txt', sep=' ')
 
-# volcano plots of qvalues and histograms of [unadjusted] pvalues
+# volcano plots and histograms of pvalues
 for (int in unique(full_results$interaction)){
   tmp <- full_results %>% filter(interaction==int)
   
-  # volcano plots of qvalues
-  ggplot(tmp) + geom_point(aes(logFC, -log10(qvals), color=sig), size=0.5, alpha=0.5) +
+  # volcano plot
+  ggplot(tmp) + geom_point(aes(logFC, -log10(P.Value), color=sig), size=0.5, alpha=0.5) +
     theme_bw() + ylab('-log10(qvalue)') + facet_grid(cols=vars(celltype), rows=vars(condition)) +
     ggtitle(int) + scale_color_manual(values=c('TRUE'='red', 'FALSE'='black')) +
     theme(legend.position='none')
   
-  ggsave('NI_IVAxRV_'%&%int%&%'_limma_facetgrid_volcanoplot.pdf', height=4, width=8)
-  ggsave('NI_IVAxRV_'%&%int%&%'_limma_facetgrid_volcanoplot.png', height=4, width=8)
+  #ggsave('NI_IVAxRV_'%&%int%&%'_limma_facetgrid_volcanoplot.pdf', height=4, width=8)
+  ggsave('NI_IVAxRV_'%&%int%&%'_limma_facetgrid_volcanoplot_new.png', height=4, width=8)
   
-  # histograms of unadjusted pvalues
+  # histogram 
   ggplot(tmp, aes(x=P.Value)) + geom_histogram(binwidth=0.05, boundary=0) +
     facet_wrap(~condition+celltype, scales='free_y', ncol=length(unique(tmp$celltype))) +
     theme_bw() + ggtitle(int) + xlab('Unadjusted p-values')
   
-  ggsave('NI_IVAxRV_'%&%int%&%'_limma_pval_histogram.pdf', height=4, width=8)
-  ggsave('NI_IVAxRV_'%&%int%&%'_limma_pval_histogram.png', height=4, width=8)
+  #ggsave('NI_IVAxRV_'%&%int%&%'_limma_pval_histogram.pdf', height=4, width=8)
+  ggsave('NI_IVAxRV_'%&%int%&%'_limma_pval_histogram_new.png', height=4, width=8)
   
   # compare logFCs of significant DE genes
   tmp <- tmp %>% filter(sig==TRUE) 
@@ -66,8 +66,8 @@ for (int in unique(full_results$interaction)){
       ylab('RV LogFC') + xlab('IVA LogFC') + geom_abline(slope=1, color='red') +
       geom_hline(yintercept=0, color='blue') + geom_vline(xintercept=0, color='blue')
     
-    ggsave('NI_IVAxRV_'%&%int%&%'_ComparelogFCs_barplot.pdf', height=4, width=4)
-    ggsave('NI_IVAxRV_'%&%int%&%'_ComparelogFCs_barplot.png', height=4, width=4)
+    #ggsave('NI_IVAxRV_'%&%int%&%'_ComparelogFCs_barplot.pdf', height=4, width=4)
+    ggsave('NI_IVAxRV_'%&%int%&%'_ComparelogFCs_barplot_new.png', height=4, width=4)
     
   }
 }
@@ -90,8 +90,8 @@ for (int in unique(full_results$interaction)){
       theme_bw() + facet_wrap(~condition) + ggtitle(int) + geom_hline(yintercept=0, color='black') +
       labs(y='Number of DE genes (Up vs Down)') + theme(legend.position='none')
     
-    ggsave('NI_IVAxRV_'%&%int%&%'_NumOfDEgenes_barplot.pdf', height=4, width=7)
-    ggsave('NI_IVAxRV_'%&%int%&%'_NumOfDEgenes_barplot.png', height=4, width=7)
+    #ggsave('NI_IVAxRV_'%&%int%&%'_NumOfDEgenes_barplot.pdf', height=4, width=7)
+    ggsave('NI_IVAxRV_'%&%int%&%'_NumOfDEgenes_barplot_new.png', height=4, width=7)
     
   }
 }

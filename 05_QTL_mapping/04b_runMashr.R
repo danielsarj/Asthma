@@ -6,7 +6,7 @@ library(pheatmap)
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/mashr')
 
 # read in random input dataframe and split into betas/SEs
-random_df <- fread('mashr_in_random_df.txt') 
+random_df <- fread('mashr_in_random_df_new.txt') 
 random_df <- random_df %>% filter(if_all(everything(), ~ !is.na(.) & !is.infinite(.)))
 random_beta_df <- random_df %>% select(contains('beta')) %>% as.matrix()
 random_se_df <- random_df %>% select(contains('SE')) %>% as.matrix()
@@ -20,7 +20,7 @@ mash_random <- mash_set_data(random_beta_df, random_se_df, V=Vhat)
 rm(random_df, random_beta_df, random_se_df)
 
 # read in strong input dataframe and split into betas/SEs
-strong_df <- fread('mashr_in_strong_df.txt') 
+strong_df <- fread('mashr_in_strong_df_new.txt') 
 strong_df <- strong_df %>% filter(if_all(everything(), ~ !is.na(.) & !is.infinite(.)))
 strong_beta_df <- strong_df %>% select(contains('beta')) %>% as.matrix()
 strong_se_df <- strong_df %>% select(contains('SE')) %>% as.matrix()
@@ -59,9 +59,9 @@ m2 <- mash(mash_strong, g=get_fitted_g(m), fixg=TRUE)
 m.pairwise_PM <- get_pairwise_sharing(m2, lfsr_thresh=0.1, factor=0.5)
 colnames(m.pairwise_PM) <- gsub('_beta', '', colnames(m.pairwise_PM))
 rownames(m.pairwise_PM) <- gsub('_beta', '', rownames(m.pairwise_PM))
-fwrite(m.pairwise_PM, 'mashr_pairwise_sharing_lfsr0.1.txt', quote=F, sep=' ', 
+fwrite(m.pairwise_PM, 'mashr_pairwise_sharing_lfsr0.1_new.txt', quote=F, sep=' ', 
        row.names=T, col.names=T)
-pdf('mashr_pairwise_sharing_lfsr0.1.pdf', height=5, width=6)
+pdf('mashr_pairwise_sharing_lfsr0.1_new.pdf', height=5, width=6)
 pheatmap(m.pairwise_PM, scale='none', clustering_distance_rows='euclidean',
          clustering_distance_cols='euclidean', clustering_method='complete', 
          angle_col=45)
@@ -71,9 +71,9 @@ dev.off()
 m.pairwise_PM <- get_pairwise_sharing(m2, lfsr_thresh=0.05, factor=0.5)
 colnames(m.pairwise_PM) <- gsub('_beta', '', colnames(m.pairwise_PM))
 rownames(m.pairwise_PM) <- gsub('_beta', '', rownames(m.pairwise_PM))
-fwrite(m.pairwise_PM, 'mashr_pairwise_sharing_lfsr0.05.txt', quote=F, sep=' ', 
+fwrite(m.pairwise_PM, 'mashr_pairwise_sharing_lfsr0.05_new.txt', quote=F, sep=' ', 
        row.names=T, col.names=T)
-pdf('mashr_pairwise_sharing_lfsr0.05.pdf', height=5, width=6)
+pdf('mashr_pairwise_sharing_lfsr0.05_new.pdf', height=5, width=6)
 pheatmap(m.pairwise_PM, scale='none', clustering_distance_rows='euclidean',
          clustering_distance_cols='euclidean', clustering_method='complete', 
          angle_col=45)
@@ -90,9 +90,9 @@ p_sd <- cbind(strong_pairs, p_sd)
 colnames(p_sd) <- gsub('_beta', '_SD', colnames(p_sd))
 
 # save outputs
-fwrite(p_lfsr, 'mashr_out_lfsr_df.txt', quote=F, sep='\t')
-fwrite(p_mean, 'mashr_out_beta_df.txt', quote=F, sep='\t')
-fwrite(p_sd, 'mashr_out_sd_df.txt', quote=F, sep='\t')
+fwrite(p_lfsr, 'mashr_out_lfsr_df_new.txt', quote=F, sep='\t')
+fwrite(p_mean, 'mashr_out_beta_df_new.txt', quote=F, sep='\t')
+fwrite(p_sd, 'mashr_out_sd_df_new.txt', quote=F, sep='\t')
 
 # transform into long format and join dfs
 p_mean_long <- p_mean %>% pivot_longer(cols=-c(gene, snps)) %>% 
@@ -106,4 +106,4 @@ p_lfsr_long <- p_lfsr %>% pivot_longer(cols=-c(gene, snps)) %>%
   select(-info) %>% rename(lfsr=value)
 full_long_results <- full_join(p_mean_long, p_sd_long, by=c('gene','snps','condition', 'celltype')) %>%
   full_join(p_lfsr_long, by=c('gene','snps','condition', 'celltype'))
-fwrite(full_long_results, 'mashr_out_allstats_df.txt', quote=F, sep='\t')
+fwrite(full_long_results, 'mashr_out_allstats_df_new.txt', quote=F, sep='\t')

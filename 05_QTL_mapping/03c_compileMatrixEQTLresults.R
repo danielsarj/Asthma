@@ -21,19 +21,19 @@ for (cond in conditions){
       
         # select the top SNP for each gene in true and permuted files
         if (perm==0){
-          best_true <- fread(cond%&%'_'%&%ctype%&%'_'%&%pc%&%'PCs_cisQTL_sumstats.txt') 
+          best_true <- fread(cond%&%'_'%&%ctype%&%'_'%&%pc%&%'PCs_cisQTL_sumstats_new.txt') 
         
           #histogram of unadjusted pvalues
-          pdf('plots/'%&%cond%&%'_'%&%ctype%&%'_'%&%pc%&%'cisQTL_pvalhistogram.pdf', width=4, height=4)
-          hist(best_true$pvalue, main = cond%&%' '%&%ctype%&%' '%&%pc%&%' cisQTL pvalues', breaks=100)
-          dev.off()
+          #pdf('plots/'%&%cond%&%'_'%&%ctype%&%'_'%&%pc%&%'cisQTL_pvalhistogram.pdf', width=4, height=4)
+          #hist(best_true$pvalue, main = cond%&%' '%&%ctype%&%' '%&%pc%&%' cisQTL pvalues', breaks=100)
+          #dev.off()
         
           # select top SNP per gene based on pvalue
           best_true <- best_true %>% group_by(gene) %>% slice_min(pvalue, with_ties=FALSE)
           best_true <- best_true %>% arrange(gene)
         
         } else {
-          tmp <- fread(cond%&%'_'%&%ctype%&%'_Perm'%&%perm%&%'_'%&%pc%&%'PCs_cisQTL_sumstats.txt') 
+          tmp <- fread(cond%&%'_'%&%ctype%&%'_Perm'%&%perm%&%'_'%&%pc%&%'PCs_cisQTL_sumstats_new.txt') 
         
           # select top SNP per gene based on pvalue
           tmp <- tmp %>% group_by(gene) %>% slice_min(pvalue, with_ties=FALSE)
@@ -48,19 +48,19 @@ for (cond in conditions){
       # compute qvalues with the top SNPs
       empP <- empPvals(stat=-log10(best_true$pvalue), stat0=-log10(as.matrix(compiled.perm)), pool=TRUE)
       best_true$qvals <- qvalue(empP)$qvalue
-      fwrite(best_true, cond%&%'_'%&%ctype%&%'_'%&%pc%&%'_best_cisQTL_sumstats.txt', sep=' ')
+      fwrite(best_true, cond%&%'_'%&%ctype%&%'_'%&%pc%&%'_best_cisQTL_sumstats_new.txt', sep=' ')
     
       #histogram of qvalues
-      pdf('plots/'%&%cond%&%'_'%&%ctype%&%'_'%&%pc%&%'_cisQTL_qvalhistogram.pdf', width=4, height=4)
-      hist(best_true$qvals, main = cond%&%' '%&%ctype%&%' '%&%pc%&%' cisQTL qvalues')
-      dev.off()
+      #pdf('plots/'%&%cond%&%'_'%&%ctype%&%'_'%&%pc%&%'_cisQTL_qvalhistogram.pdf', width=4, height=4)
+      #hist(best_true$qvals, main = cond%&%' '%&%ctype%&%' '%&%pc%&%' cisQTL qvalues')
+      #dev.off()
     
       # qqplot with best true SNPs and best perm1 SNPs
-      pdf('plots/'%&%cond%&%'_'%&%ctype%&%'_'%&%pc%&%'_best_SNPs_qqplot.pdf', width=4, height=4)
-      qqplot(x=-log10(compiled.perm[,1]), y=-log10(best_true$pvalue), main = cond%&%' '%&%ctype%&%' '%&%pc%&%' Best SNPs qqplot', 
-            xlab='-log10(best permuted p-values)', ylab = '-log10(best true p-values)')
-      abline(c(0,1), col='red')
-      dev.off()
+      #pdf('plots/'%&%cond%&%'_'%&%ctype%&%'_'%&%pc%&%'_best_SNPs_qqplot.pdf', width=4, height=4)
+      #qqplot(x=-log10(compiled.perm[,1]), y=-log10(best_true$pvalue), main = cond%&%' '%&%ctype%&%' '%&%pc%&%' Best SNPs qqplot', 
+      #      xlab='-log10(best permuted p-values)', ylab = '-log10(best true p-values)')
+      #abline(c(0,1), col='red')
+      #dev.off()
     
       rm(compiled.perm)
     }
@@ -75,7 +75,7 @@ for (cond in conditions){
     for (pc in pcs){
       print(pc)
       
-      result <- fread(cond%&%'_'%&%ctype%&%'_'%&%pc%&%'_best_cisQTL_sumstats.txt', sep=' ') %>% 
+      result <- fread(cond%&%'_'%&%ctype%&%'_'%&%pc%&%'_best_cisQTL_sumstats_new.txt', sep=' ') %>% 
         summarise(qval_5e02=sum(qvals<0.05), qval_1e01=sum(qvals<0.1)) %>% 
         mutate(celltype=ctype, condition=cond, n_pcs=pc)
 
@@ -94,7 +94,7 @@ compiled.results_long$condition <- factor(compiled.results_long$condition, level
 # plot number of sig eGenes by nPCs
 ggplot(compiled.results_long, aes(x=n_pcs, y=value, color=name)) + geom_line() + 
   geom_point() + theme_bw() + facet_grid(rows=vars(condition), cols=vars(celltype))
-ggsave('eGenes_by_nPCs.pdf', height=4, width=10)
+ggsave('eGenes_by_nPCs_new.pdf', height=4, width=10)
 
 # find the smallest PC (in case of ties) that has the largest number of eGenes for qvalue<0.1
 compiled.results %>% group_by(celltype, condition) %>% slice_max(qval_1e01, with_ties=TRUE) %>%

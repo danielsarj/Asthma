@@ -14,7 +14,7 @@ args <- parser$parse_args()
 
 # load expression matrix and dosage file
 # make sure the columns are in the same order
-exp_matrix <- fread(args$cond%&%'_'%&%args$ctype%&%'_'%&%args$pcs%&%'PCs.txt')
+exp_matrix <- fread(args$cond%&%'_'%&%args$ctype%&%'_'%&%args$pcs%&%'PCs_new.txt')
 dos_matrix <- fread('../genotypes/imputed_vcfs/imputed_dosage.txt')
 tmp_names <- colnames(dos_matrix)
 tmp_names <- gsub('SEA3', 'SEA-3', tmp_names)
@@ -24,7 +24,7 @@ dos_matrix <- cbind(dos_matrix[,1], dos_matrix[, ..common_cols])
 setcolorder(dos_matrix, c(names(dos_matrix)[1], setdiff(common_cols, names(dos_matrix)[1])))
 
 # load genotype PCs and make sure columns are in the correct order
-geno_pcs <- fread('PCAIR.eigenvec') %>% select(sample_id, V1, V2, V3, V4)
+geno_pcs <- fread('PCAIR_noB4.eigenvec') %>% select(sample_id, V1, V2, V3, V4)
 geno_pcs$sample_id <- gsub('SEA3', 'SEA-3', geno_pcs$sample_id)
 geno_pcs <- geno_pcs %>% t() %>% as.data.frame() %>% row_to_names(row_number=1) %>%
   rownames_to_column() %>% setDT()
@@ -95,7 +95,7 @@ for (i in 1:(n_permutations+1)){
     cis_qtls <- me$cis$eqtls %>% mutate(condition=args$cond, celltype=args$ctype, SE=abs(beta/qnorm(pvalue/2)))
     cis_qtls <- inner_join(cis_qtls, snp_local, by=c('snps'='snpid')) %>% 
       select(snps, chr, pos, gene, statistic, pvalue, FDR, beta, SE, condition, celltype) %>% arrange(chr, pos)
-    fwrite(cis_qtls, 'matrixEQTL_results/'%&%args$cond%&%'_'%&%args$ctype%&%'_'%&%args$pcs%&%'PCs_cisQTL_sumstats.txt', quote=F, sep='\t', na='NA')
+    fwrite(cis_qtls, 'matrixEQTL_results/'%&%args$cond%&%'_'%&%args$ctype%&%'_'%&%args$pcs%&%'PCs_cisQTL_sumstats_new.txt', quote=F, sep='\t', na='NA')
     
   } else {
     
@@ -127,6 +127,6 @@ for (i in 1:(n_permutations+1)){
     cis_qtls <- me$cis$eqtls %>% mutate(condition=args$cond, celltype=args$ctype, SE=abs(beta/qnorm(pvalue/2)))
     cis_qtls <- inner_join(cis_qtls, snp_local, by=c('snps'='snpid')) %>% 
       select(snps, chr, pos, gene, statistic, pvalue, FDR, beta, SE, condition, celltype) %>% arrange(chr, pos)
-    fwrite(cis_qtls, 'matrixEQTL_results/'%&%args$cond%&%'_'%&%args$ctype%&%'_Perm'%&%as.character(as.numeric(i)-1)%&%'_'%&%args$pcs%&%'PCs_cisQTL_sumstats.txt', quote=F, sep='\t', na='NA')
+    fwrite(cis_qtls, 'matrixEQTL_results/'%&%args$cond%&%'_'%&%args$ctype%&%'_Perm'%&%as.character(as.numeric(i)-1)%&%'_'%&%args$pcs%&%'PCs_cisQTL_sumstats_new.txt', quote=F, sep='\t', na='NA')
   }
 }

@@ -21,8 +21,11 @@ annotations <- annotations$hgnc_symbol[
     annotations$hgnc_symbol!='' &
     !grepl('^MT-', annotations$hgnc_symbol)]
 
-# load seurat object
-objs <- readRDS('../scRNAanalysis/NI_IVA_RV.integrated.pseudobulks.rds')
+# read seurat object
+objs <- readRDS('../scRNAanalysis/NI_IVA_RV.integrated.pseudobulks_new.rds')
+
+# remove batch 4
+objs <- subset(objs, subset= batch!='B4')
 
 # merge metadata
 mdata <- objs@meta.data
@@ -32,36 +35,36 @@ mdata$condition <- factor(mdata$condition, levels=c('NI', 'IVA', 'RV'))
 
 # define minimum average logCPM thresholds
 logCPMfilter_table <- data.frame(celltype=c('B','CD4-T','CD8-T','Mono','NK',
-                                'B','CD4-T','CD8-T','Mono','NK'),
-                         threshold=c(4.9,1.9,1,3.4,5.6,
-                                 3.5,3.6,3.1,3.4,5.6),
-                         condition=c(rep('IVA',5),rep('RV',5)))
+                                            'B','CD4-T','CD8-T','Mono','NK'),
+                                 threshold=c(2.7,-0.5,1.0,3.9,2.8,
+                                             4.0,-0.7,1.9,4.0,2.8),
+                                 condition=c(rep('IVA',5),rep('RV',5)))
 
 # plots about the metadata
 summ <- mdata %>% group_by(condition, celltype, asthma) %>% summarise(n=n())
 summ %>% ggplot(.) + geom_col(aes(x=celltype, y=n, fill=asthma), position='dodge') + 
   scale_y_continuous(breaks=seq(0, max(summ$n), by=1)) + theme_bw() + facet_wrap(~condition)
-ggsave('SampleSizeByAsthmaStatus.pdf', height=4, width=8)
+ggsave('SampleSizeByAsthmaStatus_new.pdf', height=4, width=8)
 
 summ <- mdata %>% group_by(condition, celltype, income) %>% summarise(n=n())
 summ %>% mutate(across('income', ~na_if(., ''))) %>% drop_na() %>% ggplot(.) + 
   geom_col(aes(x=celltype, y=n, fill=income), position='dodge') + 
   scale_y_continuous(breaks=seq(0, max(summ$n), by=1)) + theme_bw() + facet_wrap(~condition)
-ggsave('SampleSizeByIncomeStatus.pdf', height=4, width=9)
+ggsave('SampleSizeByIncomeStatus_new.pdf', height=4, width=9)
 
 summ <- mdata %>% group_by(condition, celltype, asthma, income) %>% summarise(n=n())
 summ %>% mutate(across('income', ~na_if(., ''))) %>% drop_na() %>% ggplot(.) + 
   geom_col(aes(x=celltype, y=n, fill=condition), position='dodge') + 
   scale_y_continuous(breaks=seq(0, max(summ$n), by=1)) + theme_bw() + 
   facet_grid(cols=vars(income), rows=vars(asthma))
-ggsave('SampleSizeByIncomeStatusANDAsthmaStatus.pdf', height=6, width=12)
+ggsave('SampleSizeByIncomeStatusANDAsthmaStatus_new.pdf', height=6, width=12)
 
 summ <- mdata %>% group_by(condition, celltype, asthma, albuterol) %>% summarise(n=n()) %>%
   ungroup() %>% mutate(across('albuterol', ~na_if(., '')))
 summ %>% drop_na() %>% ggplot(.) + geom_col(aes(x=celltype, y=n, fill=condition), position='dodge') + 
   scale_y_continuous(breaks=seq(0, max(summ$n), by=1)) + theme_bw() + 
   facet_grid(cols=vars(albuterol), rows=vars(asthma))
-ggsave('SampleSizeByAlbuterolStatusANDAsthmaStatus.pdf', height=7, width=7)
+ggsave('SampleSizeByAlbuterolStatusANDAsthmaStatus_new.pdf', height=7, width=7)
 
 # condition specific DE
 for (i in 1:length(conditions)){
@@ -109,25 +112,26 @@ for (i in 1:length(conditions)){
         # remove lowly expressed genes based on logCPM threshold
         logcpm_threshold <- logCPMfilter_table %>% filter(celltype==ctype, condition==conditions[i]) %>%
           pull(threshold)
-        logCPM_pass <- cpm(count, log=TRUE) %>% rowMeans() %>% as.data.frame() %>% filter(.>=logcpm_threshold) %>%
-          rownames_to_column() %>% pull(rowname)
+        logCPM_pass <- cpm(count, log=TRUE) %>% rowMedians() %>% as.data.frame() %>% rownames_to_column() 
+        logCPM_pass$rowname <- rownames(count$counts)
+        logCPM_pass <- logCPM_pass %>% filter(.>=logcpm_threshold) %>% pull(rowname)
         count <- count[logCPM_pass, , keep.lib.sizes=FALSE]
         count <- calcNormFactors(count)
         
         # define design matrix
         asthma_mdata <- mdata %>% filter(rownames(mdata) %in% no_NA_albuterol)
-        design <- model.matrix(~batch+age+gender+n+avg_mt+albuterol+condition*asthma, data=asthma_mdata)
+        design <- model.matrix(~batch+age+gender+n+avg_mt+prop+albuterol+condition*asthma, data=asthma_mdata)
         
         # voom
         voom <- voom(count, design, plot=F)
         
         # save voom-adjusted expression table
         exp <- voom$E %>% as.data.frame() %>% rownames_to_column('Gene')
-        fwrite(exp, '../scRNAanalysis/NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_asthma_alb_voom_expression.txt', sep=' ')
+        fwrite(exp, '../scRNAanalysis/NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_asthma_alb_voom_expression_new.txt', sep=' ')
         wgts <- voom$weights %>% as.data.frame() %>% rownames_to_column('Gene')
         wgts$Gene <- exp$Gene
         colnames(wgts) <- colnames(exp)
-        fwrite(wgts, '../scRNAanalysis/NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_asthma_alb_voom_weights.txt', sep=' ')
+        fwrite(wgts, '../scRNAanalysis/NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_asthma_alb_voom_weights_new.txt', sep=' ')
         rm(exp, wgts)
         
         # fit linear model 
@@ -155,7 +159,7 @@ for (i in 1:length(conditions)){
           }
           
           # define design matrix
-          design <- model.matrix(~batch+age+gender+n+avg_mt+albuterol+condition*asthma, data=permuted_mdata)
+          design <- model.matrix(~batch+age+gender+n+avg_mt+prop+albuterol+condition*asthma, data=permuted_mdata)
           
           # voom
           voom <- voom(count, design, plot=F)
@@ -181,14 +185,14 @@ for (i in 1:length(conditions)){
         og_results$qvals <- qvalue(empP)$qvalue
         
         # qqplot 
-        pdf('NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_asthma_alb_limma_results_qqplot.pdf', width=4, height=4)
+        pdf('NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_asthma_alb_limma_results_qqplot_new.pdf', width=4, height=4)
         qqplot(x=-log10(compiled_perms[,1]), y=-log10(og_results$P.Value), main=conditions[i]%&%' '%&%ctype%&%' asthma', 
                xlab='-log10(permuted p-values)', ylab='-log10(true p-values)')
         abline(c(0,1), col='red')
         dev.off()
         
         # save result
-        fwrite(og_results, 'NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_asthma_alb_limma_results_wqvals.txt',
+        fwrite(og_results, 'NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_asthma_alb_limma_results_wqvals_new.txt',
                sep=' ', col.names=T, na='NA')
         rm(compiled_perms)
         
@@ -205,25 +209,26 @@ for (i in 1:length(conditions)){
         # remove lowly expressed genes based on logCPM threshold
         logcpm_threshold <- logCPMfilter_table %>% filter(celltype==ctype, condition==conditions[i]) %>%
           pull(threshold)
-        logCPM_pass <- cpm(count, log=TRUE) %>% rowMeans() %>% as.data.frame() %>% filter(.>=logcpm_threshold) %>%
-          rownames_to_column() %>% pull(rowname)
+        logCPM_pass <- cpm(count, log=TRUE) %>% rowMedians() %>% as.data.frame() %>% rownames_to_column() 
+        logCPM_pass$rowname <- rownames(count$counts)
+        logCPM_pass <- logCPM_pass %>% filter(.>=logcpm_threshold) %>% pull(rowname)
         count <- count[logCPM_pass, , keep.lib.sizes=FALSE]
         count <- calcNormFactors(count)
         
         # define design matrix
         income_mdata <- mdata %>% filter(rownames(mdata) %in% no_NA_income)
-        design <- model.matrix(~batch+age+gender+n+avg_mt+condition*income, data=income_mdata)
+        design <- model.matrix(~batch+age+gender+n+avg_mt+prop+condition*income, data=income_mdata)
         
         # voom
         voom <- voom(count, design, plot=F)
         
         # save voom-adjusted expression table
         exp <- voom$E %>% as.data.frame() %>% rownames_to_column('Gene')
-        fwrite(exp, '../scRNAanalysis/NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_income_voom_expression.txt', sep=' ')
+        fwrite(exp, '../scRNAanalysis/NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_income_voom_expression_new.txt', sep=' ')
         wgts <- voom$weights %>% as.data.frame() %>% rownames_to_column('Gene')
         wgts$Gene <- exp$Gene
         colnames(wgts) <- colnames(exp)
-        fwrite(wgts, '../scRNAanalysis/NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_income_voom_weights.txt', sep=' ')
+        fwrite(wgts, '../scRNAanalysis/NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_income_voom_weights_new.txt', sep=' ')
         rm(exp, wgts)
         
         # fit linear model 
@@ -251,7 +256,7 @@ for (i in 1:length(conditions)){
           }
           
           # define design matrix
-          design <- model.matrix(~batch+age+gender+n+avg_mt+condition*income, data=permuted_mdata)
+          design <- model.matrix(~batch+age+gender+n+avg_mt+prop+condition*income, data=permuted_mdata)
           
           # voom
           voom <- voom(count, design, plot=F)
@@ -277,14 +282,14 @@ for (i in 1:length(conditions)){
         og_results$qvals <- qvalue(empP)$qvalue
         
         # qqplot 
-        pdf('NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_income_limma_results_qqplot.pdf', width=4, height=4)
+        pdf('NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_income_limma_results_qqplot_new.pdf', width=4, height=4)
         qqplot(x=-log10(compiled_perms[,1]), y=-log10(og_results$P.Value), main=conditions[i]%&%' '%&%ctype%&%' income', 
                xlab='-log10(permuted p-values)', ylab='-log10(true p-values)')
         abline(c(0,1), col='red')
         dev.off()
         
         # save result
-        fwrite(og_results, 'NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_income_limma_results_wqvals.txt',
+        fwrite(og_results, 'NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_income_limma_results_wqvals_new.txt',
                sep=' ', col.names=T, na='NA')
         rm(compiled_perms)
       }

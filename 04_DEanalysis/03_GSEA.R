@@ -14,7 +14,7 @@ human.path.list <- msigdbr(species='Homo sapiens', collection='H') %>%
   split(x=.$gene_symbol, f=.$gs_name)
 
 # read results
-DE_results <- fread('NI_IVAxRV_integrated_limma_results.txt')
+DE_results <- fread('NI_IVAxRV_integrated_limma_results_new.txt')
 
 for (int in interactions){
   for (i in 1:length(conditions)){
@@ -41,7 +41,7 @@ for (int in interactions){
       topPathwaysDown <- fgseaRes[NES<0][head(order(pval), n=5), pathway]
       topPathways <- c(topPathwaysUp, rev(topPathwaysDown))
       plotGseaTable(human.path.list[topPathways], subset_DE_results, fgseaRes, gseaParam=0.5)
-      ggsave('NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_'%&%int%&%'_desc_topSigPathways.pdf', height=6, width=10)
+      ggsave('NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_'%&%int%&%'_desc_topSigPathways_new.pdf', height=6, width=10)
       
       genes_in_pathway_a <- human.path.list[['HALLMARK_INTERFERON_ALPHA_RESPONSE']]
       stats_ranked_a <- sort(subset_DE_results, decreasing=TRUE)
@@ -51,7 +51,7 @@ for (int in interactions){
         ggtitle('Enrichment Plot: HALLMARK_INTERFERON_ALPHA_RESPONSE') + 
         plotEnrichment(genes_in_pathway_y, stats_ranked_y) + 
         ggtitle('Enrichment Plot: HALLMARK_INTERFERON_GAMMA_RESPONSE')
-      ggsave('NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_'%&%int%&%'_INF_enrichmentplots.pdf', height=6, width=15)
+      ggsave('NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_'%&%int%&%'_INF_enrichmentplots_new.pdf', height=6, width=15)
       
       # CAMERA
       cam <- cameraPR(statistic=subset_DE_results, index=human.path.list) %>% rownames_to_column('pathway') %>%
@@ -74,17 +74,9 @@ for (int in interactions){
   }
 }
 compiled.fgseaRes$pathway <- gsub('HALLMARK_', '', compiled.fgseaRes$pathway)
-fwrite(compiled.fgseaRes, 'NI_IVAxRV_integrated_descGSEAresults.txt', sep=' ', na='NA', col.names=T)
+fwrite(compiled.fgseaRes, 'NI_IVAxRV_integrated_descGSEAresults_new.txt', sep=' ', na='NA', col.names=T)
 compiled.cameraRes$pathway <- gsub('HALLMARK_', '', compiled.cameraRes$pathway)
-fwrite(compiled.cameraRes, 'NI_IVAxRV_integrated_descCAMERAresults.txt', sep=' ', na='NA', col.names=T)
-
-# plot number of enriched pathways per celltype/condition/interaction
-summ <- compiled.fgseaRes %>% group_by(celltype, condition, interaction) %>% filter(padj<0.05) %>%
-  summarise(n=n())
-summ$interaction <- factor(summ$interaction, levels=c('none','asthma','income'))
-ggplot(summ) + geom_col(aes(x=celltype, y=n)) + theme_bw() + ylab('Number of enriched pathways') +
-  facet_grid(cols=vars(interaction), rows=vars(condition))
-ggsave('NI_IVAxRV_descSigGeneSets_acrossInteractions.pdf', height=4, width=8)
+fwrite(compiled.cameraRes, 'NI_IVAxRV_integrated_descCAMERAresults_new.txt', sep=' ', na='NA', col.names=T)
 
 # filter CAMERA results by significance
 compiled.cameraRes <- compiled.cameraRes %>% filter(FDR<0.05)
@@ -96,8 +88,8 @@ summ <- joint_gsea_camera %>% group_by(celltype, condition, interaction) %>%
 summ$interaction <- factor(summ$interaction, levels=c('none','asthma','income'))
 ggplot(summ) + geom_col(aes(x=celltype, y=n)) + theme_bw() + ylab('Number of enriched pathways') +
   facet_grid(cols=vars(interaction), rows=vars(condition))
-ggsave('NI_IVAxRV_descSigGeneSets_acrossInteractions_afterCAMERAfiltering.pdf', height=4, width=8)
-ggsave('NI_IVAxRV_descSigGeneSets_acrossInteractions_afterCAMERAfiltering.png', height=4, width=8)
+ggsave('NI_IVAxRV_descSigGeneSets_acrossInteractions_afterCAMERAfiltering_new.pdf', height=4, width=8)
+ggsave('NI_IVAxRV_descSigGeneSets_acrossInteractions_afterCAMERAfiltering_new.png', height=4, width=8)
 
 # bubble plots for significantly enriched pathways 
 for (int in interactions){
@@ -107,6 +99,6 @@ for (int in interactions){
     labs(x='Cell type', y=NULL, size='-log10(padj)', color='NES') +
     theme_bw() + facet_wrap(~condition)
 
-  ggsave('NI_IVAxRV_'%&%int%&%'_descSigGeneSets_bubbleplot.pdf', height=5, width=10)
-  ggsave('NI_IVAxRV_'%&%int%&%'_descSigGeneSets_bubbleplot.png', height=5, width=10)
+  #ggsave('NI_IVAxRV_'%&%int%&%'_descSigGeneSets_bubbleplot.pdf', height=5, width=10)
+  ggsave('NI_IVAxRV_'%&%int%&%'_descSigGeneSets_bubbleplot_new.png', height=5, width=10)
 }

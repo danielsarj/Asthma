@@ -6,12 +6,25 @@ setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/matrixEQTL_resu
 # define all vectors
 conditions <- c('NI', 'RV', 'IVA')
 celltypes <- c('B', 'CD4-T', 'CD8-T', 'Mono', 'NK')
-input_prefix <- c('IVA_B_17','NI_B_13','RV_B_17','IVA_CD4-T_8','NI_CD4-T_4','RV_CD4-T_5',
-                  'IVA_CD8-T_1','NI_CD8-T_6','RV_CD8-T_2','IVA_Mono_1','NI_Mono_0','RV_Mono_20','IVA_NK_5','NI_NK_2','RV_NK_2')
+input_prefix <- c('IVA_B_4',
+                  'NI_B_5',
+                  'RV_B_4',
+                  'IVA_CD4-T_0',
+                  'NI_CD4-T_0',
+                  'RV_CD4-T_1',
+                  'IVA_CD8-T_1',
+                  'NI_CD8-T_0',
+                  'RV_CD8-T_2',
+                  'IVA_Mono_14',
+                  'NI_Mono_19',
+                  'RV_Mono_0',
+                  'IVA_NK_0',
+                  'NI_NK_2',
+                  'RV_NK_0')
 
 # get gene intersection
 for (f in input_prefix){
-  tmp <- fread('../'%&%f%&%'PCs.txt') %>% pull(GENES)
+  tmp <- fread('../'%&%f%&%'PCs_new.txt') %>% pull(GENES)
   if (exists('shared_genes')){
     shared_genes <- intersect(shared_genes, tmp)
   } else {shared_genes <- tmp}
@@ -19,7 +32,7 @@ for (f in input_prefix){
 
 # retrieve cis-snps pairs that are shared across all conditions/celltypes
 for (f in input_prefix){
-  tmp <- fread(f%&%'PCs_cisQTL_sumstats.txt') %>% 
+  tmp <- fread(f%&%'PCs_cisQTL_sumstats_new.txt') %>% 
     filter(gene %in% shared_genes) %>% select(gene, snps)
     
   if (exists('combined_snps')){
@@ -31,7 +44,7 @@ rm(tmp)
 
 # get the most significant (lowest qvalue) cis-snps across all conditions/celltypes
 for (f in input_prefix){
-  tmp <- fread(f%&%'_best_cisQTL_sumstats.txt') %>% 
+  tmp <- fread(f%&%'_best_cisQTL_sumstats_new.txt') %>% 
     filter(gene %in% shared_genes) %>% select(gene, snps, qvals) 
     
   if (exists('top_pairs')){
@@ -52,7 +65,7 @@ combined_snps <- combined_snps %>% slice_sample(n=200000)
 for (f in input_prefix){
   base <- sub('_[^_]+$', '', f)
   
-  tmp <- fread(f%&%'PCs_cisQTL_sumstats.txt') %>% 
+  tmp <- fread(f%&%'PCs_cisQTL_sumstats_new.txt') %>% 
     select(gene, snps, beta, SE) 
     
   tmp_random <- tmp %>% right_join(combined_snps, by=c('gene', 'snps')) 
@@ -72,5 +85,5 @@ for (f in input_prefix){
 random_df <- random_df %>% select(gene, snps, contains('NI'), contains('RV'), contains('IVA'))
 strong_df <- strong_df %>% select(gene, snps, contains('NI'), contains('RV'), contains('IVA'))
 
-fwrite(random_df, '../mashr/mashr_in_random_df.txt', quote=F, sep='\t', na='NA')
-fwrite(strong_df, '../mashr/mashr_in_strong_df.txt', quote=F, sep='\t', na='NA')
+fwrite(random_df, '../mashr/mashr_in_random_df_new.txt', quote=F, sep='\t', na='NA')
+fwrite(strong_df, '../mashr/mashr_in_strong_df_new.txt', quote=F, sep='\t', na='NA')
