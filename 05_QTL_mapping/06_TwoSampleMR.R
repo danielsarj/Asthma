@@ -1,30 +1,34 @@
 library(tidyverse)
 library(data.table)
+library(ggrepel)
 library(TwoSampleMR)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/twosampleMR')
 
 # files
-input_prefix <- c('IVA_B_4',
-                  'NI_B_5',
-                  'RV_B_4',
+input_prefix <- c('IVA_B_2',
+                  'NI_B_0',
+                  'RV_B_0',
                   'IVA_CD4-T_0',
                   'NI_CD4-T_0',
                   'RV_CD4-T_1',
-                  'IVA_CD8-T_1',
+                  'IVA_CD8-T_2',
                   'NI_CD8-T_0',
-                  'RV_CD8-T_2',
-                  'IVA_Mono_14',
-                  'NI_Mono_19',
+                  'RV_CD8-T_1',
+                  'IVA_Mono_19',
+                  'NI_Mono_20',
                   'RV_Mono_0',
-                  'IVA_NK_0',
-                  'NI_NK_2',
-                  'RV_NK_0')
+                  'IVA_NK_2',
+                  'NI_NK_9',
+                  'RV_NK_5')
 gwas_files <- c('FerreiraMAR_COA.h.tsv.gz', 'SakaueS_COA.h.tsv.gz')
 
 # load MAFs for eQTLs
 mafs <- fread('../../genotypes/imputed_vcfs/plink_noB4.frq.frq') %>% select(-NCHROBS) %>%
   rename(chr=CHR, snp_id=SNP, effect_allele=A1, other_allele=A2, maf=MAF)
+
+# load significant mashr genes
+mash_sig <- fread('../mashr/mashr_out_allstats_df_new.txt') %>% filter(lfsr<0.05) %>% pull(gene) %>% unique()
 
 # load gwas sumstats output [outcome]
 for (g in gwas_files){
@@ -48,10 +52,10 @@ for (g in gwas_files){
   }
   
   for (e in input_prefix){
-    # load best matrixeqtl output [exposure]
+    # load best matrixeqtl output [exposure] and subset to mash-significant eGenes
     matrix_out <- fread('../matrixEQTL_results/'%&%e%&%'_best_cisQTL_sumstats_new.txt') %>% 
       filter(!is.na(SE)) %>% separate(snps, into=c('snp_id', 'effect_allele'), sep='_') %>%
-      inner_join(mafs, by=c('chr', 'snp_id', 'effect_allele')) %>% mutate(n=36) %>% 
+      inner_join(mafs, by=c('chr', 'snp_id', 'effect_allele')) %>% mutate(n=36) %>% filter(gene %in% mash_sig) %>% 
       select(chr, pos, snp_id, effect_allele, gene, beta, SE, pvalue, other_allele, maf, n) %>% 
       rename(se=SE, SNP=snp_id, pval=pvalue, eaf=maf, samplesize=n) %>% format_data(type='exposure', phenotype_col='gene')
     
@@ -94,50 +98,16 @@ ggplot(mr.compiled, aes(x=b, y=-log10(pval), color=celltype)) + geom_point(size=
   geom_text_repel(data=top_hits, aes(label=paste0(exposure,' (',celltype,')')),
                   size=2.8, color='black', segment.color='gray60', box.padding=0.4, point.padding=0.3,
                   max.overlaps=Inf)
-ggsave('MR_volcanoplot_allgenes_new.pdf', height=4, width=8)
-ggsave('MR_volcanoplot_allgenes_new.png', height=4, width=8)
+ggsave('MR_volcanoplot_masheGenes_new.png', height=4, width=8)
 
 # qqplot
 exp_p <- (1:length(mr.compiled$pval))/(length(mr.compiled$pval)+1)
 chisq <- qchisq(1-mr.compiled$pval, df=1)
 lambda <- median(chisq) / qchisq(0.5, df = 1)
 
-png('MR_pvalues_qqplot_allgenes_new.png', width=1200, height=1200, res=300)
+png('MR_pvalues_qqplot_masheGenes_new.png', width=1200, height=1200, res=300)
 qqplot(x=-log10(exp_p), y=-log10(mr.compiled$pval), xlab='Expected -log10(p)', ylab='Observed -log10(p)')
 abline(0, 1, col='red', lwd=2)
 text(x=par()$usr[1] + 0.05 * diff(par()$usr[1:2]), y=par()$usr[4] - 0.05 * diff(par()$usr[3:4]),
   labels=paste0('lambda = ', round(lambda, 3)), adj=c(0, 1), cex=1.2)
-dev.off()
-
-# subset to mash-significant eGenes
-mash_sig <- fread('../mashr/mashr_out_allstats_df_new.txt') %>% group_by(condition, celltype) %>%
-  filter(lfsr<0.05)
-sub_mr.compiled <- mr.compiled %>% inner_join(mash_sig, by=c('exposure'='gene', 'condition', 'celltype'))
-sub_mr.compiled$condition <- factor(sub_mr.compiled$condition, levels=c('NI', 'IVA', 'RV'))
-
-# find top SNP per facet (condition × celltype × gwas)
-sub_top_hits <- sub_mr.compiled %>% group_by(condition, celltype, gwas) %>%
-  slice_min(pval, n=1, with_ties=FALSE) %>% ungroup()
-
-# volcano plots
-ggplot(sub_mr.compiled, aes(x=b, y=-log10(pval), color=celltype)) + geom_point(size = 3, alpha = 0.8) +
-  geom_hline(yintercept=-log10(0.05), linetype='dashed', color='grey40') +
-  labs(x='Boutcome/Bexposure', y='-log10(p-value)') + theme_bw() + 
-  facet_grid(cols=vars(condition), rows=vars(gwas)) +
-  geom_text_repel(data=sub_top_hits, aes(label=paste0(exposure,' (',celltype,')')),
-                  size=2.8, color='black', segment.color='gray60', box.padding=0.4, point.padding=0.3,
-                  max.overlaps=Inf)
-ggsave('MR_volcanoplot_mashgenes_new.pdf', height=4, width=8)
-ggsave('MR_volcanoplot_mashgenes_new.png', height=4, width=8)
-
-# qqplot
-exp_p <- (1:length(sub_mr.compiled$pval))/(length(sub_mr.compiled$pval)+1)
-chisq <- qchisq(1-sub_mr.compiled$pval, df=1)
-lambda <- median(chisq) / qchisq(0.5, df = 1)
-
-png('MR_pvalues_qqplot_mashgenes_new.png', width=1200, height=1200, res=300)
-qqplot(x=-log10(exp_p), y=-log10(sub_mr.compiled$pval), xlab='Expected -log10(p)', ylab='Observed -log10(p)')
-abline(0, 1, col='red', lwd=2)
-text(x=par()$usr[1] + 0.05 * diff(par()$usr[1:2]), y=par()$usr[4] - 0.05 * diff(par()$usr[3:4]),
-     labels=paste0('lambda = ', round(lambda, 3)), adj=c(0, 1), cex=1.2)
 dev.off()
