@@ -16,10 +16,10 @@ for (int in interactions){
       print(ctype)
       
       if (int=='none'){
-        results <- fread('NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_limma_results_wqvals.txt') %>%
+        results <- fread('NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_limma_results_wqvals_new.txt') %>%
           mutate(interaction='none', celltype=ctype)
       } else {
-        results <- fread('NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_'%&%int%&%'_limma_results_wqvals.txt') %>%
+        results <- fread('NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_'%&%int%&%'_limma_results_wqvals_new.txt') %>%
           mutate(interaction=int, celltype=ctype)
       }
     
@@ -86,7 +86,7 @@ for (int in unique(full_results$interaction)){
   if (nrow(tmp)>0){
     ggplot(tmp, aes(x=celltype, y=n_genes_signed, fill=direction)) + geom_col() +
       geom_text(aes(label=abs(n_genes), group=direction), 
-                vjust=ifelse(summary_results$n_genes_signed>0, -0.5, 1.2), size=4) + 
+                vjust=ifelse(tmp$n_genes_signed>0, -0.5, 1.2), size=4) + 
       theme_bw() + facet_wrap(~condition) + ggtitle(int) + geom_hline(yintercept=0, color='black') +
       labs(y='Number of DE genes (Up vs Down)') + theme(legend.position='none')
     
