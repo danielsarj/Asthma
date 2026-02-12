@@ -455,4 +455,4 @@ summary_sig_compiled_milo %>% filter(batch4=='no') %>%
   geom_point() + scale_color_gradient(low='blue', high='red') +  
   labs(x='Cell type', y=NULL, size='Fraction of sig. nhoods', color='Mean LogFC', shape='Direction') +
   theme_bw() + facet_wrap(~condition)
-ggsave('proportion_plots/miloR_sigresults_nob4_new.png', height=5, width=10)
+ggsave('proportion_plots/miloR_sigresults_mean_nob4_new.png', height=5, width=10)
