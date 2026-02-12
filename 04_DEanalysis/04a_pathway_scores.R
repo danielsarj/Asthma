@@ -277,14 +277,24 @@ ggsave('INTERFERON_GAMMA_RESPONSE_ssGSEA_asthma_boxplots_new.pdf', height=4, wid
 
 a <- full_asthma_scores_w_mdata %>% select(condition, celltype, delta_INTERFERON_ALPHA_RESPONSE, 
                                            delta_INTERFERON_GAMMA_RESPONSE, asthma) %>%
-  filter(celltype=='CD8-T', condition=='RV') %>% pivot_longer(cols=contains('delta'))
+  filter(celltype=='CD4-T', condition=='RV') %>% pivot_longer(cols=contains('delta'))
 a$name <- gsub('delta_INTERFERON_ALPHA_RESPONSE', 'delta_IFNa', a$name)
 a$name <- gsub('delta_INTERFERON_GAMMA_RESPONSE', 'delta_IFNy', a$name)
-ggplot(a, aes(x=name, y=value, fill=asthma)) + geom_boxplot() +
+
+b <- full_asthma_scores_w_mdata %>% select(condition, celltype, delta_INTERFERON_ALPHA_RESPONSE, 
+                                           delta_INTERFERON_GAMMA_RESPONSE, asthma) %>%
+  filter(celltype=='B', condition=='IVA') %>% pivot_longer(cols=contains('delta'))
+b$name <- gsub('delta_INTERFERON_ALPHA_RESPONSE', 'delta_IFNa', b$name)
+b$name <- gsub('delta_INTERFERON_GAMMA_RESPONSE', 'delta_IFNy', b$name)
+
+(ggplot(b, aes(x=name, y=value, fill=asthma)) + geom_boxplot() +
   stat_compare_means(method='t.test', label='p.format') + 
-  facet_wrap(~celltype, nrow=1) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
-#ggsave('INTERFERON_RESPONSEs_CD8-T_RV_ssGSEA_asthma_boxplots.pdf', height=4, width=5)
-ggsave('INTERFERON_RESPONSEs_CD8-T_RV_ssGSEA_asthma_boxplots_new.png', height=4, width=5)
+  facet_wrap(~celltype, nrow=1) + theme_bw() + 
+    scale_y_continuous(expand = expansion(mult = c(0.05, 0.2))) + guides(fill='none')) +
+  ((ggplot(a, aes(x=name, y=value, fill=asthma)) + geom_boxplot() +
+      stat_compare_means(method='t.test', label='p.format') + 
+      facet_wrap(~celltype, nrow=1) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))))
+ggsave('INTERFERON_RESPONSEs_B_IVA_CD4-T_RV_ssGSEA_asthma_boxplots_new.png', height=4, width=7)
 
 
 ## INFECTION:INCOME SCORES
@@ -309,8 +319,7 @@ ggsave('INTERFERON_GAMMA_RESPONSE_ssGSEA_income_boxplots_new.pdf', height=4, wid
 
 a <- full_income_scores_w_mdata %>% select(condition, celltype, delta_INTERFERON_ALPHA_RESPONSE, 
                                            delta_INTERFERON_GAMMA_RESPONSE, income) %>%
-  filter(celltype %in% c('CD8-T','CD4-T','Mono') & condition=='IVA' |
-         celltype %in% c('CD4-T','Mono') & condition=='RV') %>% pivot_longer(cols=contains('delta'))
+  filter(condition=='IVA') %>% pivot_longer(cols=contains('delta'))
 a$name <- gsub('delta_INTERFERON_ALPHA_RESPONSE', 'delta_IFNa', a$name)
 a$name <- gsub('delta_INTERFERON_GAMMA_RESPONSE', 'delta_IFNy', a$name)
 
@@ -318,7 +327,7 @@ ggplot(a, aes(x=name, y=value, fill=income)) + geom_boxplot() +
   stat_compare_means(method='t.test', label='p.format') + 
   facet_grid(cols=vars(celltype), rows=vars(condition)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
 #ggsave('INTERFERON_RESPONSEs_ssGSEA_income_grid.boxplots.pdf', height=4, width=7)
-ggsave('INTERFERON_RESPONSEs_ssGSEA_income_grid.boxplots_new.png', height=4, width=7)
+ggsave('INTERFERON_RESPONSEs_ssGSEA_income_grid.boxplots_new.png', height=4, width=9)
 
 ggplot(a, aes(x=name, y=value, fill=income)) + geom_boxplot() +
   stat_compare_means(method='t.test', label='p.format') + 
