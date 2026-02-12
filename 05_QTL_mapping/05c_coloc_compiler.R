@@ -6,8 +6,7 @@ library(viridis)
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/colocalization')
 
 # set file vectors
-coloc_outputs <- list.files(pattern='_coloc_results_noB4\\.txt$')
-coloc_outputs <- coloc_outputs[coloc_outputs!='best_coloc_results.txt']
+coloc_outputs <- list.files(pattern='_coloc_results_new.txt$')
 
 for (f in coloc_outputs){
   info <- str_split_1(f, pattern='_')
@@ -22,7 +21,7 @@ for (f in coloc_outputs){
 }
 
 # save compiled best coloc results
-fwrite(coloc.compiled, 'best_coloc_results_noB4.txt', sep=' ')
+fwrite(coloc.compiled, 'best_coloc_results_new.txt', sep=' ')
 
 # reformat coloc.compiled to make a manhattan plot
 coloc_plot <- coloc.compiled %>% separate(snp, into=c('chr', 'pos'), sep=':', remove=FALSE) %>%
@@ -47,11 +46,10 @@ ggplot(coloc_plot, aes(x=pos_cum, y=PP.H4.abf, color=as.factor(as.numeric(chr) %
   geom_text_repel(data=top_hits, aes(label=paste0(gene,' (',celltype,')')),
     size=2.8, color='black', segment.color='gray60', box.padding=0.4, point.padding=0.3,
     max.overlaps=Inf)
-ggsave('coloc_volcanoplot_allgenes_noB4.pdf', height=5, width=12)
-ggsave('coloc_volcanoplot_allgenes_noB4.png', height=5, width=12)
+ggsave('coloc_volcanoplot_masheGenes_new.png', height=5, width=12)
 
-# subset to mash-significant eGenes
-mash_sig <- fread('../mashr/mashr_out_allstats_df_noB4.txt') %>% group_by(condition, celltype) %>%
+# subset to mash-significant eGenes and eQTL
+mash_sig <- fread('../mashr/mashr_out_allstats_df_new.txt') %>% group_by(condition, celltype) %>%
   filter(lfsr<0.05) %>% ungroup() %>% separate(snps, into=c('snp', 'effectallele'), sep='_')
 sub_coloc.compiled <- coloc.compiled %>% inner_join(mash_sig, by=c('gene', 'snp', 'condition', 'celltype'))
 sub_coloc.compiled$condition <- factor(sub_coloc.compiled$condition, levels=c('NI', 'IVA', 'RV'))
@@ -67,5 +65,4 @@ ggplot(sub_coloc.compiled, aes(x=celltype, y=PP.H4.abf, fill=condition)) +
   labs(y='Posterior probability (PP.H4)', x='Cell type') + theme_bw() +
   ggrepel::geom_text_repel(data=sub_top_hits, aes(label=paste0(gene, ' (', condition, ')')),
     size=2.8, color='black', segment.color='gray60', box.padding=0.4, point.padding=0.3, max.overlaps=Inf)
-ggsave('coloc_PPs_boxplot_mashgenes_noB4.pdf', height=4, width=10)
-ggsave('coloc_PPs_boxplot_mashgenes_noB4.png', height=4, width=10)
+ggsave('coloc_PPs_boxplot_mashegenesandeqtl_new.png', height=4, width=10)
