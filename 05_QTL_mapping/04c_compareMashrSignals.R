@@ -5,21 +5,21 @@ library(janitor)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/mashr')
 conditions <- c('NI', 'RV', 'IVA')
-input_prefix <- c('IVA_B_4',
-                  'NI_B_5',
-                  'RV_B_4',
+input_prefix <- c('IVA_B_2',
+                  'NI_B_0',
+                  'RV_B_0',
                   'IVA_CD4-T_0',
                   'NI_CD4-T_0',
                   'RV_CD4-T_1',
-                  'IVA_CD8-T_1',
+                  'IVA_CD8-T_2',
                   'NI_CD8-T_0',
-                  'RV_CD8-T_2',
-                  'IVA_Mono_14',
-                  'NI_Mono_19',
+                  'RV_CD8-T_1',
+                  'IVA_Mono_19',
+                  'NI_Mono_20',
                   'RV_Mono_0',
-                  'IVA_NK_0',
-                  'NI_NK_2',
-                  'RV_NK_0')
+                  'IVA_NK_2',
+                  'NI_NK_9',
+                  'RV_NK_5')
 # load dosage file
 dos_matrix <- fread('../../genotypes/imputed_vcfs/imputed_dosage.txt')
 
