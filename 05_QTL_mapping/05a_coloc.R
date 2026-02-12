@@ -34,6 +34,10 @@ if (args$gwas=='FerreiraMAR_COA.h.tsv.gz'){
 # load matrixeqtl output
 matrix_out <- fread('../matrixEQTL_results/'%&%args$eqtl%&%'PCs_cisQTL_sumstats_new.txt') %>% 
   filter(!is.na(SE)) %>% separate(snps, into=c('snp_id', 'effectallele'), sep='_')
+
+# subset to mash-significant eGenes
+mash_sig <- fread('../mashr/mashr_out_allstats_df_new.txt') %>% filter(lfsr<0.05) %>% pull(gene) %>% unique()
+matrix_out <- matrix_out %>% filter(gene %in% mash_sig)
   
 # find sdY per gene
 exp_matrix <- fread('../'%&%args$eqtl%&%'PCs_new.txt') %>% pivot_longer(cols=c(-GENES)) %>% group_by(GENES) %>% 
