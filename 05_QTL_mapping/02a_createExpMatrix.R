@@ -83,8 +83,8 @@ for (i in 1:length(conditions)){
     keep <- rowSums(cpm_values > threshold) >= min_samples
     dge <- dge[keep, ]
 
-    # adjust for batch, age, gender, number of cells, average MT content, and k expression PCs
-    design <- model.matrix(~batch+age+gender+n+avg_mt, data=filtered_meta)
+    # adjust for batch, age, gender, number of cells, cell type proportion, average MT content, and k expression PCs
+    design <- model.matrix(~batch+age+gender+n+prop+avg_mt, data=filtered_meta)
     expression <- voom(dge, design, plot=FALSE)
     fit <- lmFit(expression, design)
     expression <- residuals.MArrayLM(fit, expression)
