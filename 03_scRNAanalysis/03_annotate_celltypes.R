@@ -282,3 +282,7 @@ bulk_obj@meta.data <- summ_indv_condition
 
 # save object
 saveRDS(bulk_obj, file='NI_IVA_RV.integrated.pseudobulks_new.rds')
+
+summ_cond <- bulk_obj@meta.data
+summ_cond %>% group_by(condition) %>% summarise(n_cells=sum(n))
+summ_cond %>% group_by(condition, batch) %>% summarise(n_cells=sum(n))
