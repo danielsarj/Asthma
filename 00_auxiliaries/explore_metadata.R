@@ -1,31 +1,76 @@
 library(tidyverse)
+library(Seurat)
 library(data.table)
 library(zipcodeR)
 library(sf)
 library(tigris)
-setwd('/project/lbarreiro/USERS/daniel/asthma_project/DEanalysis')
+setwd('/project/lbarreiro/USERS/daniel/asthma_project')
 
 # load sample metadata
 sample_m <- fread('sample_metadata.txt')
+# load extra sample metadata
+extra_sample_m <- fread('Sample_test_scores_Araujo.tsv')
+# load infection sample metadata
+infection_m <- fread('SEA_Metadata_Pathogen_Araujo.tsv')
 
-ggplot(sample_m) + geom_boxplot(aes(x=age, y=gender, fill=gender), show.legend =F) +
+# join all dataframes
+joint_md <- inner_join(sample_m, extra_sample_m, by=c('ID'='Study_ID')) %>%
+  inner_join(infection_m, by=c('ID'='Study.ID.'))
+
+# plot age
+ggplot(joint_md) + geom_boxplot(aes(x=age, y=gender, fill=gender), show.legend =F) +
   geom_point(aes(x=age, y=gender), position=position_dodge(width=0.75)) + 
   theme_bw()
-ggsave('../gender.age.boxplot.pdf', height=3, width=4)
+ggsave('full_gender.age.boxplot.pdf', height=3, width=4)
 
-sum <- sample_m %>% group_by(asthma) %>% summarise(n=n())
-ggplot(sum) + geom_col(aes(x=asthma, y=n), position='dodge') + 
+# plot asthma status
+sum <- joint_md %>% group_by(Recorded_Diagnosis) %>% summarise(n=n())
+ggplot(sum) + geom_col(aes(x=Recorded_Diagnosis, y=n), position='dodge') + 
   scale_y_continuous(breaks=seq(0, max(sum$n), by=1)) + theme_bw()
+ggsave('full_asthma.status_barplot.pdf', height=5, width=4)
 
-ggsave('../asthma.status_barplot.pdf', height=5, width=4)
-
-sum <- sample_m %>% group_by(asthma, gender) %>% summarise(n=n())
-ggplot(sum) + geom_col(aes(x=asthma, y=n, fill=gender), position='stack') + 
+# plot asthma status by sex
+sum <- joint_md %>% group_by(Recorded_Diagnosis, gender) %>% summarise(n=n())
+ggplot(sum) + geom_col(aes(x=Recorded_Diagnosis, y=n, fill=gender), position='stack') + 
   scale_y_continuous(breaks=seq(0, sum(sum$n), by=1)) + theme_bw()
+ggsave('full_asthma.status.by_gender_barplot.pdf', height=5, width=4)
 
-ggsave('../asthma.status.by_gender_barplot.pdf', height=5, width=4)
+# plot infection status at collection
+sum <- joint_md %>% group_by(Comment, Recorded_Diagnosis) %>% summarise(n=n())
+ggplot(sum) + geom_col(aes(x=Comment, y=n, fill=Recorded_Diagnosis), position='stack') + 
+  scale_y_continuous(breaks=seq(0, sum(sum$n), by=1)) + theme_bw()
+ggsave('full_infection.status.by_asthma_barplot.pdf', height=5, width=4)
 
+# load seurat object
+seurat_oj <- readRDS('scRNAanalysis/NI_IVA_RV.integrated.pseudobulks_new.rds')
+seurat_oj_md <- seurat_oj@meta.data %>% select(IDs, batch) %>% unique()
+super_joint_md <- inner_join(joint_md, seurat_oj_md, by=c('ID'='IDs'))
 
+# plot age after seurat_md subsetting
+ggplot(super_joint_md) + geom_boxplot(aes(x=age, y=gender, fill=gender), show.legend =F) +
+  geom_point(aes(x=age, y=gender), position=position_dodge(width=0.75)) + 
+  theme_bw()
+ggsave('gender.age.boxplot.pdf', height=3, width=4)
+
+# plot asthma status after seurat_md subsetting
+sum <- super_joint_md %>% group_by(Recorded_Diagnosis) %>% summarise(n=n())
+ggplot(sum) + geom_col(aes(x=Recorded_Diagnosis, y=n), position='dodge') + 
+  scale_y_continuous(breaks=seq(0, max(sum$n), by=1)) + theme_bw()
+ggsave('asthma.status_barplot.pdf', height=5, width=4)
+
+# plot asthma status by sex after seurat_md subsetting
+sum <- super_joint_md %>% group_by(Recorded_Diagnosis, gender) %>% summarise(n=n())
+ggplot(sum) + geom_col(aes(x=Recorded_Diagnosis, y=n, fill=gender), position='stack') + 
+  scale_y_continuous(breaks=seq(0, sum(sum$n), by=1)) + theme_bw()
+ggsave('asthma.status.by_gender_barplot.pdf', height=5, width=4)
+
+# plot infection status at collection after seurat_md subsetting
+sum <- super_joint_md %>% group_by(Comment, Recorded_Diagnosis) %>% summarise(n=n())
+ggplot(sum) + geom_col(aes(x=Comment, y=n, fill=Recorded_Diagnosis), position='stack') + 
+  scale_y_continuous(breaks=seq(0, sum(sum$n), by=1)) + theme_bw()
+ggsave('infection.status.by_asthma_barplot.pdf', height=5, width=4)
+
+# kansas city map
 zips <- c(64132,64133,64128,66109,64133,64133,64130,64052,64124,64109,64130,66104,
           64128,64128,64128,64128,64130,64130,64109,64134,64063,66027,64110,64134,
           64130,64050,64050,64050,64155,66102,64052,64106,64106,64106,64133,64133,
@@ -33,7 +78,6 @@ zips <- c(64132,64133,64128,66109,64133,64133,64130,64052,64124,64109,64130,6610
 zip_counts <- as.data.frame(table(zips)) %>%
   rename(zip = zips, freq = Freq) %>%
   mutate(zip = as.character(zip))
-
 # get ZIP code polygons
 options(tigris_use_cache=TRUE)
 kc_zips <- kc_zips <- c(
@@ -49,7 +93,6 @@ zip_shapes <- zctas(cb=FALSE, starts_with=kc_zips)
 # merge frequencies into shapefile
 zip_shapes <- zip_shapes %>%
   left_join(zip_counts, by = c('ZCTA5CE20' = 'zip'))
-
 ggplot(zip_shapes) +
   geom_sf(aes(fill = freq), color='black') +
   scale_fill_viridis_c(
@@ -58,5 +101,4 @@ ggplot(zip_shapes) +
     breaks = pretty(range(zip_shapes$freq, na.rm=TRUE)),
     labels = pretty(range(zip_shapes$freq, na.rm=TRUE))) +
   theme_minimal() + labs(fill = 'Frequency')
-
 ggsave('../localization.kansas_city_map.pdf', height=8, width=8)
