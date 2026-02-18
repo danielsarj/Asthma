@@ -9,12 +9,40 @@ setwd('/project/lbarreiro/USERS/daniel/asthma_project/scRNAanalysis')
 # load seurat object
 obj <- readRDS('NI_IVA_RV.integrated.pseudobulks_new.rds')
 
-# load sample metadata and add to seurat's metadata
+# load sample metadata (age, sex, asthma, income, albuterol) and add to seurat's metadata
 sample_m <- fread('../sample_metadata.txt')
+sample_m$income <- ifelse(sample_m$income %in% c('< $10,000', '$10,000-$29,999', '$30,000-$49,999'), 'Low', 'High')
 mdata <- inner_join(obj@meta.data, sample_m, by=c('IDs'='ID'))
 rownames(mdata) <- mdata$orig.ident
 obj@meta.data <- mdata
 rm(sample_m, mdata)
+
+# load sample metadata (act, ace, resilience, social support, racism, albuterol) and add to seurat's metadata
+sample_m <- fread('../Sample_test_scores_Araujo.tsv') %>% 
+  mutate(ACE_result = coalesce(ACE_Percent_Self, ACE_Percent_Parent),
+         ACT_conclusion = ifelse(Recorded_Diagnosis == 'No_Diagnosis', 'non_asthmatic', ACT_conclusion)) %>%
+  select(Study_ID, Recorded_Diagnosis, ACT_score, ACT_conclusion, ACE_result, Parent_Resilience_Score, 
+         Parents_Score_Avg, Parent_support_conclusion, Total_Racist_Events,
+         Racist_stress, Racism_child_24hr, Experience_Discrimination_child)
+mdata <- inner_join(obj@meta.data, sample_m, by=c('IDs'='Study_ID'))
+rownames(mdata) <- mdata$orig.ident
+obj@meta.data <- mdata
+rm(sample_m, mdata)
+
+# load sample metadata (infection at time of collectiong) and add to seurat's metadata
+sample_m <- fread('../SEA_Metadata_Pathogen_Araujo.tsv') %>% 
+  rename(infection_agent = Results, infection_status = Comment)
+sample_m$infection_status <- gsub('infection', 'Positive', sample_m$infection_status)
+mdata <- inner_join(obj@meta.data, sample_m, by=c('IDs'='Study.ID.'))
+rownames(mdata) <- mdata$orig.ident
+obj@meta.data <- mdata
+rm(sample_m, mdata)
+
+# update object with new metadata
+saveRDS(obj, file='NI_IVA_RV.integrated.pseudobulks_new.rds')
+
+# remove batch 4
+obj <- subset(obj, subset= batch!='B4')
 
 # load gene annotation from ensembl
 annotations <- fread('../DEanalysis/ensembl_genes.txt') %>% filter(gene_biotype=='protein_coding',
@@ -31,7 +59,12 @@ for (ct in c(unique(obj@meta.data$celltype), 'PBMC')){
                                       slot='counts', assays='RNA', return.seurat=T)
     # pbmc-like metadata
     pbmc_m <- obj@meta.data %>% group_by(IDs, condition) %>% reframe(batch=batch, n=sum(n), avg_mt=mean(avg_mt),
-                                 age=age, gender=gender, asthma=asthma, income=income) %>% unique()
+                                 age=age, gender=gender, asthma=asthma, income=income, Recorded_Diagnosis=Recorded_Diagnosis,
+                                 ACT_conclusion=ACT_conclusion, ACE_result=ACE_result, Parent_Resilience_Score=Parent_Resilience_Score, 
+                                 Parents_Score_Avg=Parents_Score_Avg, Parent_support_conclusion=Parent_support_conclusion, 
+                                 Total_Racist_Events=Total_Racist_Events, Racist_stress=Racist_stress, Racism_child_24hr=Racism_child_24hr,
+                                 Experience_Discrimination_child=Experience_Discrimination_child, infection_status) %>% unique()
+
     pbmc_m <- inner_join(subset_obj@meta.data, pbmc_m, by=c('IDs', 'condition'))
     rownames(pbmc_m) <- pbmc_m$orig.ident
     subset_obj@meta.data <- pbmc_m
@@ -68,16 +101,35 @@ for (ct in c(unique(obj@meta.data$celltype), 'PBMC')){
   
   # correlate PCs with covariates/confounders
   pcs_mdata$condition <- factor(pcs_mdata$condition, levels=c('NI','IVA','RV'))
-  pcs_mdata$batch <- factor(pcs_mdata$batch, levels=c('B1','B2','B3','B4'))
+  pcs_mdata$batch <- factor(pcs_mdata$batch, levels=c('B1','B2','B3'))
   pcs_mdata$gender <- factor(pcs_mdata$gender, levels=c('Female', 'Male'))
   pcs_mdata$asthma <- factor(pcs_mdata$asthma, levels=c('No', 'Yes'))
-  pcs_mdata$income <- ifelse(pcs_mdata$income %in% c('< $10,000', '$10,000-$29,999', '$30,000-$49,999'),
-                         'Low', 'High')
   pcs_mdata$income <- factor(pcs_mdata$income, levels=c('Low','High'))
+  pcs_mdata$Recorded_Diagnosis <- factor(pcs_mdata$Recorded_Diagnosis, levels=c('No_Diagnosis', 'Recorded_Asthma_Diagnosis'))
+  pcs_mdata$ACT_conclusion <- factor(pcs_mdata$ACT_conclusion, levels=c('non_asthmatic', 'controlled', 'uncontrolled'))
+  pcs_mdata$Parent_support_conclusion <- factor(pcs_mdata$Parent_support_conclusion, levels=c('low_support', 'moderate_support', 'high_support'))
+  pcs_mdata$infection_status <- factor(pcs_mdata$infection_status, levels=c('Negative', 'Positive'))
+  
+  # take care of NAs
+  num_vars <- names(pcs_mdata)[sapply(pcs_mdata, is.numeric)]
+  pcs_mdata[num_vars] <- lapply(
+    pcs_mdata[num_vars],
+    function(x) ifelse(is.na(x), median(x, na.rm = TRUE), x))
+  factor_vars <- c('ACT_conclusion', 'Parent_support_conclusion', 'infection_status')
+  pcs_mdata <- pcs_mdata %>% mutate(across(all_of(factor_vars), ~ .x %>% as.factor() %>%
+                    fct_na_value_to_level(level = 'Missing') %>%
+                    fct_relevel('Missing', after = 0)))
+  
   if (ct=='PBMC'){
-    mmatrix <- model.matrix(~condition+batch+n+age+gender+avg_mt+asthma+income, data=pcs_mdata)[,-1]
+    mmatrix <- model.matrix(~condition+batch+n+age+gender+avg_mt+income+Recorded_Diagnosis+ACT_conclusion+
+                              ACE_result+Parent_Resilience_Score+Parents_Score_Avg+Parent_support_conclusion+
+                              Total_Racist_Events+Racist_stress+Racism_child_24hr+Experience_Discrimination_child+
+                              infection_status, data=pcs_mdata)[,-1]
   } else {
-    mmatrix <- model.matrix(~condition+batch+n+prop+age+gender+avg_mt+asthma+income, data=pcs_mdata)[,-1]
+    mmatrix <- model.matrix(~~condition+batch+n+prop+age+gender+avg_mt+income+Recorded_Diagnosis+ACT_conclusion+
+                              ACE_result+Parent_Resilience_Score+Parents_Score_Avg+Parent_support_conclusion+
+                              Total_Racist_Events+Racist_stress+Racism_child_24hr+Experience_Discrimination_child+
+                              infection_status, data=pcs_mdata)[,-1]
   }
   pcs_only <- pcs_mdata[,grep('^PC', colnames(pcs_mdata))]
   
