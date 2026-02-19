@@ -5,7 +5,8 @@ library(ggrepel)
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/DEanalysis')
 conditions <- c('RV', 'IVA')
 cells_seurat <- c('B','CD4-T','CD8-T','Mono','NK')
-interactions <- c('none','asthma_alb','income')
+interactions <- c('none','asthma_alb', 'income', 'ACT', 'ACE', 'resilience', 'social_support', 'total_racism',
+                  'year_racism', 'life_racism', 'stress_racism', 'kid_24h_racism', 'kid_discrimination', 'collection_infection')
 
 # integrate DE limma results
 for (int in interactions){
@@ -41,23 +42,13 @@ for (int in unique(full_results$interaction)){
   
   # volcano plot
   ggplot(tmp) + geom_point(aes(logFC, -log10(P.Value), color=sig), size=0.5, alpha=0.5) +
-    theme_bw() + ylab('-log10(qvalue)') + facet_grid(cols=vars(celltype), rows=vars(condition)) +
+    theme_bw() + ylab('-log10(pvalue)') + facet_grid(cols=vars(celltype), rows=vars(condition)) +
     ggtitle(int) + scale_color_manual(values=c('TRUE'='red', 'FALSE'='black')) +
     theme(legend.position='none')
-  
-  #ggsave('NI_IVAxRV_'%&%int%&%'_limma_facetgrid_volcanoplot.pdf', height=4, width=8)
   ggsave('NI_IVAxRV_'%&%int%&%'_limma_facetgrid_volcanoplot_new.png', height=4, width=8)
-  
-  # histogram 
-  ggplot(tmp, aes(x=P.Value)) + geom_histogram(binwidth=0.05, boundary=0) +
-    facet_wrap(~condition+celltype, scales='free_y', ncol=length(unique(tmp$celltype))) +
-    theme_bw() + ggtitle(int) + xlab('Unadjusted p-values')
-  
-  #ggsave('NI_IVAxRV_'%&%int%&%'_limma_pval_histogram.pdf', height=4, width=8)
-  ggsave('NI_IVAxRV_'%&%int%&%'_limma_pval_histogram_new.png', height=4, width=8)
-  
+
   # compare logFCs of significant DE genes
-  tmp <- tmp %>% filter(sig==TRUE) 
+  tmp <- tmp %>% filter(sig==TRUE) %>% group_by(Gene, celltype) %>% filter(n()>1)
   if (nrow(tmp)>0){
     tmp <- tmp %>% select(Gene, logFC, condition, interaction, celltype, sig) %>%
       pivot_wider(names_from=condition, values_from=logFC) %>% drop_na()
@@ -66,9 +57,7 @@ for (int in unique(full_results$interaction)){
       ylab('RV LogFC') + xlab('IVA LogFC') + geom_abline(slope=1, color='red') +
       geom_hline(yintercept=0, color='blue') + geom_vline(xintercept=0, color='blue')
     
-    #ggsave('NI_IVAxRV_'%&%int%&%'_ComparelogFCs_barplot.pdf', height=4, width=4)
     ggsave('NI_IVAxRV_'%&%int%&%'_ComparelogFCs_barplot_new.png', height=4, width=4)
-    
   }
 }
 
@@ -82,16 +71,12 @@ summary_results <- filtered_results %>% group_by(interaction, celltype, conditio
 # bar plots of significant DE genes
 for (int in unique(full_results$interaction)){
   tmp <- summary_results %>% filter(interaction==int)
-  
   if (nrow(tmp)>0){
     ggplot(tmp, aes(x=celltype, y=n_genes_signed, fill=direction)) + geom_col() +
       geom_text(aes(label=abs(n_genes), group=direction), 
                 vjust=ifelse(tmp$n_genes_signed>0, -0.5, 1.2), size=4) + 
       theme_bw() + facet_wrap(~condition) + ggtitle(int) + geom_hline(yintercept=0, color='black') +
       labs(y='Number of DE genes (Up vs Down)') + theme(legend.position='none')
-    
-    #ggsave('NI_IVAxRV_'%&%int%&%'_NumOfDEgenes_barplot.pdf', height=4, width=7)
-    ggsave('NI_IVAxRV_'%&%int%&%'_NumOfDEgenes_barplot_new.png', height=4, width=7)
-    
+        ggsave('NI_IVAxRV_'%&%int%&%'_NumOfDEgenes_barplot_new.png', height=4, width=7)
   }
 }
