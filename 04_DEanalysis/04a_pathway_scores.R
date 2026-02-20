@@ -6,19 +6,19 @@ library(ggpubr)
 library(patchwork)
 library(edgeR)
 library(limma)
+library(purrr)
+library(ggpmisc)
 "%&%" <- function(a,b) paste(a,b, sep = "")
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/DEanalysis')
-conditions <- c('RV', 'IVA')
-cells_seurat <- c('B','CD4-T','CD8-T','Mono','NK')
-interactions <- c('none','asthma','income')
+conditions <- c('IVA', 'RV')
+celltypes <- c('B','CD4-T','CD8-T','Mono','NK')
+interactions <- c('none', 'asthma_alb', 'income', 'ACT', 'ACE', 'resilience', 'social_support', 'total_racism',
+                  'year_racism', 'life_racism', 'stress_racism', 'kid_24h_racism', 'kid_discrimination', 'collection_infection')
 
 # get human hallmark gene sets
 genes_hallmark <- msigdbr(species='Homo sapiens', collection='H')  %>% 
   split(x=.$gene_symbol, f=.$gs_name)
 names(genes_hallmark) <- gsub('HALLMARK_', '', names(genes_hallmark))
-
-# load sample metadata
-sample_m <- fread('../sample_metadata.txt')
 
 # load pseudobulk seurat object
 bulk_obj <- readRDS('../scRNAanalysis/NI_IVA_RV.integrated.pseudobulks_new.rds')
@@ -26,311 +26,254 @@ bulk_obj <- readRDS('../scRNAanalysis/NI_IVA_RV.integrated.pseudobulks_new.rds')
 # remove batch 4
 bulk_obj <- subset(bulk_obj, subset= batch!='B4')
 bulk_obj@meta.data$condition <- factor(bulk_obj@meta.data$condition, levels=c('NI','IVA','RV'))
+bulk_obj@meta.data$gender <- factor(bulk_obj@meta.data$gender, levels=c('Male','Female'))
+bulk_obj@meta.data$batch <- factor(bulk_obj@meta.data$batch, levels=c('B1','B2','B3'))
+bulk_obj@meta.data$income <- factor(bulk_obj@meta.data$income, levels=c('Low','High'))
+bulk_obj@meta.data$albuterol <- factor(bulk_obj@meta.data$albuterol, levels=c('No','Yes'))
+bulk_obj@meta.data$Recorded_Diagnosis <- factor(bulk_obj@meta.data$Recorded_Diagnosis, levels=c('No_Diagnosis', 'Recorded_Asthma_Diagnosis'))
+bulk_obj@meta.data$infection_status <- factor(bulk_obj@meta.data$infection_status, levels=c('Negative', 'Positive'))
 
-# merge metadata
-mdata <- bulk_obj@meta.data
-mdata <- inner_join(mdata, sample_m, by=c('IDs'='ID')) %>% column_to_rownames('orig.ident')
-bulk_obj@meta.data <- mdata
 
-for (int in interactions){
-  for (i in 1:length(conditions)){
-    for (ctype in cells_seurat){
-      print(c(int, conditions[i], ctype))
-      
-      # LOOK INTO INFECTION SCORES
-      if (int == 'none'){
-        # subset seurat object
-        tmp <- subset(bulk_obj, celltype==ctype & (condition=='NI' | condition==conditions[i]))
-        sub_mdata <- tmp@meta.data
-        sub_mdata$gender <- factor(sub_mdata$gender, levels=c('Male','Female'))
-
-        # get samples/genes from voom expression dataframe (easier to filter stuff)
-        v <- fread('../scRNAanalysis/NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_voom_expression_new.txt') %>% 
-          column_to_rownames('Gene')
-        v_samples <- colnames(v)
-        v_genes <- rownames(v)
-        rm(v)
-        
-        # subset metadata
-        sub_mdata <- sub_mdata %>% filter(rownames(.) %in% v_samples) %>% rownames_to_column('samples')
-        
-        # extract and subset count matrix
-        count <- tmp@assays$RNA$counts
-        count <- count[rownames(count) %in% v_genes,]
-        count <- count[,colnames(count) %in% v_samples]
-        count <- DGEList(counts=count) %>% calcNormFactors()
-        
-        # create design matrix
-        design <- model.matrix(~batch+age+gender+n+avg_mt+prop, data=sub_mdata)
-        
-        # fit linear model
-        voom_obj <- voom(count, design, plot=F)
-        l_model <- lmFit(voom_obj, design=design) %>% eBayes()
-        
-        # extract residuals and add the intercept
-        residuals <- residuals.MArrayLM(l_model, voom_obj)
-        intercept <- l_model$coefficients[,'(Intercept)']
-        corrected_expression <- residuals + intercept
-        
-        # compute scores per hallmark pathway
-        for (p in seq(length(genes_hallmark))){
-          # subset genes
-          subset_expression <- corrected_expression %>% as.data.frame() %>% 
-            filter(rownames(.) %in% genes_hallmark[[p]]) %>% as.matrix()
-          
-          # scale and compute average pathway expression per individual
-          subset_expression <- subset_expression %>% t() %>% scale() %>% t() %>% colMeans(na.rm=TRUE) %>% 
-            as.data.frame() %>% rownames_to_column('ID')
-          colnames(subset_expression)[2] <- names(genes_hallmark)[p]
-          
-          # group scores
-          if (exists('infection_scores')){
-            infection_scores <- inner_join(infection_scores, subset_expression, by=c('ID')) 
-          } else {infection_scores <-  subset_expression}
-        }
-      
-        # reformat output
-        infection_scores <- infection_scores %>% separate(col=ID, into=c('ID', 'condition', 'celltype'), sep='_') %>%
-          group_by(ID) %>% mutate(is_unique = n() == 1) %>% ungroup() %>% filter(is_unique==FALSE) %>% select(-is_unique) 
-        infection_scores$condition <- gsub('NI', 'NI_'%&%tolower(conditions[i]), infection_scores$condition)
-        
-        # group infection scores
-        if (exists('full_infection_scores')){
-          full_infection_scores <- rbind(full_infection_scores, infection_scores) 
-        } else {full_infection_scores <- infection_scores}
-        rm(infection_scores)
-
-        
-      # LOOK INTO INFECTION:ASTHMA SCORES
-      } else if (int == 'asthma'){
-        # subset seurat object
-        tmp <- subset(bulk_obj, celltype==ctype & (condition=='NI' | condition==conditions[i]))
-        sub_mdata <- tmp@meta.data
-        sub_mdata$gender <- factor(sub_mdata$gender, levels=c('Male','Female'))
-        sub_mdata$albuterol <- factor(sub_mdata$albuterol, levels=c('No', 'Yes'))
-
-        # get samples/genes from voom expression dataframe (easier to filter stuff)
-        v <- fread('../scRNAanalysis/NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_asthma_alb_voom_expression_new.txt') %>% 
-          column_to_rownames('Gene')
-        v_samples <- colnames(v)
-        v_genes <- rownames(v)
-        rm(v)
-        
-        # subset metadata
-        sub_mdata <- sub_mdata %>% filter(rownames(.) %in% v_samples) %>% rownames_to_column('samples')
-        
-        # extract and subset count matrix
-        count <- tmp@assays$RNA$counts
-        count <- count[rownames(count) %in% v_genes,]
-        count <- count[,colnames(count) %in% v_samples]
-        count <- DGEList(counts=count) %>% calcNormFactors()
-
-        # create design matrix
-        design <- model.matrix(~batch+age+gender+n+avg_mt+prop+albuterol, data=sub_mdata)
-        
-        # fit linear model
-        voom_obj <- voom(count, design, plot=F)
-        l_model <- lmFit(voom_obj, design=design) %>% eBayes()
-        
-        # extract residuals and add the intercept
-        residuals <- residuals.MArrayLM(l_model, voom_obj)
-        intercept <- l_model$coefficients[,'(Intercept)']
-        corrected_expression <- residuals + intercept
-        
-        # compute scores per hallmark pathway
-        for (p in seq(length(genes_hallmark))){
-          # subset genes
-          subset_expression <- corrected_expression %>% as.data.frame() %>% 
-            filter(rownames(.) %in% genes_hallmark[[p]]) %>% as.matrix()
-          
-          # scale and compute average pathway expression per individual
-          subset_expression <- subset_expression %>% t() %>% scale() %>% t() %>% colMeans(na.rm=TRUE) %>% 
-            as.data.frame() %>% rownames_to_column('ID')
-          colnames(subset_expression)[2] <- names(genes_hallmark)[p]
-          
-          # group scores
-          if (exists('asthma_scores')){
-            asthma_scores <- inner_join(asthma_scores, subset_expression, by=c('ID')) 
-          } else {asthma_scores <-  subset_expression}
-        }
-        
-        # compute paired deltas
-        asthma_scores <- asthma_scores %>% separate(col=ID, into=c('ID', 'condition', 'celltype'), sep='_') %>% group_by(ID) %>% 
-          filter(n_distinct(condition)>1) %>% ungroup() %>% pivot_wider(names_from=condition, values_from=-c(ID, celltype, condition)) %>%
-          mutate(across(ends_with(conditions[i]), ~ . - get(sub(paste0('_', conditions[i], '$'), '_NI', cur_column())),
-            .names = 'delta_{.col}')) %>% rename_with(~ sub(paste0('_', conditions[i], '$'), '', .), starts_with('delta_')) %>%
-          mutate(condition=conditions[i]) %>% select('ID', 'condition', 'celltype', contains('delta_'))
-
-        # group asthma scores
-        if (exists('full_asthma_scores')){
-          full_asthma_scores <- rbind(full_asthma_scores, asthma_scores) 
-        } else {full_asthma_scores <- asthma_scores}
-        rm(asthma_scores)
-        
-        # LOOK INTO INFECTION:INCOME SCORES
-      } else {
-        # subset seurat object
-        tmp <- subset(bulk_obj, celltype==ctype & (condition=='NI' | condition==conditions[i]))
-        sub_mdata <- tmp@meta.data
-        sub_mdata$gender <- factor(sub_mdata$gender, levels=c('Male','Female'))
-
-        # get samples/genes from voom expression dataframe (easier to filter stuff)
-        v <- fread('../scRNAanalysis/NI_'%&%conditions[i]%&%'_'%&%ctype%&%'_income_voom_expression_new.txt') %>% 
-          column_to_rownames('Gene')
-        v_samples <- colnames(v)
-        v_genes <- rownames(v)
-        rm(v)
-        
-        # subset metadata
-        sub_mdata <- sub_mdata %>% filter(rownames(.) %in% v_samples) %>% rownames_to_column('samples')
-        
-        # extract and subset count matrix
-        count <- tmp@assays$RNA$counts
-        count <- count[rownames(count) %in% v_genes,]
-        count <- count[,colnames(count) %in% v_samples]
-        count <- DGEList(counts=count) %>% calcNormFactors()
-        
-        # create design matrix
-        design <- model.matrix(~batch+age+gender+n+avg_mt+prop, data=sub_mdata)
-        
-        # fit linear model
-        voom_obj <- voom(count, design, plot=F)
-        l_model <- lmFit(voom_obj, design=design) %>% eBayes()
-        
-        # extract residuals and add the intercept
-        residuals <- residuals.MArrayLM(l_model, voom_obj)
-        intercept <- l_model$coefficients[,'(Intercept)']
-        corrected_expression <- residuals + intercept
-        
-        # compute scores per hallmark pathway
-        for (p in seq(length(genes_hallmark))){
-          # subset genes
-          subset_expression <- corrected_expression %>% as.data.frame() %>% 
-            filter(rownames(.) %in% genes_hallmark[[p]]) %>% as.matrix()
-          
-          # scale and compute average pathway expression per individual
-          subset_expression <- subset_expression %>% t() %>% scale() %>% t() %>% colMeans(na.rm=TRUE) %>% 
-            as.data.frame() %>% rownames_to_column('ID')
-          colnames(subset_expression)[2] <- names(genes_hallmark)[p]
-          
-          # group scores
-          if (exists('income_scores')){
-            income_scores <- inner_join(income_scores, subset_expression, by=c('ID')) 
-          } else {income_scores <-  subset_expression}
-        }
-        
-        # compute paired deltas
-        income_scores <- income_scores %>% separate(col=ID, into=c('ID', 'condition', 'celltype'), sep='_') %>% group_by(ID) %>% 
-          filter(n_distinct(condition)>1) %>% ungroup() %>% pivot_wider(names_from=condition, values_from=-c(ID, celltype, condition)) %>%
-          mutate(across(ends_with(conditions[i]), ~ . - get(sub(paste0('_', conditions[i], '$'), '_NI', cur_column())),
-                        .names = 'delta_{.col}')) %>% rename_with(~ sub(paste0('_', conditions[i], '$'), '', .), starts_with('delta_')) %>%
-          mutate(condition=conditions[i]) %>% select('ID', 'condition', 'celltype', contains('delta_'))
-        
-        # group income scores
-        if (exists('full_income_scores')){
-          full_income_scores <- rbind(full_income_scores, income_scores)
-        } else {full_income_scores <-  income_scores}
-        rm(income_scores)
-      }
-    }
+compute_pathway_scores <- function(seurat_obj, hallmark, cond, ctype, int) {
+  # subset seurat object 
+  tmp <- subset(seurat_obj, celltype==ctype & (condition=='NI' | condition==cond))
+  
+  # get samples/genes from voom expression dataframe (easier to filter stuff)
+  if (int=='none'){
+    v <- fread('../scRNAanalysis/NI_'%&%cond%&%'_'%&%ctype%&%'_voom_expression_new.txt.gz') %>% column_to_rownames('Gene')
+  } else {
+    v <- fread('../scRNAanalysis/NI_'%&%cond%&%'_'%&%ctype%&%'_'%&%int%&%'_voom_expression_new.txt.gz') %>% column_to_rownames('Gene')
   }
+  v_samples <- colnames(v)
+  v_genes <- rownames(v)
+  rm(v)
+  
+  # subset metadata
+  sub_mdata <- tmp@meta.data %>% filter(rownames(.) %in% v_samples) %>% rownames_to_column('samples')
+
+  # extract and subset count matrix
+  count <- tmp@assays$RNA$counts
+  count <- count[rownames(count) %in% v_genes,]
+  count <- count[,colnames(count) %in% v_samples]
+  count <- DGEList(counts=count) %>% calcNormFactors()
+  
+  # create design matrix
+  if (int=='asthma_alb'){
+    design <- model.matrix(~batch+age+gender+n+avg_mt+prop+albuterol, data=sub_mdata)
+  } else {
+    design <- model.matrix(~batch+age+gender+n+avg_mt+prop, data=sub_mdata)
+  }
+
+  # fit linear model
+  voom_obj <- voom(count, design, plot=F)
+  l_model <- lmFit(voom_obj, design=design) %>% eBayes()
+  
+  # extract residuals and add the intercept
+  residuals <- residuals.MArrayLM(l_model, voom_obj)
+  intercept <- l_model$coefficients[,'(Intercept)']
+  corrected_expression <- residuals + intercept
+  
+  # compute scores per hallmark pathway
+  for (p in seq(length(hallmark))){
+    # subset genes
+    subset_expression <- corrected_expression %>% as.data.frame() %>% filter(rownames(.) %in% hallmark[[p]]) %>% as.matrix()
+    
+    # scale and compute average pathway expression per individual
+    subset_expression <- subset_expression %>% t() %>% scale() %>% t() %>% colMeans(na.rm=TRUE) %>% as.data.frame() %>% rownames_to_column('ID')
+    colnames(subset_expression)[2] <- names(hallmark)[p]
+    
+    # group scores
+    if (exists('tmp_scores')){
+      tmp_scores <- inner_join(tmp_scores, subset_expression, by=c('ID')) 
+    } else {tmp_scores <-  subset_expression}
+  }
+  
+  # reformat output
+  path_scores <- tmp_scores %>% separate(col=ID, into=c('ID', 'condition', 'celltype'), sep='_') %>%
+    group_by(ID) %>% mutate(is_unique = n() == 1, interaction=int) %>% ungroup() %>% filter(is_unique==FALSE) %>% select(-is_unique) %>%
+    relocate(ID, condition, celltype, interaction)
+  path_scores$condition <- gsub('NI', 'NI_'%&%tolower(cond), path_scores$condition)
+  
+  return(path_scores)
 }
-# save files
-fwrite(full_infection_scores, 'pathway_scores_infection_new.txt', col.names=TRUE, sep=' ')
-fwrite(full_asthma_scores, 'pathway_scores_asthma_new.txt', col.names=TRUE, sep=' ')
-fwrite(full_income_scores, 'pathway_scores_income_new.txt', col.names=TRUE, sep=' ')
 
-# visualize scores for a given pathway
-## INFECTION SCORES
-full_infection_scores$condition <- factor(full_infection_scores$condition, levels=c('NI_iva', 'IVA', 'NI_rv', 'RV'))
-full_infection_scores %>% select(condition, celltype, INTERFERON_ALPHA_RESPONSE) %>%
-  ggplot(., aes(x=condition, y=INTERFERON_ALPHA_RESPONSE)) + geom_boxplot() +
+# compute pathway scores for all combinations of conditions, celltypes, and interactions
+param_grid <- expand_grid(
+  condition = conditions,
+  celltype = celltypes,
+  interaction = interactions)
+results_pathway_scores <- pmap(
+  param_grid,
+  \(condition, celltype, interaction){
+    compute_pathway_scores(
+      bulk_obj,
+      genes_hallmark,
+      condition,
+      celltype,
+      interaction)}) %>% bind_rows()
+
+
+## VISUALIZATION of IFN PATHWAY SCORES
+# no interaction
+infection_scores <- results_pathway_scores %>% filter(interaction=='none') %>% 
+  select(condition, celltype, INTERFERON_ALPHA_RESPONSE, INTERFERON_GAMMA_RESPONSE) %>% 
+  rename(IFNa=INTERFERON_ALPHA_RESPONSE, IFNy=INTERFERON_GAMMA_RESPONSE) %>% 
+  pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score')
+infection_scores$condition <- factor(infection_scores$condition, levels=c('NI_iva', 'IVA', 'NI_rv', 'RV'))
+
+ggplot(infection_scores, aes(x=condition, y=score)) + geom_boxplot() + ylab('pathway score') +
   stat_compare_means(aes(group=ID), method='t.test', label='p.format', comparisons=list(c('NI_iva', 'IVA'), c('NI_rv', 'RV')), paired=T) + 
-  facet_wrap(~celltype, nrow=1) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
-#ggsave('INTERFERON_ALPHA_RESPONSE_ssGSEA_infection_boxplots.pdf', height=3, width=10)
-ggsave('INTERFERON_ALPHA_RESPONSE_ssGSEA_infection_boxplots_new.png', height=3, width=10)
+  facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_RESPONSE_pathway_scores_infection_boxplots_new.png', height=5, width=10)
 
-full_infection_scores %>% select(condition, celltype, INTERFERON_GAMMA_RESPONSE) %>%
-  ggplot(., aes(x=condition, y=INTERFERON_GAMMA_RESPONSE)) + geom_boxplot() +
-  stat_compare_means(aes(group=ID), method='t.test', label='p.format', comparisons=list(c('NI_iva', 'IVA'), c('NI_rv', 'RV')), paired=T) + 
-  facet_wrap(~celltype, nrow=1) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
-#ggsave('INTERFERON_GAMMA_RESPONSE_ssGSEA_infection_boxplots.pdf', height=3, width=10)
-ggsave('INTERFERON_GAMMA_RESPONSE_ssGSEA_infection_boxplots_new.png', height=3, width=10)
+# interactions
+IVA_scores <- results_pathway_scores %>% 
+  filter(!interaction %in% c('none') & condition %in% c('NI_iva', 'IVA'))
+IVA_scores$condition <- gsub('NI_iva', 'NI', IVA_scores$condition)
+IVA_scores <- IVA_scores %>% group_by(condition, celltype, interaction) %>% 
+  pivot_wider(names_from=condition, values_from=-c(ID, celltype, condition, interaction)) %>%
+  ungroup() %>% mutate(across(ends_with('IVA'), ~ . - get(sub(paste0('_', 'IVA', '$'), '_NI', cur_column())),
+                              .names = 'delta_{.col}')) %>% rename_with(~ sub(paste0('_', 'IVA', '$'), '', .), starts_with('delta_')) %>%
+  mutate(condition='IVA') %>% select('ID', 'condition', 'celltype', 'interaction', contains('delta_'))
 
-## INFECTION:ASTHMA SCORES
-#join asthma status
-full_asthma_scores_w_mdata <- left_join(full_asthma_scores, mdata, by=c('ID'='IDs', 'condition', 'celltype')) %>%
-  select(-c(batch, n, avg_mt, prop, age, gender, income, albuterol))
-full_asthma_scores_w_mdata$asthma <- factor(full_asthma_scores_w_mdata$asthma, levels=c('No', 'Yes'))
+RV_scores <- results_pathway_scores %>% 
+  filter(!interaction %in% c('none') & condition %in% c('NI_rv', 'RV'))
+RV_scores$condition <- gsub('NI_rv', 'NI', RV_scores$condition)
+RV_scores <- RV_scores %>% group_by(condition, celltype, interaction) %>% 
+  pivot_wider(names_from=condition, values_from=-c(ID, celltype, condition, interaction)) %>%
+  ungroup() %>% mutate(across(ends_with('RV'), ~ . - get(sub(paste0('_', 'RV', '$'), '_NI', cur_column())),
+                .names = 'delta_{.col}')) %>% rename_with(~ sub(paste0('_', 'RV', '$'), '', .), starts_with('delta_')) %>%
+  mutate(condition='RV') %>% select('ID', 'condition', 'celltype', 'interaction', contains('delta_'))
 
-full_asthma_scores_w_mdata %>% select(condition, celltype, delta_INTERFERON_ALPHA_RESPONSE,asthma) %>%
-  ggplot(., aes(x=condition, y=delta_INTERFERON_ALPHA_RESPONSE, fill=asthma)) + geom_boxplot() +
-  stat_compare_means(method='t.test', label='p.format') + 
-  facet_wrap(~celltype, nrow=1) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
-ggsave('INTERFERON_ALPHA_RESPONSE_ssGSEA_asthma_boxplots_new.pdf', height=4, width=10)
+full_scores <- rbind(IVA_scores, RV_scores) %>% left_join(bulk_obj@meta.data, by=c('ID'='IDs', 'condition', 'celltype'))
 
-full_asthma_scores_w_mdata %>% select(condition, celltype, delta_INTERFERON_GAMMA_RESPONSE, asthma) %>%
-  ggplot(., aes(x=condition, y=delta_INTERFERON_GAMMA_RESPONSE, fill=asthma)) + geom_boxplot() +
-  stat_compare_means(method='t.test', label='p.format') + 
-  facet_wrap(~celltype, nrow=1) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
-ggsave('INTERFERON_GAMMA_RESPONSE_ssGSEA_asthma_boxplots_new.pdf', height=4, width=10)
+# asthma
+full_scores %>% filter(interaction=='asthma_alb') %>% 
+  mutate(Recorded_Diagnosis=if_else(Recorded_Diagnosis=='Recorded_Asthma_Diagnosis', 'asthmatic', 'non_asthmatic')) %>%
+  select(condition, celltype, Recorded_Diagnosis, delta_INTERFERON_ALPHA_RESPONSE, delta_INTERFERON_GAMMA_RESPONSE) %>% 
+  rename(IFNa=delta_INTERFERON_ALPHA_RESPONSE, IFNy=delta_INTERFERON_GAMMA_RESPONSE) %>% 
+  pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score') %>% 
+  ggplot(., aes(x=condition, y=score, fill=Recorded_Diagnosis)) + geom_boxplot() +
+  stat_compare_means(method='t.test', label='p.format') + ylab('delta pathway score (Inf-NI)') + xlab(NULL) +
+  facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_RESPONSE_pathway_scores_asthma_boxplots_new.png', height=5, width=10)
 
-a <- full_asthma_scores_w_mdata %>% select(condition, celltype, delta_INTERFERON_ALPHA_RESPONSE, 
-                                           delta_INTERFERON_GAMMA_RESPONSE, asthma) %>%
-  filter(celltype=='CD4-T', condition=='RV') %>% pivot_longer(cols=contains('delta'))
-a$name <- gsub('delta_INTERFERON_ALPHA_RESPONSE', 'delta_IFNa', a$name)
-a$name <- gsub('delta_INTERFERON_GAMMA_RESPONSE', 'delta_IFNy', a$name)
+# income
+full_scores %>% filter(interaction=='income') %>% 
+  select(condition, celltype, income, delta_INTERFERON_ALPHA_RESPONSE, delta_INTERFERON_GAMMA_RESPONSE) %>% 
+  rename(IFNa=delta_INTERFERON_ALPHA_RESPONSE, IFNy=delta_INTERFERON_GAMMA_RESPONSE) %>% 
+  pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score') %>% 
+  ggplot(., aes(x=condition, y=score, fill=income)) + geom_boxplot() +
+  stat_compare_means(method='t.test', label='p.format') + ylab('delta pathway score (Inf-NI)') + xlab(NULL) +
+  facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_RESPONSE_pathway_scores_income_boxplots_new.png', height=5, width=10)
 
-b <- full_asthma_scores_w_mdata %>% select(condition, celltype, delta_INTERFERON_ALPHA_RESPONSE, 
-                                           delta_INTERFERON_GAMMA_RESPONSE, asthma) %>%
-  filter(celltype=='B', condition=='IVA') %>% pivot_longer(cols=contains('delta'))
-b$name <- gsub('delta_INTERFERON_ALPHA_RESPONSE', 'delta_IFNa', b$name)
-b$name <- gsub('delta_INTERFERON_GAMMA_RESPONSE', 'delta_IFNy', b$name)
+# ACT
+full_scores %>% filter(interaction=='ACT') %>% 
+  select(condition, celltype, ACT_score, delta_INTERFERON_ALPHA_RESPONSE, delta_INTERFERON_GAMMA_RESPONSE) %>% 
+  rename(IFNa=delta_INTERFERON_ALPHA_RESPONSE, IFNy=delta_INTERFERON_GAMMA_RESPONSE) %>% 
+  pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score') %>% 
+  ggplot(., aes(x=ACT_score, y=score, color=condition)) + geom_point() + ylab('delta pathway score (Inf-NI)') + xlab('ACT score') +
+  geom_smooth(method='lm', se=TRUE) + stat_poly_eq(aes(label=paste(after_stat(p.value.label))), formula=y~x, parse=TRUE) +
+  facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_RESPONSE_pathway_scores_ACT_boxplots_new.png', height=5, width=10)
 
-(ggplot(b, aes(x=name, y=value, fill=asthma)) + geom_boxplot() +
-  stat_compare_means(method='t.test', label='p.format') + 
-  facet_wrap(~celltype, nrow=1) + theme_bw() + 
-    scale_y_continuous(expand = expansion(mult = c(0.05, 0.2))) + guides(fill='none')) +
-  ((ggplot(a, aes(x=name, y=value, fill=asthma)) + geom_boxplot() +
-      stat_compare_means(method='t.test', label='p.format') + 
-      facet_wrap(~celltype, nrow=1) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))))
-ggsave('INTERFERON_RESPONSEs_B_IVA_CD4-T_RV_ssGSEA_asthma_boxplots_new.png', height=4, width=7)
+# ACE
+full_scores %>% filter(interaction=='ACE') %>% 
+  select(condition, celltype, ACE_result, delta_INTERFERON_ALPHA_RESPONSE, delta_INTERFERON_GAMMA_RESPONSE) %>% 
+  rename(IFNa=delta_INTERFERON_ALPHA_RESPONSE, IFNy=delta_INTERFERON_GAMMA_RESPONSE) %>% 
+  pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score') %>% 
+  ggplot(., aes(x=ACE_result, y=score, color=condition)) + geom_point() + ylab('delta pathway score (Inf-NI)') + xlab('ACE result') +
+  geom_smooth(method='lm', se=TRUE) + stat_poly_eq(aes(label=paste(after_stat(p.value.label))), formula=y~x, parse=TRUE) +
+  facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_RESPONSE_pathway_scores_ACE_boxplots_new.png', height=5, width=10)
 
+# resilience
+full_scores %>% filter(interaction=='resilience') %>% 
+  select(condition, celltype, Parent_Resilience_Score, delta_INTERFERON_ALPHA_RESPONSE, delta_INTERFERON_GAMMA_RESPONSE) %>% 
+  rename(IFNa=delta_INTERFERON_ALPHA_RESPONSE, IFNy=delta_INTERFERON_GAMMA_RESPONSE) %>% 
+  pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score') %>% 
+  ggplot(., aes(x=Parent_Resilience_Score, y=score, color=condition)) + geom_point() + ylab('delta pathway score (Inf-NI)') + xlab('resilience') +
+  geom_smooth(method='lm', se=TRUE) + stat_poly_eq(aes(label=paste(after_stat(p.value.label))), formula=y~x, parse=TRUE) +
+  facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_RESPONSE_pathway_scores_resilience_boxplots_new.png', height=5, width=10)
 
-## INFECTION:INCOME SCORES
-#join income status
-full_income_scores_w_mdata <- left_join(full_income_scores, mdata, by=c('ID'='IDs', 'condition', 'celltype')) %>%
-  select(-c(batch, n, avg_mt, prop, age, gender, asthma, albuterol))
-full_income_scores_w_mdata$income <- ifelse(full_income_scores_w_mdata$income %in% c('< $10,000', '$10,000-$29,999', '$30,000-$49,999'),
-                           'Lower', 'Higher')
-full_income_scores_w_mdata$income <- factor(full_income_scores_w_mdata$income, levels=c('Lower','Higher'))
+# social support
+full_scores %>% filter(interaction=='social_support') %>% 
+  select(condition, celltype, Parents_Score_Avg, delta_INTERFERON_ALPHA_RESPONSE, delta_INTERFERON_GAMMA_RESPONSE) %>% 
+  rename(IFNa=delta_INTERFERON_ALPHA_RESPONSE, IFNy=delta_INTERFERON_GAMMA_RESPONSE) %>% 
+  pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score') %>% 
+  ggplot(., aes(x=Parents_Score_Avg, y=score, color=condition)) + geom_point() + ylab('delta pathway score (Inf-NI)') + xlab('social support') +
+  geom_smooth(method='lm', se=TRUE) + stat_poly_eq(aes(label=paste(after_stat(p.value.label))), formula=y~x, parse=TRUE) +
+  facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_RESPONSE_pathway_social_support_boxplots_new.png', height=5, width=10)
 
-full_income_scores_w_mdata %>% select(condition, celltype, delta_INTERFERON_ALPHA_RESPONSE, income) %>%
-  ggplot(., aes(x=condition, y=delta_INTERFERON_ALPHA_RESPONSE, fill=income)) + geom_boxplot() +
-  stat_compare_means(method='t.test', label='p.format') + 
-  facet_wrap(~celltype) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
-ggsave('INTERFERON_ALPHA_RESPONSE_ssGSEA_income_boxplots_new.pdf', height=4, width=9)
+# total racism
+full_scores %>% filter(interaction=='total_racism') %>% 
+  select(condition, celltype, Total_Racist_Events, delta_INTERFERON_ALPHA_RESPONSE, delta_INTERFERON_GAMMA_RESPONSE) %>% 
+  rename(IFNa=delta_INTERFERON_ALPHA_RESPONSE, IFNy=delta_INTERFERON_GAMMA_RESPONSE) %>% 
+  pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score') %>% 
+  ggplot(., aes(x=Total_Racist_Events, y=score, color=condition)) + geom_point() + ylab('delta pathway score (Inf-NI)') + xlab('total racism') +
+  geom_smooth(method='lm', se=TRUE) + stat_poly_eq(aes(label=paste(after_stat(p.value.label))), formula=y~x, parse=TRUE) +
+  facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_RESPONSE_pathway_total_racism_boxplots_new.png', height=5, width=10)
 
-full_income_scores_w_mdata %>% select(condition, celltype, delta_INTERFERON_GAMMA_RESPONSE, income) %>%
-  ggplot(., aes(x=condition, y=delta_INTERFERON_GAMMA_RESPONSE, fill=income)) + geom_boxplot() +
-  stat_compare_means(method='t.test', label='p.format') + 
-  facet_wrap(~celltype) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
-ggsave('INTERFERON_GAMMA_RESPONSE_ssGSEA_income_boxplots_new.pdf', height=4, width=9)
+# year racism
+full_scores %>% filter(interaction=='year_racism') %>% 
+  select(condition, celltype, Year_Racist_events, delta_INTERFERON_ALPHA_RESPONSE, delta_INTERFERON_GAMMA_RESPONSE) %>% 
+  rename(IFNa=delta_INTERFERON_ALPHA_RESPONSE, IFNy=delta_INTERFERON_GAMMA_RESPONSE) %>% 
+  pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score') %>% 
+  ggplot(., aes(x=Year_Racist_events, y=score, color=condition)) + geom_point() + ylab('delta pathway score (Inf-NI)') + xlab('year racism') +
+  geom_smooth(method='lm', se=TRUE) + stat_poly_eq(aes(label=paste(after_stat(p.value.label))), formula=y~x, parse=TRUE) +
+  facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_RESPONSE_pathway_year_racism_boxplots_new.png', height=5, width=10)
 
-a <- full_income_scores_w_mdata %>% select(condition, celltype, delta_INTERFERON_ALPHA_RESPONSE, 
-                                           delta_INTERFERON_GAMMA_RESPONSE, income) %>%
-  filter(condition=='IVA') %>% pivot_longer(cols=contains('delta'))
-a$name <- gsub('delta_INTERFERON_ALPHA_RESPONSE', 'delta_IFNa', a$name)
-a$name <- gsub('delta_INTERFERON_GAMMA_RESPONSE', 'delta_IFNy', a$name)
+# life racism
+full_scores %>% filter(interaction=='life_racism') %>% 
+  select(condition, celltype, Life_Racist_events, delta_INTERFERON_ALPHA_RESPONSE, delta_INTERFERON_GAMMA_RESPONSE) %>% 
+  rename(IFNa=delta_INTERFERON_ALPHA_RESPONSE, IFNy=delta_INTERFERON_GAMMA_RESPONSE) %>% 
+  pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score') %>% 
+  ggplot(., aes(x=Life_Racist_events, y=score, color=condition)) + geom_point() + ylab('delta pathway score (Inf-NI)') + xlab('life racism') +
+  geom_smooth(method='lm', se=TRUE) + stat_poly_eq(aes(label=paste(after_stat(p.value.label))), formula=y~x, parse=TRUE) +
+  facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_RESPONSE_pathway_life_racism_boxplots_new.png', height=5, width=10)
 
-ggplot(a, aes(x=name, y=value, fill=income)) + geom_boxplot() +
-  stat_compare_means(method='t.test', label='p.format') + 
-  facet_grid(cols=vars(celltype), rows=vars(condition)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
-#ggsave('INTERFERON_RESPONSEs_ssGSEA_income_grid.boxplots.pdf', height=4, width=7)
-ggsave('INTERFERON_RESPONSEs_ssGSEA_income_grid.boxplots_new.png', height=4, width=9)
+# stress racism
+full_scores %>% filter(interaction=='stress_racism') %>% 
+  select(condition, celltype, Racist_stress, delta_INTERFERON_ALPHA_RESPONSE, delta_INTERFERON_GAMMA_RESPONSE) %>% 
+  rename(IFNa=delta_INTERFERON_ALPHA_RESPONSE, IFNy=delta_INTERFERON_GAMMA_RESPONSE) %>% 
+  pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score') %>% 
+  ggplot(., aes(x=Racist_stress, y=score, color=condition)) + geom_point() + ylab('delta pathway score (Inf-NI)') + xlab('stress racism') +
+  geom_smooth(method='lm', se=TRUE) + stat_poly_eq(aes(label=paste(after_stat(p.value.label))), formula=y~x, parse=TRUE) +
+  facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_RESPONSE_pathway_stress_racism_boxplots_new.png', height=5, width=10)
 
-ggplot(a, aes(x=name, y=value, fill=income)) + geom_boxplot() +
-  stat_compare_means(method='t.test', label='p.format') + 
-  facet_wrap(~celltype+condition, nrow=1) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
-#ggsave('INTERFERON_RESPONSEs_ssGSEA_income_wrap.boxplots.pdf', height=4, width=9)
-ggsave('INTERFERON_RESPONSEs_ssGSEA_income_wrap.boxplots_new.png', height=4, width=9)
+# kid24h racism
+full_scores %>% filter(interaction=='kid_24h_racism') %>% 
+  select(condition, celltype, Racism_child_24hr, delta_INTERFERON_ALPHA_RESPONSE, delta_INTERFERON_GAMMA_RESPONSE) %>% 
+  rename(IFNa=delta_INTERFERON_ALPHA_RESPONSE, IFNy=delta_INTERFERON_GAMMA_RESPONSE) %>% 
+  pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score') %>% 
+  ggplot(., aes(x=Racism_child_24hr, y=score, color=condition)) + geom_point() + ylab('delta pathway score (Inf-NI)') + xlab('kid24h racism') +
+  geom_smooth(method='lm', se=TRUE) + stat_poly_eq(aes(label=paste(after_stat(p.value.label))), formula=y~x, parse=TRUE) +
+  facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_RESPONSE_pathway_kid_24h_racism_boxplots_new.png', height=5, width=10)
+
+# kid discrimination
+full_scores %>% filter(interaction=='kid_discrimination') %>% 
+  select(condition, celltype, Experience_Discrimination_child, delta_INTERFERON_ALPHA_RESPONSE, delta_INTERFERON_GAMMA_RESPONSE) %>% 
+  rename(IFNa=delta_INTERFERON_ALPHA_RESPONSE, IFNy=delta_INTERFERON_GAMMA_RESPONSE) %>% 
+  pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score') %>% 
+  ggplot(., aes(x=Experience_Discrimination_child, y=score, color=condition)) + geom_point() + ylab('delta pathway score (Inf-NI)') + xlab('kid discrimination') +
+  geom_smooth(method='lm', se=TRUE) + stat_poly_eq(aes(label=paste(after_stat(p.value.label))), formula=y~x, parse=TRUE) +
+  facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_RESPONSE_pathway_kid_discrimination_boxplots_new.png', height=5, width=10)
+
+# infection at collection
+full_scores %>% filter(interaction=='collection_infection') %>% 
+  select(condition, celltype, infection_status, delta_INTERFERON_ALPHA_RESPONSE, delta_INTERFERON_GAMMA_RESPONSE) %>% 
+  rename(IFNa=delta_INTERFERON_ALPHA_RESPONSE, IFNy=delta_INTERFERON_GAMMA_RESPONSE) %>% 
+  pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score') %>% 
+  ggplot(., aes(x=condition, y=score, fill=infection_status)) + geom_boxplot() +
+  stat_compare_means(method='t.test', label='p.format') + ylab('delta pathway score (Inf-NI)') + xlab(NULL) +
+  facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_RESPONSE_pathway_scores_collection_infection_boxplots_new.png', height=5, width=10)
