@@ -3,6 +3,8 @@ library(data.table)
 library(Seurat)
 library(limma)
 library(msigdbr)
+library(edgeR)
+library(ggpubr)
 '%&%' <- function(a,b) paste(a,b, sep = '')
 setwd('/project/lbarreiro/USERS/daniel/asthma_project/DEanalysis')
 conditions <- c('IVA', 'RV')
@@ -211,7 +213,7 @@ results_pathway_scores <- pmap(
   geom_violin(alpha=0.5) + geom_boxplot(alpha=0.5, width=0.3) + theme_bw() + ylab('mean exp. IFNy genes') + xlab(NULL) + 
   stat_compare_means(aes(group=Gene), method='t.test', label='p.format', paired=T, comparisons=list(c('NI_iva','IVA'), c('NI_rv','RV'))) +
   facet_wrap(~celltype, nrow=1) + guides(fill='none') + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2))))
-ggsave('IFN_genes_expression_infection_violinplots_new.pdf', height=5, width=10)
+ggsave('IFN_genes_expression_infection_violinplots_new.png', height=5, width=10)
 
 # asthma
 (results_pathway_scores[which(param_grid$interaction=='asthma_alb')] %>% bind_rows() %>% 
@@ -228,7 +230,7 @@ ggsave('IFN_genes_expression_infection_violinplots_new.pdf', height=5, width=10)
    geom_violin(alpha=0.5) + geom_boxplot(alpha=0.5, width=0.3) + theme_bw() + ylab('delta mean exp. IFNy genes') + xlab(NULL) + 
    stat_compare_means(aes(group=Gene, condition), method='t.test', label='p.format', comparisons=list(c('non_asthmatic','asthmatic'))) +
    facet_grid(cols=vars(celltype), rows=vars(condition), scales='free') + guides(fill='none') + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))) 
-ggsave('IFN_genes_expression_asthma_violinplots_new.pdf', height=5, width=10)
+ggsave('IFN_genes_expression_asthma_violinplots_new.png', height=5, width=10)
 
 # income
 (results_pathway_scores[which(param_grid$interaction=='income')] %>% bind_rows() %>% 
@@ -243,7 +245,7 @@ ggsave('IFN_genes_expression_asthma_violinplots_new.pdf', height=5, width=10)
      geom_violin(alpha=0.5) + geom_boxplot(alpha=0.5, width=0.3) + theme_bw() + ylab('delta mean exp. IFNy genes') + xlab(NULL) + 
      stat_compare_means(aes(group=Gene, condition), method='t.test', label='p.format', comparisons=list(c('Low','High'))) +
      facet_grid(cols=vars(celltype), rows=vars(condition), scales='free') + guides(fill='none') + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))) 
-ggsave('IFN_genes_expression_income_violinplots_new.pdf', height=5, width=10)
+ggsave('IFN_genes_expression_income_violinplots_new.png', height=5, width=10)
 
 # ACT
 (results_pathway_scores[which(param_grid$interaction=='ACT')] %>% bind_rows() %>% 
@@ -258,7 +260,7 @@ ggsave('IFN_genes_expression_income_violinplots_new.pdf', height=5, width=10)
      geom_violin(alpha=0.5) + geom_boxplot(alpha=0.5, width=0.3) + theme_bw() + ylab('delta mean exp. IFNy genes') + xlab(NULL) + 
      stat_compare_means(aes(group=Gene, condition), method='t.test', label='p.format', comparisons=list(c('1','4'))) +
      facet_grid(cols=vars(celltype), rows=vars(condition), scales='free') + guides(fill='none') + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))) 
-ggsave('IFN_genes_expression_ACT_violinplots_new.pdf', height=5, width=10)
+ggsave('IFN_genes_expression_ACT_violinplots_new.png', height=5, width=10)
 
 # ACE
 (results_pathway_scores[which(param_grid$interaction=='ACE')] %>% bind_rows() %>% 
@@ -273,7 +275,7 @@ ggsave('IFN_genes_expression_ACT_violinplots_new.pdf', height=5, width=10)
      geom_violin(alpha=0.5) + geom_boxplot(alpha=0.5, width=0.3) + theme_bw() + ylab('delta mean exp. IFNy genes') + xlab(NULL) + 
      stat_compare_means(aes(group=Gene, condition), method='t.test', label='p.format', comparisons=list(c('1','4'))) +
      facet_grid(cols=vars(celltype), rows=vars(condition), scales='free') + guides(fill='none') + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))) 
-ggsave('IFN_genes_expression_ACE_violinplots_new.pdf', height=5, width=10)
+ggsave('IFN_genes_expression_ACE_violinplots_new.png', height=5, width=10)
 
 # resilience
 (results_pathway_scores[which(param_grid$interaction=='resilience')] %>% bind_rows() %>% 
@@ -288,7 +290,7 @@ ggsave('IFN_genes_expression_ACE_violinplots_new.pdf', height=5, width=10)
      geom_violin(alpha=0.5) + geom_boxplot(alpha=0.5, width=0.3) + theme_bw() + ylab('delta mean exp. IFNy genes') + xlab(NULL) + 
      stat_compare_means(aes(group=Gene, condition), method='t.test', label='p.format', comparisons=list(c('1','4'))) +
      facet_grid(cols=vars(celltype), rows=vars(condition), scales='free') + guides(fill='none') + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))) 
-ggsave('IFN_genes_expression_resilience_violinplots_new.pdf', height=5, width=10)
+ggsave('IFN_genes_expression_resilience_violinplots_new.png', height=5, width=10)
 
 # social support
 (results_pathway_scores[which(param_grid$interaction=='social_support')] %>% bind_rows() %>% 
@@ -303,7 +305,7 @@ ggsave('IFN_genes_expression_resilience_violinplots_new.pdf', height=5, width=10
      geom_violin(alpha=0.5) + geom_boxplot(alpha=0.5, width=0.3) + theme_bw() + ylab('delta mean exp. IFNy genes') + xlab(NULL) + 
      stat_compare_means(aes(group=Gene, condition), method='t.test', label='p.format', comparisons=list(c('1','4'))) +
      facet_grid(cols=vars(celltype), rows=vars(condition), scales='free') + guides(fill='none') + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))) 
-ggsave('IFN_genes_expression_social_support_violinplots_new.pdf', height=5, width=10)
+ggsave('IFN_genes_expression_social_support_violinplots_new.png', height=5, width=10)
 
 # total racism
 (results_pathway_scores[which(param_grid$interaction=='total_racism')] %>% bind_rows() %>% 
@@ -318,7 +320,7 @@ ggsave('IFN_genes_expression_social_support_violinplots_new.pdf', height=5, widt
      geom_violin(alpha=0.5) + geom_boxplot(alpha=0.5, width=0.3) + theme_bw() + ylab('delta mean exp. IFNy genes') + xlab(NULL) + 
      stat_compare_means(aes(group=Gene, condition), method='t.test', label='p.format', comparisons=list(c('1','4'))) +
      facet_grid(cols=vars(celltype), rows=vars(condition), scales='free') + guides(fill='none') + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))) 
-ggsave('IFN_genes_expression_total_racism_violinplots_new.pdf', height=5, width=10)
+ggsave('IFN_genes_expression_total_racism_violinplots_new.png', height=5, width=10)
 
 # year racism
 (results_pathway_scores[which(param_grid$interaction=='year_racism')] %>% bind_rows() %>% 
@@ -333,7 +335,7 @@ ggsave('IFN_genes_expression_total_racism_violinplots_new.pdf', height=5, width=
      geom_violin(alpha=0.5) + geom_boxplot(alpha=0.5, width=0.3) + theme_bw() + ylab('delta mean exp. IFNy genes') + xlab(NULL) + 
      stat_compare_means(aes(group=Gene, condition), method='t.test', label='p.format', comparisons=list(c('1','4'))) +
      facet_grid(cols=vars(celltype), rows=vars(condition), scales='free') + guides(fill='none') + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))) 
-ggsave('IFN_genes_expression_year_racism_violinplots_new.pdf', height=5, width=10)
+ggsave('IFN_genes_expression_year_racism_violinplots_new.png', height=5, width=10)
 
 # life racism
 (results_pathway_scores[which(param_grid$interaction=='life_racism')] %>% bind_rows() %>% 
@@ -348,7 +350,7 @@ ggsave('IFN_genes_expression_year_racism_violinplots_new.pdf', height=5, width=1
      geom_violin(alpha=0.5) + geom_boxplot(alpha=0.5, width=0.3) + theme_bw() + ylab('delta mean exp. IFNy genes') + xlab(NULL) + 
      stat_compare_means(aes(group=Gene, condition), method='t.test', label='p.format', comparisons=list(c('1','4'))) +
      facet_grid(cols=vars(celltype), rows=vars(condition), scales='free') + guides(fill='none') + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))) 
-ggsave('IFN_genes_expression_life_racism_violinplots_new.pdf', height=5, width=10)
+ggsave('IFN_genes_expression_life_racism_violinplots_new.png', height=5, width=10)
 
 # stress racism
 (results_pathway_scores[which(param_grid$interaction=='stress_racism')] %>% bind_rows() %>% 
@@ -363,7 +365,7 @@ ggsave('IFN_genes_expression_life_racism_violinplots_new.pdf', height=5, width=1
      geom_violin(alpha=0.5) + geom_boxplot(alpha=0.5, width=0.3) + theme_bw() + ylab('delta mean exp. IFNy genes') + xlab(NULL) + 
      stat_compare_means(aes(group=Gene, condition), method='t.test', label='p.format', comparisons=list(c('1','4'))) +
      facet_grid(cols=vars(celltype), rows=vars(condition), scales='free') + guides(fill='none') + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))) 
-ggsave('IFN_genes_expression_stress_racism_violinplots_new.pdf', height=5, width=10)
+ggsave('IFN_genes_expression_stress_racism_violinplots_new.png', height=5, width=10)
 
 # kid 24h racism
 (results_pathway_scores[which(param_grid$interaction=='kid_24h_racism')] %>% bind_rows() %>% 
@@ -378,7 +380,7 @@ ggsave('IFN_genes_expression_stress_racism_violinplots_new.pdf', height=5, width
      geom_violin(alpha=0.5) + geom_boxplot(alpha=0.5, width=0.3) + theme_bw() + ylab('delta mean exp. IFNy genes') + xlab(NULL) + 
      stat_compare_means(aes(group=Gene, condition), method='t.test', label='p.format', comparisons=list(c('1','4'))) +
      facet_grid(cols=vars(celltype), rows=vars(condition), scales='free') + guides(fill='none') + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))) 
-ggsave('IFN_genes_expression_kid_24h_racism_violinplots_new.pdf', height=5, width=10)
+ggsave('IFN_genes_expression_kid_24h_racism_violinplots_new.png', height=5, width=10)
 
 # kid discrimination
 (results_pathway_scores[which(param_grid$interaction=='kid_discrimination')] %>% bind_rows() %>% 
@@ -393,7 +395,7 @@ ggsave('IFN_genes_expression_kid_24h_racism_violinplots_new.pdf', height=5, widt
      geom_violin(alpha=0.5) + geom_boxplot(alpha=0.5, width=0.3) + theme_bw() + ylab('delta mean exp. IFNy genes') + xlab(NULL) + 
      stat_compare_means(aes(group=Gene, condition), method='t.test', label='p.format', comparisons=list(c('1','4'))) +
      facet_grid(cols=vars(celltype), rows=vars(condition), scales='free') + guides(fill='none') + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))) 
-ggsave('IFN_genes_expression_kid_discrimination_violinplots_new.pdf', height=5, width=10)
+ggsave('IFN_genes_expression_kid_discrimination_violinplots_new.png', height=5, width=10)
 
 # infection at collection
 (results_pathway_scores[which(param_grid$interaction=='collection_infection')] %>% bind_rows() %>% 
@@ -408,5 +410,4 @@ ggsave('IFN_genes_expression_kid_discrimination_violinplots_new.pdf', height=5, 
      geom_violin(alpha=0.5) + geom_boxplot(alpha=0.5, width=0.3) + theme_bw() + ylab('delta mean exp. IFNy genes') + xlab(NULL) + 
      stat_compare_means(aes(group=Gene, condition), method='t.test', label='p.format', comparisons=list(c('Negative','Positive'))) +
      facet_grid(cols=vars(celltype), rows=vars(condition), scales='free') + guides(fill='none') + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))) 
-ggsave('IFN_genes_expression_infection_collection_violinplots_new.pdf', height=5, width=10)
-
+ggsave('IFN_genes_expression_infection_collection_violinplots_new.png', height=5, width=10)
