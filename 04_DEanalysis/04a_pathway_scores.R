@@ -121,10 +121,10 @@ infection_scores <- results_pathway_scores %>% filter(interaction=='none') %>%
   pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score')
 infection_scores$condition <- factor(infection_scores$condition, levels=c('NI_iva', 'IVA', 'NI_rv', 'RV'))
 
-ggplot(infection_scores, aes(x=condition, y=score)) + geom_boxplot() + ylab('pathway score') +
-  stat_compare_means(aes(group=ID), method='t.test', label='p.format', comparisons=list(c('NI_iva', 'IVA'), c('NI_rv', 'RV')), paired=T) + 
+ggplot(infection_scores, aes(x=condition, y=score)) + geom_boxplot()+ ylab('pathway score') +
+  stat_compare_means(aes(group=ID), method='t.test', label='p.signif', comparisons=list(c('NI_iva', 'IVA'), c('NI_rv', 'RV')), paired=T) + 
   facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
-ggsave('INTERFERON_RESPONSE_pathway_scores_infection_boxplots_new.png', height=5, width=10)
+ggsave('INTERFERON_RESPONSE_pathway_delta_scores_infection_boxplots_new.png', height=5, width=10)
 
 # interactions
 IVA_scores <- results_pathway_scores %>% 
@@ -153,8 +153,21 @@ full_scores %>% filter(interaction=='asthma_alb') %>%
   select(condition, celltype, Recorded_Diagnosis, delta_INTERFERON_ALPHA_RESPONSE, delta_INTERFERON_GAMMA_RESPONSE) %>% 
   rename(IFNa=delta_INTERFERON_ALPHA_RESPONSE, IFNy=delta_INTERFERON_GAMMA_RESPONSE) %>% 
   pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score') %>% 
-  ggplot(., aes(x=condition, y=score, fill=Recorded_Diagnosis)) + geom_boxplot() +
-  stat_compare_means(method='t.test', label='p.format') + ylab('delta pathway score (Inf-NI)') + xlab(NULL) +
+  ggplot(., aes(x=condition, y=score, fill=Recorded_Diagnosis)) + geom_boxplot(alpha=0.5) +
+  stat_compare_means(method='t.test', label='p.signif') + ylab('delta pathway score (Inf-NI)') + xlab(NULL) +
+  facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_RESPONSE_pathway_delta_scores_asthma_boxplots_new.png', height=5, width=10)
+
+infection_scores <- results_pathway_scores %>% filter(interaction=='asthma_alb') %>%
+  select(ID, condition, celltype, interaction, INTERFERON_ALPHA_RESPONSE, INTERFERON_GAMMA_RESPONSE) %>%
+  mutate(main_condition=recode(condition, 'NI_iva'='NI', 'NI_rv'='NI')) %>% 
+  left_join(bulk_obj@meta.data, by=c('ID'='IDs', 'main_condition'='condition', 'celltype')) %>% 
+  mutate(Recorded_Diagnosis=if_else(Recorded_Diagnosis=='Recorded_Asthma_Diagnosis', 'asthmatic', 'non_asthmatic')) %>%
+  rename(IFNa=INTERFERON_ALPHA_RESPONSE, IFNy=INTERFERON_GAMMA_RESPONSE) %>% 
+  pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score')
+infection_scores$condition <- factor(infection_scores$condition, levels=c('NI_iva', 'IVA', 'NI_rv', 'RV'))
+ggplot(infection_scores, aes(x=condition, y=score, fill=Recorded_Diagnosis)) + geom_boxplot(alpha=0.5) + ylab('pathway score') +
+  stat_compare_means(aes(group=Recorded_Diagnosis), method='t.test', label='p.signif') +
   facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
 ggsave('INTERFERON_RESPONSE_pathway_scores_asthma_boxplots_new.png', height=5, width=10)
 
@@ -163,8 +176,20 @@ full_scores %>% filter(interaction=='income') %>%
   select(condition, celltype, income, delta_INTERFERON_ALPHA_RESPONSE, delta_INTERFERON_GAMMA_RESPONSE) %>% 
   rename(IFNa=delta_INTERFERON_ALPHA_RESPONSE, IFNy=delta_INTERFERON_GAMMA_RESPONSE) %>% 
   pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score') %>% 
-  ggplot(., aes(x=condition, y=score, fill=income)) + geom_boxplot() +
-  stat_compare_means(method='t.test', label='p.format') + ylab('delta pathway score (Inf-NI)') + xlab(NULL) +
+  ggplot(., aes(x=condition, y=score, fill=income)) + geom_boxplot(alpha=0.5) +
+  stat_compare_means(method='t.test', label='p.signif') + ylab('delta pathway score (Inf-NI)') + xlab(NULL) +
+  facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_RESPONSE_pathway_delta_scores_income_boxplots_new.png', height=5, width=10)
+
+infection_scores <- results_pathway_scores %>% filter(interaction=='income') %>%
+  select(ID, condition, celltype, interaction, INTERFERON_ALPHA_RESPONSE, INTERFERON_GAMMA_RESPONSE) %>%
+  mutate(main_condition=recode(condition, 'NI_iva'='NI', 'NI_rv'='NI')) %>% 
+  left_join(bulk_obj@meta.data, by=c('ID'='IDs', 'main_condition'='condition', 'celltype')) %>% 
+  rename(IFNa=INTERFERON_ALPHA_RESPONSE, IFNy=INTERFERON_GAMMA_RESPONSE) %>% 
+  pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score')
+infection_scores$condition <- factor(infection_scores$condition, levels=c('NI_iva', 'IVA', 'NI_rv', 'RV'))
+ggplot(infection_scores, aes(x=condition, y=score, fill=income)) + geom_boxplot(alpha=0.5) + ylab('pathway score') +
+  stat_compare_means(aes(group=income), method='t.test', label='p.signif') +
   facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
 ggsave('INTERFERON_RESPONSE_pathway_scores_income_boxplots_new.png', height=5, width=10)
 
@@ -176,6 +201,19 @@ full_scores %>% filter(interaction=='ACT') %>%
   ggplot(., aes(x=ACT_score, y=score, color=condition)) + geom_point() + ylab('delta pathway score (Inf-NI)') + xlab('ACT score') +
   geom_smooth(method='lm', se=TRUE) + stat_poly_eq(aes(label=paste(after_stat(p.value.label))), formula=y~x, parse=TRUE) +
   facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_RESPONSE_pathway_delta_scores_ACT_boxplots_new.png', height=5, width=10)
+
+infection_scores <- results_pathway_scores %>% filter(interaction=='ACT') %>%
+  select(ID, condition, celltype, interaction, INTERFERON_ALPHA_RESPONSE, INTERFERON_GAMMA_RESPONSE) %>%
+  mutate(main_condition=recode(condition, 'NI_iva'='NI', 'NI_rv'='NI')) %>% 
+  left_join(bulk_obj@meta.data, by=c('ID'='IDs', 'main_condition'='condition', 'celltype')) %>% 
+  rename(IFNa=INTERFERON_ALPHA_RESPONSE, IFNy=INTERFERON_GAMMA_RESPONSE) %>% 
+  pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score') %>%
+  mutate(quartile=factor(ntile(ACT_score, 4), levels=1:4)) %>% filter(quartile==1 | quartile==4)
+infection_scores$condition <- factor(infection_scores$condition, levels=c('NI_iva', 'IVA', 'NI_rv', 'RV'))
+ggplot(infection_scores, aes(x=condition, y=score, fill=quartile)) + geom_boxplot(alpha=0.5) + ylab('pathway score') +
+  stat_compare_means(aes(group=quartile), method='t.test', label='p.signif') +
+  facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
 ggsave('INTERFERON_RESPONSE_pathway_scores_ACT_boxplots_new.png', height=5, width=10)
 
 # ACE
@@ -185,6 +223,19 @@ full_scores %>% filter(interaction=='ACE') %>%
   pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score') %>% 
   ggplot(., aes(x=ACE_result, y=score, color=condition)) + geom_point() + ylab('delta pathway score (Inf-NI)') + xlab('ACE result') +
   geom_smooth(method='lm', se=TRUE) + stat_poly_eq(aes(label=paste(after_stat(p.value.label))), formula=y~x, parse=TRUE) +
+  facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_RESPONSE_pathway_delta_scores_ACE_boxplots_new.png', height=5, width=10)
+
+infection_scores <- results_pathway_scores %>% filter(interaction=='ACE') %>%
+  select(ID, condition, celltype, interaction, INTERFERON_ALPHA_RESPONSE, INTERFERON_GAMMA_RESPONSE) %>%
+  mutate(main_condition=recode(condition, 'NI_iva'='NI', 'NI_rv'='NI')) %>% 
+  left_join(bulk_obj@meta.data, by=c('ID'='IDs', 'main_condition'='condition', 'celltype')) %>% 
+  rename(IFNa=INTERFERON_ALPHA_RESPONSE, IFNy=INTERFERON_GAMMA_RESPONSE) %>% 
+  pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score') %>%
+  mutate(quartile=factor(ntile(ACE_result, 4), levels=1:4)) %>% filter(quartile==1 | quartile==4)
+infection_scores$condition <- factor(infection_scores$condition, levels=c('NI_iva', 'IVA', 'NI_rv', 'RV'))
+ggplot(infection_scores, aes(x=condition, y=score, fill=quartile)) + geom_boxplot(alpha=0.5) + ylab('pathway score') +
+  stat_compare_means(aes(group=quartile), method='t.test', label='p.signif') +
   facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
 ggsave('INTERFERON_RESPONSE_pathway_scores_ACE_boxplots_new.png', height=5, width=10)
 
@@ -196,6 +247,19 @@ full_scores %>% filter(interaction=='resilience') %>%
   ggplot(., aes(x=Parent_Resilience_Score, y=score, color=condition)) + geom_point() + ylab('delta pathway score (Inf-NI)') + xlab('resilience') +
   geom_smooth(method='lm', se=TRUE) + stat_poly_eq(aes(label=paste(after_stat(p.value.label))), formula=y~x, parse=TRUE) +
   facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_RESPONSE_pathway_delta_scores_resilience_boxplots_new.png', height=5, width=10)
+
+infection_scores <- results_pathway_scores %>% filter(interaction=='resilience') %>%
+  select(ID, condition, celltype, interaction, INTERFERON_ALPHA_RESPONSE, INTERFERON_GAMMA_RESPONSE) %>%
+  mutate(main_condition=recode(condition, 'NI_iva'='NI', 'NI_rv'='NI')) %>% 
+  left_join(bulk_obj@meta.data, by=c('ID'='IDs', 'main_condition'='condition', 'celltype')) %>% 
+  rename(IFNa=INTERFERON_ALPHA_RESPONSE, IFNy=INTERFERON_GAMMA_RESPONSE) %>% 
+  pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score') %>%
+  mutate(quartile=factor(ntile(Parent_Resilience_Score, 4), levels=1:4)) %>% filter(quartile==1 | quartile==4)
+infection_scores$condition <- factor(infection_scores$condition, levels=c('NI_iva', 'IVA', 'NI_rv', 'RV'))
+ggplot(infection_scores, aes(x=condition, y=score, fill=quartile)) + geom_boxplot(alpha=0.5) + ylab('pathway score') +
+  stat_compare_means(aes(group=quartile), method='t.test', label='p.signif') +
+  facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
 ggsave('INTERFERON_RESPONSE_pathway_scores_resilience_boxplots_new.png', height=5, width=10)
 
 # social support
@@ -206,7 +270,20 @@ full_scores %>% filter(interaction=='social_support') %>%
   ggplot(., aes(x=Parents_Score_Avg, y=score, color=condition)) + geom_point() + ylab('delta pathway score (Inf-NI)') + xlab('social support') +
   geom_smooth(method='lm', se=TRUE) + stat_poly_eq(aes(label=paste(after_stat(p.value.label))), formula=y~x, parse=TRUE) +
   facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
-ggsave('INTERFERON_RESPONSE_pathway_social_support_boxplots_new.png', height=5, width=10)
+ggsave('INTERFERON_RESPONSE_pathway_delta_scores_social_support_boxplots_new.png', height=5, width=10)
+
+infection_scores <- results_pathway_scores %>% filter(interaction=='social_support') %>%
+  select(ID, condition, celltype, interaction, INTERFERON_ALPHA_RESPONSE, INTERFERON_GAMMA_RESPONSE) %>%
+  mutate(main_condition=recode(condition, 'NI_iva'='NI', 'NI_rv'='NI')) %>% 
+  left_join(bulk_obj@meta.data, by=c('ID'='IDs', 'main_condition'='condition', 'celltype')) %>% 
+  rename(IFNa=INTERFERON_ALPHA_RESPONSE, IFNy=INTERFERON_GAMMA_RESPONSE) %>% 
+  pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score') %>%
+  mutate(quartile=factor(ntile(Parents_Score_Avg, 4), levels=1:4)) %>% filter(quartile==1 | quartile==4)
+infection_scores$condition <- factor(infection_scores$condition, levels=c('NI_iva', 'IVA', 'NI_rv', 'RV'))
+ggplot(infection_scores, aes(x=condition, y=score, fill=quartile)) + geom_boxplot(alpha=0.5) + ylab('pathway score') +
+  stat_compare_means(aes(group=quartile), method='t.test', label='p.signif') +
+  facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_RESPONSE_pathway_scores_social_support_boxplots_new.png', height=5, width=10)
 
 # total racism
 full_scores %>% filter(interaction=='total_racism') %>% 
@@ -216,7 +293,20 @@ full_scores %>% filter(interaction=='total_racism') %>%
   ggplot(., aes(x=Total_Racist_Events, y=score, color=condition)) + geom_point() + ylab('delta pathway score (Inf-NI)') + xlab('total racism') +
   geom_smooth(method='lm', se=TRUE) + stat_poly_eq(aes(label=paste(after_stat(p.value.label))), formula=y~x, parse=TRUE) +
   facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
-ggsave('INTERFERON_RESPONSE_pathway_total_racism_boxplots_new.png', height=5, width=10)
+ggsave('INTERFERON_RESPONSE_pathway_delta_scores_total_racism_boxplots_new.png', height=5, width=10)
+
+infection_scores <- results_pathway_scores %>% filter(interaction=='total_racism') %>%
+  select(ID, condition, celltype, interaction, INTERFERON_ALPHA_RESPONSE, INTERFERON_GAMMA_RESPONSE) %>%
+  mutate(main_condition=recode(condition, 'NI_iva'='NI', 'NI_rv'='NI')) %>% 
+  left_join(bulk_obj@meta.data, by=c('ID'='IDs', 'main_condition'='condition', 'celltype')) %>% 
+  rename(IFNa=INTERFERON_ALPHA_RESPONSE, IFNy=INTERFERON_GAMMA_RESPONSE) %>% 
+  pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score') %>%
+  mutate(quartile=factor(ntile(Total_Racist_Events, 4), levels=1:4)) %>% filter(quartile==1 | quartile==4)
+infection_scores$condition <- factor(infection_scores$condition, levels=c('NI_iva', 'IVA', 'NI_rv', 'RV'))
+ggplot(infection_scores, aes(x=condition, y=score, fill=quartile)) + geom_boxplot(alpha=0.5) + ylab('pathway score') +
+  stat_compare_means(aes(group=quartile), method='t.test', label='p.signif') +
+  facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_RESPONSE_pathway_scores_total_racism_boxplots_new.png', height=5, width=10)
 
 # year racism
 full_scores %>% filter(interaction=='year_racism') %>% 
@@ -226,7 +316,20 @@ full_scores %>% filter(interaction=='year_racism') %>%
   ggplot(., aes(x=Year_Racist_events, y=score, color=condition)) + geom_point() + ylab('delta pathway score (Inf-NI)') + xlab('year racism') +
   geom_smooth(method='lm', se=TRUE) + stat_poly_eq(aes(label=paste(after_stat(p.value.label))), formula=y~x, parse=TRUE) +
   facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
-ggsave('INTERFERON_RESPONSE_pathway_year_racism_boxplots_new.png', height=5, width=10)
+ggsave('INTERFERON_RESPONSE_pathway_delta_scores_year_racism_boxplots_new.png', height=5, width=10)
+
+infection_scores <- results_pathway_scores %>% filter(interaction=='year_racism') %>%
+  select(ID, condition, celltype, interaction, INTERFERON_ALPHA_RESPONSE, INTERFERON_GAMMA_RESPONSE) %>%
+  mutate(main_condition=recode(condition, 'NI_iva'='NI', 'NI_rv'='NI')) %>% 
+  left_join(bulk_obj@meta.data, by=c('ID'='IDs', 'main_condition'='condition', 'celltype')) %>% 
+  rename(IFNa=INTERFERON_ALPHA_RESPONSE, IFNy=INTERFERON_GAMMA_RESPONSE) %>% 
+  pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score') %>%
+  mutate(quartile=factor(ntile(Year_Racist_events, 4), levels=1:4)) %>% filter(quartile==1 | quartile==4)
+infection_scores$condition <- factor(infection_scores$condition, levels=c('NI_iva', 'IVA', 'NI_rv', 'RV'))
+ggplot(infection_scores, aes(x=condition, y=score, fill=quartile)) + geom_boxplot(alpha=0.5) + ylab('pathway score') +
+  stat_compare_means(aes(group=quartile), method='t.test', label='p.signif') +
+  facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_RESPONSE_pathway_scores_year_racism_boxplots_new.png', height=5, width=10)
 
 # life racism
 full_scores %>% filter(interaction=='life_racism') %>% 
@@ -236,7 +339,20 @@ full_scores %>% filter(interaction=='life_racism') %>%
   ggplot(., aes(x=Life_Racist_events, y=score, color=condition)) + geom_point() + ylab('delta pathway score (Inf-NI)') + xlab('life racism') +
   geom_smooth(method='lm', se=TRUE) + stat_poly_eq(aes(label=paste(after_stat(p.value.label))), formula=y~x, parse=TRUE) +
   facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
-ggsave('INTERFERON_RESPONSE_pathway_life_racism_boxplots_new.png', height=5, width=10)
+ggsave('INTERFERON_RESPONSE_pathway_delta_scores_life_racism_boxplots_new.png', height=5, width=10)
+
+infection_scores <- results_pathway_scores %>% filter(interaction=='life_racism') %>%
+  select(ID, condition, celltype, interaction, INTERFERON_ALPHA_RESPONSE, INTERFERON_GAMMA_RESPONSE) %>%
+  mutate(main_condition=recode(condition, 'NI_iva'='NI', 'NI_rv'='NI')) %>% 
+  left_join(bulk_obj@meta.data, by=c('ID'='IDs', 'main_condition'='condition', 'celltype')) %>% 
+  rename(IFNa=INTERFERON_ALPHA_RESPONSE, IFNy=INTERFERON_GAMMA_RESPONSE) %>% 
+  pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score') %>%
+  mutate(quartile=factor(ntile(Life_Racist_events, 4), levels=1:4)) %>% filter(quartile==1 | quartile==4)
+infection_scores$condition <- factor(infection_scores$condition, levels=c('NI_iva', 'IVA', 'NI_rv', 'RV'))
+ggplot(infection_scores, aes(x=condition, y=score, fill=quartile)) + geom_boxplot(alpha=0.5) + ylab('pathway score') +
+  stat_compare_means(aes(group=quartile), method='t.test', label='p.signif') +
+  facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_RESPONSE_pathway_scores_life_racism_boxplots_new.png', height=5, width=10)
 
 # stress racism
 full_scores %>% filter(interaction=='stress_racism') %>% 
@@ -246,7 +362,20 @@ full_scores %>% filter(interaction=='stress_racism') %>%
   ggplot(., aes(x=Racist_stress, y=score, color=condition)) + geom_point() + ylab('delta pathway score (Inf-NI)') + xlab('stress racism') +
   geom_smooth(method='lm', se=TRUE) + stat_poly_eq(aes(label=paste(after_stat(p.value.label))), formula=y~x, parse=TRUE) +
   facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
-ggsave('INTERFERON_RESPONSE_pathway_stress_racism_boxplots_new.png', height=5, width=10)
+ggsave('INTERFERON_RESPONSE_pathway_delta_scores_stress_racism_boxplots_new.png', height=5, width=10)
+
+infection_scores <- results_pathway_scores %>% filter(interaction=='stress_racism') %>%
+  select(ID, condition, celltype, interaction, INTERFERON_ALPHA_RESPONSE, INTERFERON_GAMMA_RESPONSE) %>%
+  mutate(main_condition=recode(condition, 'NI_iva'='NI', 'NI_rv'='NI')) %>% 
+  left_join(bulk_obj@meta.data, by=c('ID'='IDs', 'main_condition'='condition', 'celltype')) %>% 
+  rename(IFNa=INTERFERON_ALPHA_RESPONSE, IFNy=INTERFERON_GAMMA_RESPONSE) %>% 
+  pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score') %>%
+  mutate(quartile=factor(ntile(Racist_stress, 4), levels=1:4)) %>% filter(quartile==1 | quartile==4)
+infection_scores$condition <- factor(infection_scores$condition, levels=c('NI_iva', 'IVA', 'NI_rv', 'RV'))
+ggplot(infection_scores, aes(x=condition, y=score, fill=quartile)) + geom_boxplot(alpha=0.5) + ylab('pathway score') +
+  stat_compare_means(aes(group=quartile), method='t.test', label='p.signif') +
+  facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_RESPONSE_pathway_scores_stress_racism_boxplots_new.png', height=5, width=10)
 
 # kid24h racism
 full_scores %>% filter(interaction=='kid_24h_racism') %>% 
@@ -256,7 +385,20 @@ full_scores %>% filter(interaction=='kid_24h_racism') %>%
   ggplot(., aes(x=Racism_child_24hr, y=score, color=condition)) + geom_point() + ylab('delta pathway score (Inf-NI)') + xlab('kid24h racism') +
   geom_smooth(method='lm', se=TRUE) + stat_poly_eq(aes(label=paste(after_stat(p.value.label))), formula=y~x, parse=TRUE) +
   facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
-ggsave('INTERFERON_RESPONSE_pathway_kid_24h_racism_boxplots_new.png', height=5, width=10)
+ggsave('INTERFERON_RESPONSE_pathway_delta_scores_kid_24h_racism_boxplots_new.png', height=5, width=10)
+
+infection_scores <- results_pathway_scores %>% filter(interaction=='kid_24h_racism') %>%
+  select(ID, condition, celltype, interaction, INTERFERON_ALPHA_RESPONSE, INTERFERON_GAMMA_RESPONSE) %>%
+  mutate(main_condition=recode(condition, 'NI_iva'='NI', 'NI_rv'='NI')) %>% 
+  left_join(bulk_obj@meta.data, by=c('ID'='IDs', 'main_condition'='condition', 'celltype')) %>% 
+  rename(IFNa=INTERFERON_ALPHA_RESPONSE, IFNy=INTERFERON_GAMMA_RESPONSE) %>% 
+  pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score') %>%
+  mutate(quartile=factor(ntile(Racism_child_24hr, 4), levels=1:4)) %>% filter(quartile==1 | quartile==4)
+infection_scores$condition <- factor(infection_scores$condition, levels=c('NI_iva', 'IVA', 'NI_rv', 'RV'))
+ggplot(infection_scores, aes(x=condition, y=score, fill=quartile)) + geom_boxplot(alpha=0.5) + ylab('pathway score') +
+  stat_compare_means(aes(group=quartile), method='t.test', label='p.signif') +
+  facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_RESPONSE_pathway_scores_stress_kid_24h_racism_boxplots_new.png', height=5, width=10)
 
 # kid discrimination
 full_scores %>% filter(interaction=='kid_discrimination') %>% 
@@ -266,14 +408,39 @@ full_scores %>% filter(interaction=='kid_discrimination') %>%
   ggplot(., aes(x=Experience_Discrimination_child, y=score, color=condition)) + geom_point() + ylab('delta pathway score (Inf-NI)') + xlab('kid discrimination') +
   geom_smooth(method='lm', se=TRUE) + stat_poly_eq(aes(label=paste(after_stat(p.value.label))), formula=y~x, parse=TRUE) +
   facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
-ggsave('INTERFERON_RESPONSE_pathway_kid_discrimination_boxplots_new.png', height=5, width=10)
+ggsave('INTERFERON_RESPONSE_pathway_delta_scores_kid_discrimination_boxplots_new.png', height=5, width=10)
+
+infection_scores <- results_pathway_scores %>% filter(interaction=='kid_discrimination') %>%
+  select(ID, condition, celltype, interaction, INTERFERON_ALPHA_RESPONSE, INTERFERON_GAMMA_RESPONSE) %>%
+  mutate(main_condition=recode(condition, 'NI_iva'='NI', 'NI_rv'='NI')) %>% 
+  left_join(bulk_obj@meta.data, by=c('ID'='IDs', 'main_condition'='condition', 'celltype')) %>% 
+  rename(IFNa=INTERFERON_ALPHA_RESPONSE, IFNy=INTERFERON_GAMMA_RESPONSE) %>% 
+  pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score') %>%
+  mutate(quartile=factor(ntile(Experience_Discrimination_child, 4), levels=1:4)) %>% filter(quartile==1 | quartile==4)
+infection_scores$condition <- factor(infection_scores$condition, levels=c('NI_iva', 'IVA', 'NI_rv', 'RV'))
+ggplot(infection_scores, aes(x=condition, y=score, fill=quartile)) + geom_boxplot(alpha=0.5) + ylab('pathway score') +
+  stat_compare_means(aes(group=quartile), method='t.test', label='p.signif') +
+  facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_RESPONSE_pathway_scores_stress_kkid_discrimination_boxplots_new.png', height=5, width=10)
 
 # infection at collection
 full_scores %>% filter(interaction=='collection_infection') %>% 
   select(condition, celltype, infection_status, delta_INTERFERON_ALPHA_RESPONSE, delta_INTERFERON_GAMMA_RESPONSE) %>% 
   rename(IFNa=delta_INTERFERON_ALPHA_RESPONSE, IFNy=delta_INTERFERON_GAMMA_RESPONSE) %>% 
   pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score') %>% 
-  ggplot(., aes(x=condition, y=score, fill=infection_status)) + geom_boxplot() +
-  stat_compare_means(method='t.test', label='p.format') + ylab('delta pathway score (Inf-NI)') + xlab(NULL) +
+  ggplot(., aes(x=condition, y=score, fill=infection_status)) + geom_boxplot(alpha=0.5) +
+  stat_compare_means(method='t.test', label='p.signif') + ylab('delta pathway score (Inf-NI)') + xlab(NULL) +
+  facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+ggsave('INTERFERON_RESPONSE_pathway_delta_scores_collection_infection_boxplots_new.png', height=5, width=10)
+
+infection_scores <- results_pathway_scores %>% filter(interaction=='collection_infection') %>%
+  select(ID, condition, celltype, interaction, INTERFERON_ALPHA_RESPONSE, INTERFERON_GAMMA_RESPONSE) %>%
+  mutate(main_condition=recode(condition, 'NI_iva'='NI', 'NI_rv'='NI')) %>% 
+  left_join(bulk_obj@meta.data, by=c('ID'='IDs', 'main_condition'='condition', 'celltype')) %>% 
+  rename(IFNa=INTERFERON_ALPHA_RESPONSE, IFNy=INTERFERON_GAMMA_RESPONSE) %>% 
+  pivot_longer(cols=c(IFNa, IFNy), names_to='pathway', values_to='score')
+infection_scores$condition <- factor(infection_scores$condition, levels=c('NI_iva', 'IVA', 'NI_rv', 'RV'))
+ggplot(infection_scores, aes(x=condition, y=score, fill=infection_status)) + geom_boxplot(alpha=0.5) + ylab('pathway score') +
+  stat_compare_means(aes(group=infection_status), method='t.test', label='p.signif') +
   facet_grid(cols=vars(celltype), rows=vars(pathway)) + theme_bw() + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
 ggsave('INTERFERON_RESPONSE_pathway_scores_collection_infection_boxplots_new.png', height=5, width=10)
