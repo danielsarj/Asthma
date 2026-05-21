@@ -7,8 +7,7 @@ configfile: "saigeqtl_config.yaml"
 with open(config["gene_list"]) as f:
     GENE_CHR = {
         line.strip().split()[0]: line.strip().split()[1]
-       for line in f if line.strip()
-    }
+       for line in f if line.strip()}
 
 # load files
 GENES = list(GENE_CHR.keys())
@@ -18,14 +17,14 @@ PLINK_PREFIX = config["plink_prefix"]
 PLINK_IN = config["plink_in"]
 CIS_REGIONS = config["cis_regions"]
 N_PERMS = config["n_perms"]
-PERMS = ["no_perm"] + [f"perm{i}" for i in range(1, N_PERMS + 1)]
+# PERMS = ["no_perm"] + [f"perm{i}" for i in range(1, N_PERMS + 1)]
+PERMS = ["no_perm"]
 
 rule all:
     input:
         expand(
             "/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step3/outputs/{celltype}/perms/{perm}/{gene}.genePval.txt",
-            celltype=CELLTYPE, gene=GENES, perm=PERMS
-        )
+            celltype=CELLTYPE, gene=GENES, perm=PERMS)
 
 rule permute_plink:
     input:
@@ -36,10 +35,15 @@ rule permute_plink:
         bed = "/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/inputs/{perm}.bed",
         bim = "/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/inputs/{perm}.bim",
         fam = "/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/inputs/{perm}.fam"
+    benchmark:
+        "/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/benchmarks/permute_plink/{perm}.tsv"
+    log:
+        "/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/logs/permute_plink/{perm}.log"
     conda:
         "saigeqtl_env"
     shell:
         """
+        exec > {log} 2>&1
         if [ "{wildcards.perm}" = "no_perm" ]; then
             cp {input.bed} {output.bed}
             cp {input.bim} {output.bim}
@@ -60,6 +64,10 @@ rule step1:
     output:
         rda="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step1/outputs/{celltype}/perms/no_perm/{celltype}_{gene}.rda",
         variance_ratio="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step1/outputs/{celltype}/perms/no_perm/{celltype}_{gene}.varianceRatio.txt"
+    benchmark:
+        "/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/benchmarks/step1/{celltype}_{gene}.tsv"
+    log:
+        "/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/logs/step1/{celltype}_{gene}.log"
     conda:
         "saigeqtl_env"
     params:
@@ -70,6 +78,7 @@ rule step1:
         cell_id_col="cell_ID"
     shell:
         """
+        exec > {log} 2>&1
         step1_fitNULLGLMM_qtl.R \
             --useSparseGRMtoFitNULL=FALSE \
             --useGRMtoFitNULL=FALSE \
@@ -103,6 +112,10 @@ rule step2:
         assoc="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/outputs/{celltype}/perms/{perm}/{gene}.SAIGE.txt",
         index="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/outputs/{celltype}/perms/{perm}/{gene}.SAIGE.txt.index",
         ranges=temp("/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/tmp/{celltype}_{gene}_{perm}_ranges.txt")
+    benchmark:
+        "/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/benchmarks/step2/{celltype}_{gene}_{perm}.tsv"
+    log:
+        "/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/logs/step2/{celltype}_{gene}_{perm}.log"
     conda:
         "saigeqtl_env"
     params:
@@ -113,6 +126,7 @@ rule step2:
         chr=lambda wildcards: GENE_CHR[wildcards.gene]
     shell:
         """
+        exec > {log} 2>&1
         awk -v gene="{wildcards.gene}" '$1 == gene {{print $2, $3, $4}}' OFS='\t' {CIS_REGIONS} > {output.ranges}
 
         step2_tests_qtl.R \
@@ -135,10 +149,15 @@ rule step3:
         assoc="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step2/outputs/{celltype}/perms/{perm}/{gene}.SAIGE.txt"
     output:
         geneassoc="/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/step3/outputs/{celltype}/perms/{perm}/{gene}.genePval.txt"
+    benchmark:
+        "/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/benchmarks/step3/{celltype}_{gene}_{perm}.tsv"
+    log:
+        "/project/lbarreiro/USERS/daniel/asthma_project/QTLmapping/Saige/logs/step3/{celltype}_{gene}_{perm}.log"
     conda:
         "saigeqtl_env"
     shell:
         """
+        exec > {log} 2>&1
         step3_gene_pvalue_qtl.R \
             --assocFile={input.assoc} \
             --geneName={wildcards.gene} \
